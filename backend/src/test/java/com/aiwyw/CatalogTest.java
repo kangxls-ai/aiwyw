@@ -123,7 +123,7 @@ class CatalogTest {
   @Test
   @Order(1)
   void initializationDoesNotPublishInventedInventory() {
-    assertEquals(4, catalog.sections().size());
+    assertEquals(5, catalog.sections().size());
     assertTrue(catalog.publicData().products().isEmpty());
     assertEquals(
         "DRAFT",
@@ -173,14 +173,14 @@ class CatalogTest {
       int successes = 0;
       for (Future<Boolean> result : pool.invokeAll(jobs)) if (result.get()) successes++;
       assertEquals(2, successes);
-      assertEquals(6, catalog.sections().size());
+      assertEquals(7, catalog.sections().size());
     } finally {
       pool.shutdownNow();
     }
     for (var s : catalog.sections())
-      if (!Set.of("recommended", "latest", "downloads", "views").contains(s.id()))
-        catalog.deleteSection(s.id(), s.revision(), actor);
-    assertEquals(4, catalog.sections().size());
+      if (!Set.of("recommended", "latest", "downloads", "views", "articles-navigation")
+          .contains(s.id())) catalog.deleteSection(s.id(), s.revision(), actor);
+    assertEquals(5, catalog.sections().size());
   }
 
   @Test
@@ -314,6 +314,8 @@ class CatalogTest {
             .andReturn()
             .getResponse();
     assertTrue(response.getHeader("Content-Security-Policy").contains("sha256-"));
+    assertTrue(response.getContentAsString().contains("/ui-theme.css?v=2"));
+    assertFalse(catalog.page("readable-tool").contains("/ui-theme.css"));
     mvc.perform(
             get("/api/public/pages/readable-tool")
                 .header("If-None-Match", response.getHeader("ETag")))
@@ -505,5 +507,61 @@ class CatalogTest {
         () -> query.page("", "", "2026-02-01", "2026-01-01", "", List.of(), 1, 20));
     assertFalse(catalog.encode(first).contains("not-public"));
     assertFalse(catalog.encode(first).contains("private-package"));
+  }
+
+  @Test
+  @Order(15)
+  void articleNavigationIsEditableUniqueAndDoesNotReappearAfterDeletion() throws Exception {
+    var section =
+        catalog.sections().stream()
+            .filter(s -> s.config().mode().equals("ARTICLES"))
+            .findFirst()
+            .orElseThrow();
+    var c = section.config();
+    var renamed =
+        new Catalog.SectionInput(
+            "知识与教程",
+            "Knowledge",
+            "",
+            "",
+            "note",
+            true,
+            0,
+            "ARTICLES",
+            "LATEST",
+            30,
+            20,
+            List.of(),
+            List.of(),
+            section.revision());
+    catalog.saveSection(section.id(), renamed, actor);
+    assertEquals(
+        409,
+        assertThrows(Api.Failure.class, () -> catalog.saveSection(null, renamed, actor)).status);
+    var response =
+        mvc.perform(get("/api/public/catalog"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse();
+    var items = json.readTree(response.getContentAsString()).get("sections");
+    var article =
+        java.util.stream.StreamSupport.stream(items.spliterator(), false)
+            .filter(n -> n.get("kind").asText().equals("ARTICLES"))
+            .findFirst()
+            .orElseThrow();
+    assertEquals("/articles", article.get("href").asText());
+    assertEquals("知识与教程", article.get("titleZh").asText());
+    assertEquals(0, article.get("products").size());
+    var saved =
+        catalog.sections().stream()
+            .filter(s -> s.id().equals(section.id()))
+            .findFirst()
+            .orElseThrow();
+    catalog.deleteSection(saved.id(), saved.revision(), actor);
+    // 模拟服务重新初始化；迁移标记必须保留管理员已删除的决定。
+    org.springframework.test.util.ReflectionTestUtils.setField(
+        catalog, "initializedGeneration", -1L);
+    catalog.initialize();
+    assertTrue(catalog.sections().stream().noneMatch(s -> s.config().mode().equals("ARTICLES")));
   }
 }

@@ -199,7 +199,11 @@ onBeforeUnmount(() => unregister?.());
               >{{ row.applications }} 个应用</el-button
             ></template
           ></el-table-column
-        ><el-table-column label="操作" width="160"
+        ><el-table-column
+          align="center"
+          header-align="center"
+          label="操作"
+          width="160"
           ><template #default="{ row }"
             ><el-button link type="primary" @click="edit(row)">编辑</el-button
             ><el-button link type="danger" @click="remove(row)"

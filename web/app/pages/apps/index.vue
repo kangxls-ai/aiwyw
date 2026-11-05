@@ -4,10 +4,12 @@ const { catalog, error, load } = useCatalog(),
   { t } = useLanguage();
 await load();
 const catalogSections = computed(() =>
-  catalog.value.sections.map((s) => ({
-    ...s,
-    title: t(s.titleZh, s.titleEn || s.titleZh),
-  })),
+  catalog.value.sections
+    .filter((s) => s.kind !== "ARTICLES")
+    .map((s) => ({
+      ...s,
+      title: t(s.titleZh, s.titleEn || s.titleZh),
+    })),
 );
 const catalogTags = computed(() => [
   ...new Set(catalog.value.products.flatMap((p) => p.content.tags)),

@@ -14,6 +14,7 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
+      link: [{ rel: "stylesheet", href: "/ui-theme.css?v=2" }],
       title: "AI万有网",
       htmlAttrs: { lang: "zh-CN" },
       meta: [

@@ -4,9 +4,10 @@
  */
 import { adminMenuItem, type AdminMenuItem } from "~/data/adminNavigation";
 export interface ManagementTab extends AdminMenuItem {
-  kind?: "product-editor";
+  kind?: "product-editor" | "api-editor";
   editorId?: string;
   productId?: string | null;
+  apiId?: string | null;
 }
 const saves = new Map<string, () => Promise<boolean>>();
 let resolveClosing: ((value: boolean) => void) | null = null;
@@ -27,6 +28,21 @@ export function useManagementTabs() {
     closeError = useState("management-close-error", () => "");
   const route = useRoute();
   function descriptor(): ManagementTab {
+    if (route.path === "/admin/workspace" && route.query.view === "api-edit") {
+      const editor = String(route.query.editor || "");
+      if (!/^[a-f0-9-]{36}$/.test(editor)) return adminMenuItem("apis");
+      const api = route.query.api ? String(route.query.api) : null;
+      return {
+        id: `api-editor-${editor}`,
+        editorId: editor,
+        apiId: api,
+        kind: "api-editor",
+        label: api ? "编辑API" : "新增API",
+        icon: "convert",
+        description: "维护API资料与调用配置",
+        route: route.fullPath,
+      };
+    }
     if (
       route.path === "/admin/workspace" &&
       route.query.view === "application-edit"
@@ -131,6 +147,40 @@ export function useManagementTabs() {
       if (saves.get(id) === handler) saves.delete(id);
     };
   }
+  /** API编辑沿用统一页签生命周期；不同服务各自保留草稿，关闭时走相同保存提示。 */
+  async function openApiEditor(api?: { id: string; name: string }) {
+    const existing =
+      api &&
+      tabs.value.find((t) => t.kind === "api-editor" && t.apiId === api.id);
+    if (existing) return navigateTo(existing.route);
+    const editor = crypto.randomUUID();
+    const target = {
+      path: "/admin/workspace",
+      query: { view: "api-edit", editor, ...(api ? { api: api.id } : {}) },
+    };
+    tabs.value.push({
+      id: `api-editor-${editor}`,
+      kind: "api-editor",
+      editorId: editor,
+      apiId: api?.id || null,
+      label: api ? `编辑API：${api.name}` : "新增API",
+      icon: "convert",
+      route: useRouter().resolve(target).fullPath,
+      description: "维护API资料与调用配置",
+    });
+    await navigateTo(target);
+  }
+  async function updateApiEditor(id: string, apiId: string, name: string) {
+    const item = tabs.value.find((t) => t.id === id);
+    if (!item) return;
+    item.apiId = apiId;
+    item.label = `编辑API：${name}`;
+    item.route = useRouter().resolve({
+      path: "/admin/workspace",
+      query: { view: "api-edit", editor: item.editorId, api: apiId },
+    }).fullPath;
+    if (activeId.value === id) await navigateTo(item.route, { replace: true });
+  }
   async function finish(ids: string[]) {
     const selected = new Set(ids.filter((id) => id !== "dashboard"));
     if (selected.has(activeId.value)) {
@@ -230,6 +280,8 @@ export function useManagementTabs() {
     open,
     openEditor,
     updateEditor,
+    openApiEditor,
+    updateApiEditor,
     close,
     closeGroup,
     requestClose,

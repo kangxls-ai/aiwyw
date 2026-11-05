@@ -198,7 +198,7 @@ onBeforeUnmount(() => unregister?.());
           ><template #default="{ row }">{{
             row.disabled ? "停用" : "正常"
           }}</template></el-table-column
-        ><el-table-column label="操作"
+        ><el-table-column align="center" header-align="center" label="操作"
           ><template #default="{ row }"
             ><el-button link type="primary" @click="edit(row)"
               >维护权限</el-button

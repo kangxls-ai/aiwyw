@@ -149,7 +149,11 @@ onBeforeUnmount(() => unregister?.());
           ><template #default="{ row }">{{
             row.enabled ? "显示" : "隐藏"
           }}</template></el-table-column
-        ><el-table-column v-if="isAdmin" label="操作"
+        ><el-table-column
+          align="center"
+          header-align="center"
+          v-if="isAdmin"
+          label="操作"
           ><template #default="{ row }"
             ><el-button link type="primary" @click="edit(row)"
               >编辑</el-button

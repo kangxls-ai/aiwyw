@@ -103,7 +103,11 @@ async function login() {
           {{ busy ? "正在登录…" : "登录后台" }} →
         </el-button>
       </el-form>
-      <NuxtLink to="/account-access">用户登录、注册与找回密码 →</NuxtLink>
+      <nav class="auth-actions" aria-label="账户入口">
+        <NuxtLink to="/account-access">用户登录</NuxtLink>
+        <NuxtLink to="/account-access?action=register">注册</NuxtLink>
+        <NuxtLink to="/account-access?action=forgot">找回密码</NuxtLink>
+      </nav>
       <p class="field-help">普通用户可使用账户入口注册、验证邮箱及找回密码。</p>
     </div>
   </div>

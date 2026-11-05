@@ -4,9 +4,14 @@ import "~/assets/catalog-base.css";
 import "~/assets/catalog.css";
 import zhCn from "element-plus/es/locale/lang/zh-cn";
 import en from "element-plus/es/locale/lang/en";
-const { catalog, deliveryError } = useCatalog(),
+const { catalog, deliveryError, load } = useCatalog(),
   { t, toggle, zh } = useLanguage();
 const site = useState<Record<string, string>>("site-settings", () => ({}));
+// 目录之外的登录、客服与文章页同样读取可维护导航；API是末尾固定入口，不参与栏目排序。
+if (!catalog.value.sections.length) await load();
+const changed = useState("catalog-changed", () => 0);
+watch(changed, load);
+onMounted(load);
 </script>
 <template>
   <el-config-provider :locale="zh ? zhCn : en">
@@ -23,17 +28,22 @@ const site = useState<Record<string, string>>("site-settings", () => ({}));
             ></NuxtLink
           >
           <nav :aria-label="t('首页导航', 'Main navigation')">
-            <NuxtLink to="/api-services">{{
-              t("API 服务", "API services")
-            }}</NuxtLink>
             <NuxtLink
               v-for="section in catalog.sections"
               :key="section.id"
-              :to="{ path: '/apps', query: { section: section.id } }"
+              :to="
+                section.href || {
+                  path: '/apps',
+                  query: { section: section.id },
+                }
+              "
               >{{
                 t(section.titleZh, section.titleEn || section.titleZh)
               }}</NuxtLink
             >
+            <NuxtLink to="/api-services">{{
+              t("API 服务", "API services")
+            }}</NuxtLink>
           </nav>
           <button class="catalog-language" @click="toggle">
             {{ zh ? "English" : "中文" }}

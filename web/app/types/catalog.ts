@@ -52,6 +52,8 @@ export interface AdminSection {
 }
 export interface PublicSection {
   id: string;
+  kind: "APPLICATIONS" | "ARTICLES";
+  href: string;
   titleZh: string;
   titleEn: string;
   subtitleZh: string;

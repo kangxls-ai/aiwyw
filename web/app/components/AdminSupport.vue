@@ -303,7 +303,11 @@ onBeforeUnmount(() => {
           label="状态"
           sortable="custom"
           :sort-orders="['descending', 'ascending']"
-        /><el-table-column label="操作" min-width="150"
+        /><el-table-column
+          align="center"
+          header-align="center"
+          label="操作"
+          min-width="150"
           ><template #default="{ row }"
             ><template v-if="view === 'conversations'"
               ><el-button link type="primary" @click="select(row.id)"

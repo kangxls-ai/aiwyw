@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS catalog_publication (
 CREATE TABLE IF NOT EXISTS home_section (
  created_at BIGINT NOT NULL DEFAULT 0 COMMENT '创建UTC毫秒，历史无依据为0',
   id VARCHAR(36) PRIMARY KEY COMMENT '稳定栏目ID，改名不改变更多链接',
-  config_json LONGTEXT NOT NULL COMMENT '双语标题、说明、图标、启停、排序和选品规则',
+  config_json LONGTEXT NOT NULL COMMENT '双语标题说明图标启停顺序；MANUAL/TAG/AUTO为六个应用区，ARTICLES为独立文章导航',
   revision BIGINT NOT NULL COMMENT '乐观锁版本；包含停用栏目总数不超过6'
 ) COMMENT='首页栏目配置；仅删除栏目，不级联删除商品';
 

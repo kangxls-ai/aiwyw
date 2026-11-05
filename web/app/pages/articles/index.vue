@@ -8,6 +8,18 @@ const { t, zh } = useLanguage(),
   page = ref(1),
   data = ref<any>({ items: [], total: 0 }),
   error = ref("");
+const { catalog } = useCatalog();
+const articleColumn = computed(() =>
+  catalog.value.sections.find((s) => s.kind === "ARTICLES"),
+);
+const columnTitle = computed(() =>
+  articleColumn.value
+    ? t(
+        articleColumn.value.titleZh,
+        articleColumn.value.titleEn || articleColumn.value.titleZh,
+      )
+    : t("文章与教程", "Articles and tutorials"),
+);
 async function load() {
   try {
     data.value = await request("/api/public/content", {
@@ -35,7 +47,7 @@ async function load() {
 }
 await load();
 useHead(() => ({
-  title: t("文章与教程 · AI万有网", "Articles and tutorials · AI万有网"),
+  title: `${columnTitle.value} · AI万有网`,
   meta: [
     {
       name: "description",
@@ -49,7 +61,18 @@ useHead(() => ({
 </script>
 <template>
   <main class="directory-width content-browse">
-    <h1>{{ t("文章与教程", "Articles and tutorials") }}</h1>
+    <h1>{{ columnTitle }}</h1>
+    <p
+      v-if="articleColumn?.subtitleZh || articleColumn?.subtitleEn"
+      class="admin-muted"
+    >
+      {{
+        t(
+          articleColumn.subtitleZh,
+          articleColumn.subtitleEn || articleColumn.subtitleZh,
+        )
+      }}
+    </p>
     <el-alert
       v-if="error"
       :title="error"

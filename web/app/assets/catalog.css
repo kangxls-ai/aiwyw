@@ -145,7 +145,7 @@
   resize: vertical;
 }
 .catalog-form small {
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
   color: #828da0;
 }
 .catalog-editor-card {
@@ -203,7 +203,7 @@
   color: #8067bf;
   padding: 5px 8px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
 }
 .catalog-status {
   background: #f2eefa;
@@ -234,7 +234,7 @@
 }
 .catalog-history {
   padding: 10px 0;
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
   color: #7c879b;
 }
 .catalog-toolbar {
@@ -303,7 +303,7 @@
     padding: 12px 8px;
   }
   .catalog-language {
-    font-size: 11px;
+    font-size: var(--ui-help, 13px);
     padding: 7px 10px;
   }
 }

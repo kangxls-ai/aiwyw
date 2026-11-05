@@ -2,9 +2,25 @@
 /** API配置、密钥和计量各按菜单权限加载；分页及排序在服务端执行，不将上游密钥放入编辑回显。 */
 import { ElMessageBox } from "element-plus";
 import { businessTime, decimalUnits } from "~/utils/commerce";
-const props = defineProps<{ view: string }>(),
+const props = defineProps<{
+    view: string;
+    editor?: boolean;
+    tabId?: string;
+    apiId?: string | null;
+  }>(),
   { request, message } = useApi(),
-  { dirty, registerSave } = useManagementTabs();
+  {
+    dirty,
+    registerSave,
+    openApiEditor,
+    updateApiEditor,
+    close: closeTab,
+  } = useManagementTabs();
+const dirtyId = computed(() => props.tabId || props.view);
+const apiChanged = useState("api-management-changed", () => 0);
+watch(apiChanged, () => {
+  if (!props.editor) load();
+});
 const labels: Record<string, string> = {
   apis: "API 管理",
   plans: "套餐与订阅",
@@ -56,7 +72,7 @@ const initial = () => ({
 const form = reactive(initial());
 watch(
   () => JSON.stringify(form),
-  (v) => (dirty.value[props.view] = editing.value && v !== baseline.value),
+  (v) => (dirty.value[dirtyId.value] = editing.value && v !== baseline.value),
 );
 async function load() {
   try {
@@ -86,7 +102,12 @@ watch(kind, () => {
   load();
 });
 function edit(row?: any) {
-  if (dirty.value[props.view] && !window.confirm("放弃未保存的编辑？")) return;
+  if (props.view === "apis" && !props.editor) {
+    openApiEditor(row);
+    return;
+  }
+  if (dirty.value[dirtyId.value] && !window.confirm("放弃未保存的编辑？"))
+    return;
   Object.assign(
     form,
     initial(),
@@ -107,7 +128,7 @@ function edit(row?: any) {
   form.clearSecret = false;
   editing.value = true;
   baseline.value = JSON.stringify(form);
-  dirty.value[props.view] = false;
+  dirty.value[dirtyId.value] = false;
 }
 async function save() {
   if (!editing.value) return true;
@@ -116,15 +137,23 @@ async function save() {
   try {
     const endpoint =
       props.view === "apis" ? "/api/admin/apis" : "/api/admin/api-plans";
-    await request(endpoint + (form.id ? "/" + form.id : ""), {
-      method: form.id ? "PUT" : "POST",
-      body: form,
-    });
+    const saved = await request<{ id: string }>(
+      endpoint + (form.id ? "/" + form.id : ""),
+      {
+        method: form.id ? "PUT" : "POST",
+        body: form,
+      },
+    );
     editing.value = false;
     form.secret = "";
-    dirty.value[props.view] = false;
+    dirty.value[dirtyId.value] = false;
     notice.value = "已保存，已有购买和调用条款不被覆盖";
-    await load();
+    if (props.editor) {
+      const rows = await request<any[]>("/api/admin/apis");
+      edit(rows.find((r) => r.id === saved.id));
+      await updateApiEditor(dirtyId.value, saved.id, form.name);
+      apiChanged.value++;
+    } else await load();
     apiOptions.value = (await request<any>("/api/public/apis")).apis;
     return true;
   } catch (e) {
@@ -135,10 +164,14 @@ async function save() {
   }
 }
 function close() {
-  if (!dirty.value[props.view] || window.confirm("放弃未保存的编辑？")) {
+  if (props.editor) {
+    closeTab(dirtyId.value);
+    return;
+  }
+  if (!dirty.value[dirtyId.value] || window.confirm("放弃未保存的编辑？")) {
     editing.value = false;
     form.secret = "";
-    dirty.value[props.view] = false;
+    dirty.value[dirtyId.value] = false;
   }
 }
 async function revoke(row: any) {
@@ -177,8 +210,19 @@ async function review(row: any, approve: boolean) {
 }
 let unregister: (() => void) | undefined;
 onMounted(async () => {
-  unregister = registerSave(props.view, save);
-  await load();
+  unregister = registerSave(dirtyId.value, save);
+  if (props.editor) {
+    try {
+      if (props.apiId) {
+        const rows = await request<any[]>("/api/admin/apis");
+        const row = rows.find((r) => r.id === props.apiId);
+        if (!row) throw new Error("API不存在或已删除，请返回列表刷新");
+        edit(row);
+      } else edit();
+    } catch (e) {
+      error.value = message(e);
+    }
+  } else await load();
   apiOptions.value = (await request<any>("/api/public/apis")).apis;
 });
 onBeforeUnmount(() => unregister?.());
@@ -187,7 +231,7 @@ onBeforeUnmount(() => unregister?.());
   <section>
     <div class="management-panel-heading">
       <div>
-        <h1>{{ labels[view] }}</h1>
+        <h1>{{ editor ? (form.id ? "编辑API" : "新增API") : labels[view] }}</h1>
         <p>
           {{
             view === "usage"
@@ -197,7 +241,11 @@ onBeforeUnmount(() => unregister?.());
         </p>
       </div>
       <el-button
-        v-if="['apis', 'plans'].includes(view) && kind !== 'subscriptions'"
+        v-if="
+          !editor &&
+          ['apis', 'plans'].includes(view) &&
+          kind !== 'subscriptions'
+        "
         type="primary"
         @click="edit()"
         >{{ view === "apis" ? "新增API" : "新增套餐" }}</el-button
@@ -231,7 +279,9 @@ onBeforeUnmount(() => unregister?.());
             }}{{ view === "apis" ? "API" : "套餐" }}</strong
           ><el-button type="primary" :loading="busy" @click="save"
             >保存</el-button
-          ><el-button @click="close">收起编辑</el-button>
+          ><el-button @click="close">{{
+            editor ? "关闭页签" : "收起编辑"
+          }}</el-button>
         </div></template
       >
       <el-form
@@ -341,7 +391,7 @@ onBeforeUnmount(() => unregister?.());
         /></el-form-item>
       </el-form>
     </el-card>
-    <el-card shadow="never"
+    <el-card v-if="!editor" shadow="never"
       ><el-form
         label-position="right"
         label-width="110px"
@@ -517,6 +567,8 @@ onBeforeUnmount(() => unregister?.());
           }}</template></el-table-column
         >
         <el-table-column
+          align="center"
+          header-align="center"
           v-if="['apis', 'plans', 'keys', 'api-refunds'].includes(kind)"
           label="操作"
           min-width="140"

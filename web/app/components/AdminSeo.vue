@@ -63,9 +63,7 @@ onBeforeUnmount(() => unregister?.());
         <h1>SEO 与多语言</h1>
         <p>
           已发布内容
-          {{
-            published
-          }}
+          {{ published }}
           篇。页面包含canonical、语言标记和结构化正文，收录结果由搜索引擎决定。
         </p>
       </div>

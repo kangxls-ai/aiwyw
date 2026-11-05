@@ -1,4 +1,5 @@
 <script setup lang="ts">
+definePageMeta({ layout: "catalog" });
 import { ElMessage, ElMessageBox } from "element-plus";
 /** 个人中心只读取当前会话归属的数据；积分展示来自服务器，前端没有本地钱包。 */
 import "~/assets/element-admin.css";
@@ -40,6 +41,8 @@ const names = computed(() => ({
   resources: t("我的资源", "My resources"),
   refunds: t("退款申请", "Refunds"),
   notifications: t("站内通知", "Notifications"),
+  profile: t("个人资料与安全", "Profile and security"),
+  services: t("API与客服", "APIs and support"),
 }));
 async function load() {
   try {
@@ -56,7 +59,7 @@ async function load() {
 }
 const listOrder = useListOrder(list, page);
 async function list() {
-  if (tab.value === "notifications") return;
+  if (!kinds[tab.value]) return;
   busy.value = true;
   try {
     data.value = await request("/api/member/list/" + kinds[tab.value], {
@@ -220,15 +223,31 @@ onMounted(load);
       </div>
       <el-button @click="logout">{{ t("退出登录", "Sign out") }}</el-button>
     </div>
-    <AccountProfileSettings v-if="profile" @changed="load" />
-    <div class="admin-table-actions" style="margin: 20px 0">
-      <NuxtLink class="button secondary" to="/api-services">{{
-        t("API、Key与订阅", "APIs, keys and subscriptions")
-      }}</NuxtLink
-      ><NuxtLink class="button secondary" to="/support">{{
-        t("咨询客服与查看历史", "Support and history")
-      }}</NuxtLink>
-    </div>
+    <!-- 单层功能页签拆开资料、交易与服务入口，余额仍由服务器统一读取。 -->
+    <el-tabs v-model="tab" class="member-tabs">
+      <el-tab-pane
+        v-for="(name, key) in names"
+        :key="key"
+        :name="key"
+        :label="name"
+      />
+    </el-tabs>
+    <AccountProfileSettings
+      v-if="profile"
+      v-show="tab === 'profile'"
+      @changed="load"
+    />
+    <el-card v-if="tab === 'services'" shadow="never">
+      <h2>{{ t("服务与支持", "Services and support") }}</h2>
+      <div class="member-service-links">
+        <NuxtLink class="button secondary" to="/api-services">{{
+          t("API、Key与订阅", "APIs, keys and subscriptions")
+        }}</NuxtLink>
+        <NuxtLink class="button secondary" to="/support">{{
+          t("咨询客服与查看历史", "Support and history")
+        }}</NuxtLink>
+      </div>
+    </el-card>
     <el-alert
       v-if="error"
       :title="error"
@@ -256,13 +275,7 @@ onMounted(load);
         t("刷新状态", "Refresh")
       }}</el-button></el-alert
     >
-    <el-switch
-      v-if="profile"
-      v-model="profile.businessEmail"
-      :active-text="t('接收业务邮件', 'Receive transaction emails')"
-      @change="(value) => preference(Boolean(value))"
-    />
-    <div class="member-grid">
+    <div v-if="tab === 'recharge'" class="member-grid">
       <el-card shadow="never"
         ><h3>{{ t("可用积分", "Available points") }}</h3>
         <div class="money">{{ wallet.balance }}</div>
@@ -324,15 +337,14 @@ onMounted(load);
         </p></el-card
       >
     </div>
-    <el-card shadow="never"
-      ><el-tabs v-model="tab"
-        ><el-tab-pane
-          v-for="(name, key) in names"
-          :key="key"
-          :name="key"
-          :label="name" /></el-tabs
-      ><template v-if="tab === 'notifications'"
-        ><el-empty
+    <el-card v-if="kinds[tab] || tab === 'notifications'" shadow="never"
+      ><template v-if="tab === 'notifications'">
+        <el-switch
+          v-if="profile"
+          v-model="profile.businessEmail"
+          :active-text="t('接收业务邮件', 'Receive transaction emails')"
+          @change="(value) => preference(Boolean(value))" />
+        <el-empty
           v-if="!notifications.length"
           :description="t('暂无通知', 'No notifications')" />
         <div v-for="item in notifications" :key="item.id">
@@ -399,7 +411,11 @@ onMounted(load);
             ><template #default="{ row }">{{
               commerceStates[row.state] || "—"
             }}</template></el-table-column
-          ><el-table-column :label="t('操作', 'Actions')" min-width="220"
+          ><el-table-column
+            align="center"
+            header-align="center"
+            :label="t('操作', 'Actions')"
+            min-width="220"
             ><template #default="{ row }"
               ><template
                 v-if="
@@ -443,7 +459,7 @@ onMounted(load);
           layout="total,prev,pager,next"
           @current-change="list" /></template
     ></el-card>
-    <el-card shadow="never"
+    <el-card v-if="tab === 'points'" shadow="never"
       ><template #header>{{ t("积分批次", "Point batches") }}</template
       ><el-table
         :default-sort="{ prop: 'created_at', order: 'descending' }"

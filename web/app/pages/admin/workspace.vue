@@ -17,8 +17,15 @@ const view = (tab: { route: string }) =>
     :key="tab.id"
     :data-workspace="tab.id"
   >
+    <AdminApi
+      v-if="tab.kind === 'api-editor'"
+      view="apis"
+      editor
+      :tab-id="tab.id"
+      :api-id="tab.apiId || null"
+    />
     <AdminProductEditor
-      v-if="tab.kind === 'product-editor'"
+      v-else-if="tab.kind === 'product-editor'"
       :tab-id="tab.id"
       :initial-product-id="tab.productId || null"
     />

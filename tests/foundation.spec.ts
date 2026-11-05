@@ -1228,6 +1228,9 @@ test("profile nickname and password, asymmetric menu tree and light authenticati
     .fill("updated-member-password-123");
   await member.getByRole("button", { name: "确认", exact: true }).click();
   await expect(member).toHaveURL(/\/account$/);
+  await member
+    .getByRole("tab", { name: "个人资料与安全", exact: true })
+    .click();
   await member.getByLabel("个人昵称", { exact: true }).fill("我的新昵称");
   await member.getByRole("button", { name: "保存昵称", exact: true }).click();
   await expect(member.getByText("昵称已更新", { exact: true })).toBeVisible();
@@ -1285,6 +1288,9 @@ test("profile nickname and password, asymmetric menu tree and light authenticati
     .fill("brand-new-member-password-456");
   await member.getByRole("button", { name: "确认", exact: true }).click();
   await expect(member).toHaveURL(/\/account$/);
+  await member
+    .getByRole("tab", { name: "个人资料与安全", exact: true })
+    .click();
   await expect(member.getByLabel("个人昵称", { exact: true })).toHaveValue(
     "我的新昵称",
   );
@@ -1306,8 +1312,10 @@ test("API configuration, one-time keys, billable debugger and subscription refun
     errors: string[] = [];
   admin.on("pageerror", (e) => errors.push(e.message));
   await admin.goto("/admin/workspace?view=apis");
-  const apiPanel = admin.locator('[data-workspace="apis"]');
-  await apiPanel.getByRole("button", { name: "新增API", exact: true }).click();
+  const apiList = admin.locator('[data-workspace="apis"]');
+  await apiList.getByRole("button", { name: "新增API", exact: true }).click();
+  const apiPanel = admin.locator('[data-workspace^="api-editor-"]:visible');
+  await expect(apiPanel.getByRole("table")).toHaveCount(0);
   await apiPanel
     .getByLabel("API配置名称", { exact: true })
     .fill("浏览器文本API");
@@ -1760,4 +1768,174 @@ test("guest support, private image, claim and transfer, moderated feedback and o
   await stranger.close();
   await guestContext.close();
   await adminContext.close();
+});
+
+// 验证真实导航维护、多编辑页签的草稿隔离与关闭决策，并查看实际桌面/移动端排版。
+test("consistent typography, managed article navigation, API editor tabs and account sections", async ({
+  browser,
+}) => {
+  test.setTimeout(180000);
+  const context = await browser.newContext({
+    storageState: join(directory(), "admin-state.json"),
+  });
+  await context.addCookies([
+    { name: "aiwyw_language", value: "zh", url: "http://127.0.0.1:3000" },
+  ]);
+  const admin = await context.newPage(),
+    errors: string[] = [];
+  admin.on("pageerror", (e) => errors.push(e.message));
+  await admin.goto("/admin/workspace?view=apis");
+  const list = admin.locator('[data-workspace="apis"]');
+  await list.getByRole("button", { name: "新增API", exact: true }).click();
+  const first = admin.locator('[data-workspace^="api-editor-"]:visible');
+  const firstId = await first.getAttribute("data-workspace");
+  await first.getByLabel("API配置名称", { exact: true }).fill("草稿一独立保留");
+  await menu(admin, "API 管理");
+  await list.getByRole("button", { name: "新增API", exact: true }).click();
+  await admin
+    .locator('[data-workspace^="api-editor-"]:visible')
+    .getByLabel("API配置名称", { exact: true })
+    .fill("草稿二独立保留");
+  await expect(admin.locator('[data-workspace^="api-editor-"]')).toHaveCount(2);
+  await admin
+    .getByRole("tab", { name: "新增API", exact: true })
+    .first()
+    .click();
+  await expect(
+    admin
+      .locator('[data-workspace="' + firstId + '"]')
+      .getByLabel("API配置名称", { exact: true }),
+  ).toHaveValue("草稿一独立保留");
+  await first.getByRole("button", { name: "关闭页签", exact: true }).click();
+  const close = admin.getByRole("dialog", {
+    name: "关闭前保存修改？",
+    exact: true,
+  });
+  await close.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(first).toBeVisible();
+  await first.getByRole("button", { name: "关闭页签", exact: true }).click();
+  await close
+    .getByRole("button", { name: "放弃修改并关闭", exact: true })
+    .click();
+  await admin.getByRole("tab", { name: "新增API", exact: true }).click();
+  await admin
+    .locator('[data-workspace^="api-editor-"]:visible')
+    .getByRole("button", { name: "关闭页签", exact: true })
+    .click();
+  await close
+    .getByRole("button", { name: "放弃修改并关闭", exact: true })
+    .click();
+  await menu(admin, "用户与权限");
+  await menu(admin, "角色与权限");
+  const roles = admin.locator('[data-workspace="roles"]');
+  await expect(
+    roles.getByRole("columnheader", { name: "绑定菜单", exact: true }),
+  ).toHaveCount(0);
+  await roles
+    .getByRole("button", { name: "编辑", exact: true })
+    .first()
+    .click();
+  await expect(admin.getByRole("dialog").getByRole("tree")).toBeVisible();
+  await admin
+    .getByRole("dialog")
+    .getByRole("button", { name: "取消", exact: true })
+    .click();
+  await menu(admin, "首页栏目");
+  const sections = admin.locator('[data-workspace="sections"]');
+  await sections
+    .getByRole("row")
+    .filter({ hasText: "文章与教程导航" })
+    .getByRole("button", { name: "编辑", exact: true })
+    .click();
+  await sections.getByLabel("栏目名称", { exact: true }).fill("使用指南");
+  await sections.getByLabel("栏目顺序", { exact: true }).fill("0");
+  await sections.getByRole("button", { name: "保存修改", exact: true }).click();
+  await expect(sections.getByRole("status")).toHaveText("栏目已保存并生效");
+  await sections.getByRole("button", { name: "新增栏目", exact: true }).click();
+  await sections.getByLabel("栏目名称", { exact: true }).fill("快捷工具");
+  await sections.getByRole("button", { name: "保存修改", exact: true }).click();
+  await expect(sections.getByRole("status")).toHaveText("栏目已保存并生效");
+  const guest = await browser.newPage({
+    viewport: { width: 1440, height: 1000 },
+  });
+  guest.on("pageerror", (e) => errors.push(e.message));
+  await guest
+    .context()
+    .addCookies([
+      { name: "aiwyw_language", value: "zh", url: "http://127.0.0.1:3000" },
+    ]);
+  await guest.goto("/");
+  const nav = guest.getByRole("navigation", { name: "首页导航", exact: true });
+  await expect(nav.getByRole("link").last()).toHaveAttribute(
+    "href",
+    "/api-services",
+  );
+  await expect(
+    nav.getByRole("link", { name: "使用指南", exact: true }),
+  ).toHaveAttribute("href", "/articles");
+  await expect(
+    nav.getByRole("link", { name: "快捷工具", exact: true }),
+  ).toBeVisible();
+  await expect(
+    guest.locator(".directory-section").filter({ hasText: "使用指南" }),
+  ).toHaveCount(0);
+  await expect(nav.getByRole("link").last()).toHaveCSS("font-size", "14px");
+  await guest.screenshot({ path: "test-results/ui-home.png", fullPage: true });
+  await nav.getByRole("link", { name: "使用指南", exact: true }).click();
+  await expect(guest).toHaveURL(/\/articles$/);
+  await guest.goto("/account-access");
+  const auth = guest.locator(".auth-actions");
+  await expect(auth.getByRole("button")).toHaveCount(3);
+  await expect(auth.getByRole("button").first()).toHaveCSS("font-size", "14px");
+  const buttons = await auth.getByRole("button").evaluateAll((nodes) =>
+    nodes.map((n) => {
+      const r = n.getBoundingClientRect();
+      return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
+    }),
+  );
+  expect(
+    Math.max(...buttons.map((b) => b.top)) -
+      Math.min(...buttons.map((b) => b.top)),
+  ).toBeLessThan(2);
+  const box = await auth.boundingBox();
+  expect(
+    Math.abs(
+      (buttons[0]!.left + buttons[2]!.right) / 2 - (box!.x + box!.width / 2),
+    ),
+  ).toBeLessThan(3);
+  await guest.screenshot({ path: "test-results/ui-auth.png", fullPage: true });
+  await guest.getByLabel("邮箱", { exact: true }).fill("member@example.com");
+  await guest
+    .getByLabel("密码", { exact: true })
+    .fill("brand-new-member-password-456");
+  await guest.getByRole("button", { name: "确认", exact: true }).click();
+  await expect(guest).toHaveURL(/\/account$/);
+  await expect(guest.getByLabel("个人昵称", { exact: true })).toBeHidden();
+  await guest.getByRole("tab", { name: "个人资料与安全", exact: true }).click();
+  await expect(guest.getByLabel("个人昵称", { exact: true })).toBeVisible();
+  await expect(
+    guest.getByRole("button", { name: "创建充值订单", exact: true }),
+  ).toHaveCount(0);
+  await guest.screenshot({
+    path: "test-results/ui-account.png",
+    fullPage: true,
+  });
+  await guest.getByRole("tab", { name: "API与客服", exact: true }).click();
+  await expect(
+    guest.getByRole("link", { name: "API、Key与订阅", exact: true }),
+  ).toBeVisible();
+  await guest.setViewportSize({ width: 390, height: 844 });
+  await guest.screenshot({
+    path: "test-results/ui-account-mobile.png",
+    fullPage: true,
+  });
+  expect(
+    await guest.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth + 1,
+    ),
+  ).toBe(true);
+  await admin.screenshot({ path: "test-results/ui-admin.png", fullPage: true });
+  expect(errors).toEqual([]);
+  await guest.close();
+  await context.close();
 });

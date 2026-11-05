@@ -168,6 +168,12 @@ public class CatalogController {
                     Map.of(
                         "id",
                         s.id(),
+                        "kind",
+                        s.config().mode().equals("ARTICLES") ? "ARTICLES" : "APPLICATIONS",
+                        "href",
+                        s.config().mode().equals("ARTICLES")
+                            ? "/articles"
+                            : "/apps?section=" + s.id(),
                         "titleZh",
                         s.config().titleZh(),
                         "titleEn",
@@ -212,14 +218,14 @@ public class CatalogController {
       @PathVariable String slug, HttpServletRequest req, HttpServletResponse res) {
     // 不要求Nuxt渲染，不查商品详情接口；内存指针命中文件。no-cache允许浏览器验证更新，CDN可配置短TTL。
     visitor(req, res);
-    String html = catalog.page(slug);
+    String html = UiPresentation.decorate(catalog.page(slug));
     statistics.pageEvent("/apps/" + slug, req, res);
     String etag = "\"" + catalog.hash(html) + "\"";
     String csp =
         "default-src 'self'; script-src 'sha256-"
             + StaticProductPage.scriptHash()
-            + "'; style-src 'unsafe-inline'; img-src 'self' https:; connect-src 'self'; base-uri"
-            + " 'none'; frame-ancestors 'none'; form-action 'none'";
+            + "'; style-src 'self' 'unsafe-inline'; img-src 'self' https:; connect-src 'self';"
+            + " base-uri 'none'; frame-ancestors 'none'; form-action 'none'";
     if (etag.equals(req.getHeader("If-None-Match")))
       return ResponseEntity.status(304)
           .eTag(etag)

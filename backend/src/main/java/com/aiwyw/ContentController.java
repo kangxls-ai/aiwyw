@@ -113,7 +113,7 @@ public class ContentController {
       jakarta.servlet.http.HttpServletResponse response) {
     var p = service.page(slug, lang);
     statistics.pageEvent("/articles/" + slug, r, response);
-    String etag = "\"" + p.hash() + "\"";
+    String etag = "\"" + p.hash() + "-ui2\"";
     var headers = new HttpHeaders();
     headers.setETag(etag);
     headers.setCacheControl("no-cache");
@@ -121,11 +121,11 @@ public class ContentController {
       headers.set("X-Robots-Tag", "noindex, nofollow");
     headers.set(
         "Content-Security-Policy",
-        "default-src 'none'; img-src 'self' https: data:; style-src 'unsafe-inline'; script-src"
-            + " 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
+        "default-src 'none'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline';"
+            + " script-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
     if (etag.equals(r.getHeader("If-None-Match")))
       return new ResponseEntity<>(null, headers, HttpStatus.NOT_MODIFIED);
-    return new ResponseEntity<>(p.html(), headers, HttpStatus.OK);
+    return new ResponseEntity<>(UiPresentation.decorate(p.html()), headers, HttpStatus.OK);
   }
 
   @GetMapping("/api/admin/seo")

@@ -13,6 +13,9 @@ const sections = ref<AdminSection[]>([]),
   knownTags = ref<string[]>([]),
   base = ref("");
 const changed = useState("catalog-changed", () => 0);
+const applicationCount = computed(
+  () => sections.value.filter((s) => s.config.mode !== "ARTICLES").length,
+);
 const empty = (): SectionConfig => ({
   titleZh: "",
   titleEn: "",
@@ -46,13 +49,13 @@ async function load() {
     request("/api/admin/catalog/products/options"),
   ]);
 }
-function open(value?: AdminSection) {
+function open(value?: AdminSection, mode?: string) {
   if (dirty.value.sections && !window.confirm("放弃当前栏目未保存修改？"))
     return;
   id.value = value?.id || null;
   form.value = value
     ? { ...structuredClone(toRaw(value.config)), revision: value.revision }
-    : empty();
+    : { ...empty(), ...(mode ? { mode } : {}) };
 
   editing.value = true;
   base.value = snapshot();
@@ -135,11 +138,22 @@ onBeforeUnmount(() => unregister?.());
       <div>
         <span>HOME SECTIONS</span>
         <h1>首页栏目</h1>
-        <p>维护选品与展示顺序，包含停用栏目最多6个。</p>
+        <p>
+          应用展示栏目最多6个（含停用）；文章栏目独立维护，API固定在顶部导航末尾。
+        </p>
       </div>
-      <el-button type="primary" :disabled="sections.length >= 6" @click="open()"
-        >新增栏目</el-button
-      >
+      <div class="admin-table-actions">
+        <el-button
+          type="primary"
+          :disabled="applicationCount >= 6"
+          @click="open()"
+          >新增栏目</el-button
+        ><el-button
+          v-if="!sections.some((s) => s.config.mode === 'ARTICLES')"
+          @click="open(undefined, 'ARTICLES')"
+          >添加文章栏目</el-button
+        >
+      </div>
     </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <p v-if="notice" class="alert success" role="status">{{ notice }}</p>
@@ -187,9 +201,12 @@ onBeforeUnmount(() => unregister?.());
           label="选品"
           min-width="130"
           ><template #default="{ row }">{{
-            { MANUAL: "人工选品", TAG: "按标签", AUTO: "自动排序" }[
-              row.config.mode as "MANUAL" | "TAG" | "AUTO"
-            ]
+            {
+              MANUAL: "人工选品",
+              TAG: "按标签",
+              AUTO: "自动排序",
+              ARTICLES: "文章与教程导航",
+            }[row.config.mode as "MANUAL" | "TAG" | "AUTO" | "ARTICLES"]
           }}</template></el-table-column
         ><el-table-column
           prop="config.enabled"
@@ -202,7 +219,11 @@ onBeforeUnmount(() => unregister?.());
               row.config.enabled ? "显示" : "停用"
             }}</el-tag></template
           ></el-table-column
-        ><el-table-column label="操作" width="160"
+        ><el-table-column
+          align="center"
+          header-align="center"
+          label="操作"
+          width="160"
           ><template #default="{ row }"
             ><el-button link type="primary" @click="open(row as AdminSection)"
               >编辑</el-button
@@ -243,10 +264,11 @@ onBeforeUnmount(() => unregister?.());
         <el-form-item label="顺序"
           ><el-input-number
             v-model="form.position"
+            aria-label="栏目顺序"
             :min="0"
             :max="1000"
             controls-position="right" /></el-form-item
-        ><el-form-item label="首页显示数量"
+        ><el-form-item v-if="form.mode !== 'ARTICLES'" label="首页显示数量"
           ><el-input-number
             v-model="form.limit"
             :min="1"
@@ -273,17 +295,25 @@ onBeforeUnmount(() => unregister?.());
         ><el-form-item label="显示状态"
           ><el-switch
             v-model="form.enabled"
+            aria-label="栏目显示状态"
             active-text="显示"
             inactive-text="停用"
         /></el-form-item>
-        <el-form-item label="选品方式"
-          ><el-select v-model="form.mode"
+        <el-form-item label="栏目内容"
+          ><el-select v-model="form.mode" aria-label="栏目内容类型"
             ><el-option value="MANUAL" label="人工选品" /><el-option
               value="TAG"
               label="按标签筛选" /><el-option
               value="AUTO"
-              label="自动选品" /></el-select></el-form-item
-        ><el-form-item label="排序依据"
+              label="自动选品" /><el-option
+              value="ARTICLES"
+              label="文章与教程（顶部导航）"
+              :disabled="
+                sections.some(
+                  (s) => s.config.mode === 'ARTICLES' && s.id !== id,
+                )
+              " /></el-select></el-form-item
+        ><el-form-item v-if="form.mode !== 'ARTICLES'" label="排序依据"
           ><el-select v-model="form.sort"
             ><el-option value="LATEST" label="首次上架时间" /><el-option
               value="VIEWS"
@@ -292,7 +322,11 @@ onBeforeUnmount(() => unregister?.());
               label="下载量" /></el-select
         ></el-form-item>
         <el-form-item
-          v-if="form.mode !== 'MANUAL' && form.sort !== 'LATEST'"
+          v-if="
+            form.mode !== 'ARTICLES' &&
+            form.mode !== 'MANUAL' &&
+            form.sort !== 'LATEST'
+          "
           label="统计周期"
           ><el-select v-model="form.days"
             ><el-option :value="7" label="近7天" /><el-option

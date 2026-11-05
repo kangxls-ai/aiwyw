@@ -88,7 +88,7 @@
   font-weight: 650;
 }
 .management-brand strong > span {
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
   font-weight: 400;
   color: #a7a4ba;
   border-left: 1px solid #deddec;
@@ -96,7 +96,7 @@
   letter-spacing: 1px;
 }
 .management-brand p {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #abb0bf;
   margin-top: 7px;
   letter-spacing: 0.5px;
@@ -110,7 +110,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #9d98b4 !important;
 }
 .management-visit svg:last-child {
@@ -120,7 +120,7 @@
   color: #b2aacb;
 }
 .management-mode {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #a69ab9;
   border: 1px solid #e6ddf4;
   background: #f7f2fd;
@@ -162,7 +162,7 @@
   right: 0;
 }
 .management-user > span:nth-child(2) > strong {
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
   font-weight: 500;
   display: block;
   max-width: 200px;
@@ -171,7 +171,7 @@
   white-space: nowrap;
 }
 .management-user small {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #b3abc3;
   display: block;
   margin-top: 5px;
@@ -204,7 +204,7 @@
   border-radius: 6px;
   background: none;
   padding: 12px 9px;
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   color: #9d94b1;
   text-align: left;
 }
@@ -234,7 +234,7 @@
   align-items: center;
   justify-content: space-between;
   color: #b2b5c3;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   letter-spacing: 1px;
   padding: 4px 14px 17px;
 }
@@ -264,7 +264,7 @@
   text-align: left;
   color: #9599ac;
   border-radius: 7px;
-  font-size: 12px !important;
+  font-size: var(--ui-help, 13px) !important;
 }
 .management-group-toggle > svg:first-child {
   width: 15px;
@@ -301,7 +301,7 @@
   border-radius: 6px;
   width: 100%;
   color: #a1a5b6;
-  font-size: 11px !important;
+  font-size: var(--ui-help, 13px) !important;
   text-align: left;
   min-height: 35px;
 }
@@ -342,7 +342,7 @@
   padding: 20px 12px 0;
   margin-top: auto;
   color: #a2a8b9;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
 }
 .management-sidebar-foot > span:first-child {
   width: 6px;
@@ -351,7 +351,7 @@
   background: #acc6b4;
 }
 .management-sidebar-foot small {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   margin-top: 5px;
   color: #c3c6d1;
 }
@@ -411,7 +411,7 @@
   gap: 8px;
   min-height: 44px;
   color: #a3a5b8;
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   border: 0;
   background: none;
   padding: 0 11px 0 13px;
@@ -462,7 +462,7 @@
   justify-content: space-between;
   gap: 20px;
   padding: 20px 32px 0;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #b1b4c3;
 }
 .management-workspace-bar > span {
@@ -498,7 +498,7 @@
   margin: 0 32px;
   padding: 17px 0;
   border-top: 1px solid #e9edf5;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #b6bdca;
 }
 .management-panel-heading {
@@ -510,7 +510,7 @@
 }
 .management-panel-heading > div > span {
   display: block;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   letter-spacing: 1.5px;
   color: #aba4c0;
   margin-bottom: 9px;
@@ -521,7 +521,7 @@
   font-weight: 600;
 }
 .management-panel-heading p {
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   color: #abb0be;
   line-height: 1.9;
   margin-top: 10px;
@@ -536,7 +536,7 @@
   border: 0;
   border-radius: 7px;
   color: #fff !important;
-  font-size: 11px !important;
+  font-size: var(--ui-help, 13px) !important;
   padding: 10px 16px;
   white-space: nowrap;
 }
@@ -555,7 +555,7 @@
   color: #91b09f;
   border-radius: 5px;
   padding: 5px 8px;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   white-space: nowrap;
 }
 .management-status-badge.pending {
@@ -581,7 +581,7 @@
   z-index: 1;
 }
 .management-welcome > div > span {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   letter-spacing: 1.6px;
   color: #b1a5c7;
 }
@@ -594,7 +594,7 @@
   margin: 13px 0 10px;
 }
 .management-welcome p {
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   color: #aaa3bb;
   line-height: 1.9;
 }
@@ -606,7 +606,7 @@
   color: #a091bf;
   background: #ffffff65;
   padding: 9px 13px;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   border-radius: 6px;
   margin-top: 20px;
 }
@@ -659,7 +659,7 @@
   min-height: 151px;
 }
 .management-overview-grid > div > span:not(.management-metric-icon) {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #a7adbb;
   display: block;
 }
@@ -673,14 +673,14 @@
 }
 .management-overview-grid strong > small {
   display: inline;
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   font-weight: 400;
   letter-spacing: 0;
   color: #bec0cf;
   margin-left: 7px;
 }
 .management-overview-grid p {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #bac0cd;
 }
 .management-overview-grid strong.management-word-value {
@@ -739,7 +739,7 @@
   color: #778095;
 }
 .management-card-title > span {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #bdc1ce;
 }
 .management-shortcuts {
@@ -765,13 +765,13 @@
   margin-bottom: 10px;
 }
 .management-shortcuts strong {
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   font-weight: 500;
   color: #8d8ba3;
   display: block;
 }
 .management-shortcuts small {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   font-weight: 400;
   color: #b9b9c8;
   line-height: 1.9;
@@ -798,15 +798,15 @@
   place-items: center;
   border-radius: 50%;
   color: #c1b0d9;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
 }
 .management-publish-steps strong {
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   font-weight: 500;
   color: #9591a8;
 }
 .management-publish-steps p {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #c0bfcc;
   margin-top: 6px;
 }
@@ -832,7 +832,7 @@
   background: none;
   border: 1px solid transparent;
   color: #aaa4b9;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   padding: 8px 12px;
   border-radius: 5px;
 }
@@ -865,7 +865,7 @@
   outline: 0 !important;
   box-shadow: none !important;
   background: none;
-  font-size: 10px !important;
+  font-size: var(--ui-help, 13px) !important;
   color: #a8a0b8;
   margin: 0 !important;
   min-width: 0;
@@ -880,7 +880,7 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   white-space: nowrap;
 }
 .management-table-scroll th {
@@ -922,7 +922,7 @@
   align-items: baseline;
 }
 .management-workspace .directory-app-logo > span.small-glyph {
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
   letter-spacing: -0.5px;
 }
 .management-workspace .directory-app-logo svg {
@@ -994,13 +994,13 @@
   color: #b2c3a6;
 }
 .management-product-cell strong {
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   color: #8c8b9e;
   font-weight: 500;
   display: block;
 }
 .management-product-cell small {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #c3becf;
   display: block;
   margin-top: 5px;
@@ -1008,7 +1008,7 @@
 .management-tag {
   display: inline-block;
   margin-right: 4px;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #b8a8ce;
   background: #f7f3fb;
   border-radius: 3px;
@@ -1021,7 +1021,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #b09dcc;
 }
 .management-table-scroll td > a > svg {
@@ -1032,7 +1032,7 @@
 .management-table-footer {
   padding: 15px 23px;
   border-top: 1px solid #f0edf6;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #c1bbcf;
 }
 .management-empty {
@@ -1053,7 +1053,7 @@
   justify-content: space-between;
   align-items: center;
   color: #a8a2b9;
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   padding: 13px;
   border-radius: 7px;
   margin-bottom: 5px;
@@ -1068,7 +1068,7 @@
   height: 11px;
 }
 .management-config-groups > p {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   line-height: 2;
   color: #c2b8d1;
   padding: 15px 10px;
@@ -1084,7 +1084,7 @@
   margin-bottom: 25px;
 }
 .management-form-card > label {
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   color: #a395b5;
   font-weight: 400;
   display: block;
@@ -1101,7 +1101,7 @@
   border-radius: 7px;
   background: white;
   color: #9f91b0;
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
   padding: 11px 13px;
   margin-top: 10px;
   box-shadow: none;
@@ -1114,7 +1114,7 @@
   border-color: #cfbee5;
 }
 .management-form-card small {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #c3b5d0;
   margin-top: 9px;
   display: block;
@@ -1128,7 +1128,7 @@
   background: #f8f4fc;
   color: #baa7cb;
   padding: 12px 14px;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   margin-top: 30px;
   line-height: 1.9;
 }
@@ -1141,7 +1141,7 @@
   align-items: center;
   gap: 9px;
   margin-bottom: 18px;
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   line-height: 1.9;
 }
 .management-inline-check > input {
@@ -1150,7 +1150,7 @@
   accent-color: #c4b0df;
 }
 .management-field-help {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   line-height: 2;
   color: #bdb0cc;
 }
@@ -1159,7 +1159,7 @@
   border: 1px solid #e0ece3;
   border-radius: 7px;
   color: #a0b7a5;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   line-height: 1.9;
   padding: 12px 15px;
   margin-bottom: 20px;
@@ -1170,7 +1170,7 @@
   gap: 9px;
   border: 1px solid #e6dbf1;
   border-radius: 6px;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #b6a0cb !important;
   padding: 10px 13px;
   margin-top: 20px;
@@ -1180,7 +1180,7 @@
   height: 12px;
 }
 .management-static-note {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   line-height: 2;
   color: #b1a4c1;
   background: #faf7fd;
@@ -1212,18 +1212,18 @@
   color: #b8a7cd;
 }
 .management-static-row strong {
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
   font-weight: 500;
   color: #a494b7;
 }
 .management-static-row small {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   display: block;
   color: #c4b6cf;
   margin-top: 6px;
 }
 .management-static-row > a {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #b29bc9 !important;
   display: flex;
   gap: 7px;
@@ -1240,7 +1240,7 @@
   margin: 24px 0 29px;
 }
 .management-tag-collection > span {
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   background: #f7f1fc;
   border: 1px solid #eadff3;
   color: #baa2cd;
@@ -1258,12 +1258,12 @@
 .management-add-tag > label {
   flex: 1;
   max-width: 360px;
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #b39cbe;
   margin-bottom: 0;
 }
 .management-add-tag input {
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   margin-top: 8px;
 }
 .management-module-preview {
@@ -1293,7 +1293,7 @@
   margin-bottom: 12px;
 }
 .management-module-preview p {
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   color: #bdb0c8;
   line-height: 1.9;
 }
@@ -1306,7 +1306,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   color: #baa9c9;
   margin: 14px 0;
 }
@@ -1322,7 +1322,7 @@
   margin-bottom: 12px;
 }
 .management-note-pad > p {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #c1b0cc;
   line-height: 1.9;
   margin-bottom: 18px;
@@ -1330,7 +1330,7 @@
 .management-note-pad textarea {
   max-width: 100%;
   resize: vertical;
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
 }
 .management-placeholder {
   text-align: center;
@@ -1348,7 +1348,7 @@
   color: #a594b8;
 }
 .management-placeholder p {
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
   line-height: 2;
   color: #baacc8;
   max-width: 600px;
@@ -1357,7 +1357,7 @@
 .management-placeholder ul {
   display: inline-block;
   text-align: left;
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   line-height: 2.3;
   color: #b6a3c6;
 }
@@ -1425,7 +1425,7 @@
     font-size: 19px;
   }
   .management-brand strong > span {
-    font-size: 11px;
+    font-size: var(--ui-help, 13px);
   }
   .management-sidebar {
     width: 200px;
@@ -1445,7 +1445,7 @@
     gap: 17px;
   }
   .management-visit {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
   }
   .management-mode {
     display: none;
@@ -1483,7 +1483,7 @@
     padding-right: 16px;
   }
   .management-tag {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
   }
   .management-workspace .save-dock {
     left: calc(200px + 24px + 171px);
@@ -1517,11 +1517,11 @@
     display: none;
   }
   .management-user > span:nth-child(2) > strong {
-    font-size: 11px;
+    font-size: var(--ui-help, 13px);
     max-width: 170px;
   }
   .management-user small {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
   }
   .management-body {
     min-height: calc(100vh - 85px);
@@ -1574,7 +1574,7 @@
     width: auto;
     padding: 8px 12px;
     background: #efedf6;
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     gap: 15px;
     margin: 0;
   }
@@ -1596,7 +1596,7 @@
     font-size: 23px;
   }
   .management-panel-heading p {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
   }
   .management-static-row {
     gap: 13px;
@@ -1633,11 +1633,11 @@
     font-size: 13px;
   }
   .management-user > span:nth-child(2) > strong {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     max-width: 110px;
   }
   .management-user small {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
   }
   .management-user > svg {
     width: 10px;
@@ -1655,7 +1655,7 @@
   }
   .management-sidebar-top {
     padding: 7px 7px 10px;
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
   }
   .management-sidebar > nav {
     display: grid;
@@ -1668,7 +1668,7 @@
   }
   .management-group-toggle {
     padding: 10px !important;
-    font-size: 11px !important;
+    font-size: var(--ui-help, 13px) !important;
     gap: 8px;
   }
   .management-group-toggle > svg:first-child {
@@ -1680,7 +1680,7 @@
     margin: 0 0 4px;
   }
   .management-submenu > button {
-    font-size: 10px !important;
+    font-size: var(--ui-help, 13px) !important;
     padding: 9px 9px 9px 21px;
     gap: 9px;
     min-height: 32px;
@@ -1699,7 +1699,7 @@
   }
   .management-tab > button[role="tab"] {
     min-height: 40px;
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     gap: 6px;
     padding-left: 10px;
     padding-right: 6px;
@@ -1720,11 +1720,11 @@
     height: 12px;
   }
   .management-workspace-bar {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     padding: 16px 16px 0;
   }
   .management-workspace-bar > span:last-child {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     gap: 5px;
   }
   .management-content {
@@ -1733,7 +1733,7 @@
   .management-footer {
     margin: 0 16px;
     gap: 10px;
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     padding: 16px 0;
     line-height: 1.8;
   }
@@ -1747,19 +1747,19 @@
     flex-wrap: wrap;
   }
   .management-panel-heading > div > span {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     letter-spacing: 1px;
   }
   .management-panel-heading h1 {
     font-size: 23px;
   }
   .management-panel-heading p {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     line-height: 1.9;
     margin-top: 9px;
   }
   .management-primary {
-    font-size: 10px !important;
+    font-size: var(--ui-help, 13px) !important;
     padding: 9px 12px;
     min-height: 36px;
   }
@@ -1776,15 +1776,15 @@
     line-height: 1.8;
   }
   .management-welcome p {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     line-height: 2;
   }
   .management-welcome > div > span {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     letter-spacing: 1px;
   }
   .management-welcome button {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     padding: 9px 11px;
     margin-top: 18px;
   }
@@ -1807,10 +1807,10 @@
     right: 20px;
   }
   .management-overview-grid > div > span:not(.management-metric-icon) {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
   }
   .management-overview-grid p {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
   }
   .management-white-card {
     padding: 20px;
@@ -1823,7 +1823,7 @@
     font-size: 13px;
   }
   .management-card-title > span {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
   }
   .management-shortcuts {
     gap: 10px;
@@ -1832,10 +1832,10 @@
     padding: 13px 11px;
   }
   .management-shortcuts strong {
-    font-size: 11px;
+    font-size: var(--ui-help, 13px);
   }
   .management-shortcuts small {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
   }
   .management-table-card {
     padding: 0;
@@ -1849,7 +1849,7 @@
     justify-content: space-between;
   }
   .management-segmented > button {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     padding: 8px 11px;
     flex: 1;
   }
@@ -1859,35 +1859,35 @@
   .management-table-scroll th,
   .management-table-scroll td {
     padding: 13px 15px;
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
   }
   .management-table-footer {
     padding: 14px 16px;
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     line-height: 1.8;
   }
   .management-config-groups > button {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     padding: 8px 10px;
   }
   .management-form-card {
     padding: 20px;
   }
   .management-form-card > label {
-    font-size: 11px;
+    font-size: var(--ui-help, 13px);
     margin-bottom: 21px;
   }
   .management-form-card input,
   .management-form-card select {
-    font-size: 12px;
+    font-size: var(--ui-help, 13px);
     padding: 11px 12px;
   }
   .management-form-card small {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     line-height: 1.9;
   }
   .management-form-note {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     padding: 12px;
     line-height: 1.9;
     align-items: start;
@@ -1896,7 +1896,7 @@
     margin-top: 3px;
   }
   .management-static-note {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     padding: 13px;
     line-height: 2;
   }
@@ -1913,15 +1913,15 @@
     height: 14px;
   }
   .management-static-row strong {
-    font-size: 11px;
+    font-size: var(--ui-help, 13px);
   }
   .management-static-row small {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     overflow-wrap: anywhere;
     line-height: 1.8;
   }
   .management-static-row > a {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     white-space: nowrap;
     gap: 4px;
   }
@@ -1934,7 +1934,7 @@
     margin: 20px 0 23px;
   }
   .management-tag-collection > span {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     padding: 8px 11px;
   }
   .management-add-tag {
@@ -1965,7 +1965,7 @@
   }
   .management-module-preview p,
   .management-module-preview li {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
     line-height: 1.9;
   }
   .management-module-preview li {
@@ -1975,10 +1975,10 @@
     font-size: 13px;
   }
   .management-note-pad > p {
-    font-size: 10px;
+    font-size: var(--ui-help, 13px);
   }
   .management-note-pad textarea {
-    font-size: 12px;
+    font-size: var(--ui-help, 13px);
   }
   .management-workspace.compact .management-sidebar {
     width: 100%;
@@ -2044,15 +2044,15 @@
   background: #705cbc;
 }
 .management-table-scroll td {
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
 }
 .management-table-scroll th {
   color: #9fa5b5;
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
 }
 .management-product-cell strong {
   color: #747c92;
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
 }
 .management-product-cell small {
   color: #a8b0c1;

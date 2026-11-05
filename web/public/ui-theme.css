@@ -1,0 +1,399 @@
+/* 全站视觉规范：标题26/20/16，操作与正文14，辅助信息13，状态12。
+ * 集中覆盖历史页面中8—11px的小字；富文本编辑区与用户图文内容保留原排版。
+ * 同一静态资源也用于已发布详情，改视觉无需重新发布或修改历史快照。 */
+:root {
+  --ui-font: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --ui-title: 26px;
+  --ui-section: 20px;
+  --ui-subtitle: 16px;
+  --ui-body: 14px;
+  --ui-help: 13px;
+  --ui-label: #46516c;
+  --ui-muted: #737e94;
+  --el-font-size-base: 14px;
+  --el-font-size-small: 13px;
+  --el-font-weight-primary: 500;
+}
+body,
+body .directory-preview,
+body .management-workspace,
+body .member-area {
+  font-family: var(--ui-font) !important;
+  font-size: var(--ui-body);
+  line-height: 1.65;
+  font-weight: 400;
+}
+body
+  :is(
+    .management-panel-heading,
+    .page-heading,
+    .catalog-page-heading,
+    .directory-intro
+  )
+  h1,
+body
+  :is(
+    .api-center,
+    .support-page,
+    .content-browse,
+    .member-area,
+    .install-card,
+    .auth-card,
+    .account-access
+  )
+  h1,
+body .auth-page .login-form h2,
+body.published-page :is(main > .hero h1, article > h1) {
+  font-size: var(--ui-title) !important;
+  font-weight: 600 !important;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+body
+  :is(
+    .management-workspace,
+    .member-area,
+    .auth-page,
+    .api-center,
+    .support-page
+  )
+  h2,
+body
+  :is(
+    .directory-section-title,
+    .directory-no-results,
+    .settings-panel-heading,
+    .panel
+  )
+  h2,
+body.published-page :is(.screenshots, .body) > h2 {
+  font-size: var(--ui-section) !important;
+  font-weight: 600 !important;
+  line-height: 1.5;
+}
+body :is(.management-workspace, .member-area, .api-center, .support-page) h3,
+body .el-dialog__title,
+body .el-message-box__title,
+body .catalog-card-identity > :is(h1, h2) {
+  font-size: var(--ui-subtitle) !important;
+  line-height: 1.5;
+  font-weight: 500 !important;
+}
+body
+  :is(
+    .management-group-toggle,
+    .management-submenu > button,
+    .management-user-menu > button,
+    .management-user strong,
+    .management-menu-item,
+    .management-visit,
+    .management-tab > button[role="tab"],
+    .management-tab-context button,
+    .directory-header nav a,
+    .catalog-section-tabs > a,
+    .settings-groups > button,
+    .directory-app-name,
+    .catalog-details-link,
+    .catalog-more-link,
+    .catalog-primary-button,
+    .directory-search-submit,
+    .catalog-language,
+    .catalog-pagination,
+    .catalog-pagination button,
+    .catalog-pagination a,
+    .directory-no-results button,
+    .button,
+    .side-link
+  ) {
+  font-size: var(--ui-body) !important;
+  font-weight: 500 !important;
+  line-height: 1.5;
+}
+body .directory-header nav a {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+body .directory-header-inner {
+  min-height: 85px;
+  height: auto;
+  gap: 22px;
+}
+body .directory-header nav {
+  min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+  margin: 0;
+  padding: 20px 0;
+  height: auto;
+}
+body .el-button,
+body .el-tabs__item,
+body .el-menu-item,
+body .el-checkbox__label,
+body .el-radio__label,
+body .el-switch__label,
+body .el-form-item__label,
+body .config-label label,
+body .asset-control-label,
+body .el-select__wrapper,
+body .el-input__inner,
+body .el-textarea__inner,
+body .el-date-editor,
+body .el-pagination,
+body .el-tree-node__label {
+  font-size: var(--ui-body) !important;
+  font-weight: 400;
+}
+body .el-button,
+body .el-tabs__item,
+body .el-form-item__label,
+body .config-label label {
+  font-weight: 500;
+}
+body .el-form-item__label {
+  color: var(--ui-label);
+}
+body .el-table,
+body .catalog-list,
+body .table-panel table {
+  font-size: var(--ui-body) !important;
+  line-height: 1.65;
+}
+body .el-table th,
+body .catalog-list th,
+body .table-panel th {
+  font-size: var(--ui-body) !important;
+  font-weight: 500 !important;
+  color: var(--ui-label);
+}
+body .el-table .cell {
+  line-height: 1.65;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+body .el-table strong,
+body .catalog-list strong {
+  font-weight: 500;
+}
+body .el-button > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+body .el-button.is-link,
+body .el-button.is-text {
+  vertical-align: middle;
+}
+body .el-tag {
+  font-size: 12px;
+  font-weight: 400;
+}
+body
+  :is(
+    .management-panel-heading p,
+    .page-heading p,
+    .management-brand p,
+    .management-sidebar-top,
+    .management-workspace-bar,
+    .management-breadcrumb,
+    .management-user small,
+    .directory-brand small,
+    .directory-eyebrow,
+    .directory-section-subtitle,
+    .directory-section-total,
+    .directory-content-heading,
+    .directory-search-hints,
+    .directory-search-hints button,
+    .directory-search kbd,
+    .directory-footer,
+    .directory-footer > div > span,
+    .directory-footer strong,
+    .catalog-breadcrumb,
+    .catalog-result-bar,
+    .catalog-result-bar > span:last-child,
+    .catalog-card-metadata,
+    .catalog-price,
+    .catalog-card-tags > span,
+    .catalog-tag-filter > span,
+    .catalog-tag-filter button,
+    .catalog-publish-help,
+    .muted,
+    .admin-muted,
+    .field-help,
+    .config-label p,
+    .config-label code,
+    .config-input > .field-help,
+    .clear-secret,
+    .settings-side-note,
+    .settings-panel-heading .muted,
+    .save-dock,
+    .stat-card > span,
+    .stat-card small,
+    .progress-row p,
+    .security-panel > p
+  ) {
+  font-size: var(--ui-help) !important;
+  line-height: 1.7;
+  font-weight: 400 !important;
+  color: var(--ui-muted);
+}
+body .catalog-card-description,
+body .el-alert__title,
+body .el-alert__description,
+body .el-message-box__content,
+body .el-empty__description p,
+body .directory-search input,
+body .config-input :is(input, select) {
+  font-size: var(--ui-body) !important;
+  line-height: 1.7;
+  font-weight: 400;
+}
+body .directory-brand > span:last-child,
+body .management-brand strong {
+  font-size: 20px !important;
+  font-weight: 600 !important;
+}
+body .money,
+body .catalog-stat-grid strong,
+body .stat-card strong {
+  font-size: 26px !important;
+  line-height: 1.4;
+  font-weight: 500 !important;
+  font-variant-numeric: tabular-nums;
+}
+/* 认证入口保持等距分隔；表单名称仍在输入框左边，提示与主操作在卡片中居中。 */
+body .auth-card h1,
+body .auth-page .login-form > :is(h2, p, .quiet-link) {
+  text-align: center;
+}
+body .auth-card h1 {
+  margin-bottom: 24px;
+}
+body .auth-page .login-form .quiet-link {
+  display: block;
+}
+body .auth-card.account-access {
+  max-width: 580px;
+  padding: 28px;
+}
+body .auth-card .el-form {
+  max-width: 440px;
+  margin: 0 auto;
+}
+body :is(.auth-card, .auth-page) .el-form-item__label {
+  height: auto;
+  min-height: 38px;
+  line-height: 22px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  align-items: center;
+  white-space: normal;
+}
+body .auth-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 20px auto 0;
+  gap: 0;
+}
+body .auth-actions > :is(a, button) {
+  position: relative;
+  margin: 0 !important;
+  padding: 8px 16px;
+  min-height: 40px;
+  height: auto;
+  font-size: 14px !important;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: nowrap;
+  color: #65539f;
+}
+body .auth-actions > :is(a, button) + :is(a, button)::before {
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  border-left: 1px solid #ddd7ec;
+  content: "";
+}
+body .auth-actions > .active {
+  color: #6653a3;
+  font-weight: 500;
+  background: #f3effb;
+}
+body .member-tabs {
+  margin: 22px 0;
+}
+/* 账户独立打开时不依赖后台工作台的样式是否已被加载。 */
+body .member-area > .management-panel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+body .member-area > .management-panel-heading h1 {
+  margin: 0;
+}
+body .member-area > .management-panel-heading p {
+  margin: 8px 0 0;
+}
+body .member-area > .management-panel-heading > .el-button {
+  flex-shrink: 0;
+}
+body .member-tabs .el-tabs__header {
+  margin-bottom: 0;
+}
+body .member-service-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 20px;
+}
+body .el-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+body .el-dialog__footer .el-button + .el-button {
+  margin-left: 0;
+}
+/* 静态正文只调整界面标题与导航，不覆盖作者在富文本正文中的字重/字号。 */
+body.published-page {
+  font: 14px/1.8 var(--ui-font);
+}
+body.published-page :is(header, nav, .back, #download) {
+  font-size: 14px;
+  font-weight: 500;
+}
+@media (max-width: 700px) {
+  :root {
+    --ui-title: 24px;
+  }
+  body .directory-header-inner {
+    flex-wrap: wrap;
+    padding-top: 16px;
+    padding-bottom: 12px;
+    gap: 12px;
+  }
+  body .directory-header nav {
+    order: 3;
+    flex-basis: 100%;
+    padding: 4px 0;
+    gap: 12px 20px;
+  }
+  body .catalog-language {
+    margin-left: auto;
+  }
+  body .auth-card.account-access {
+    padding: 18px 14px;
+  }
+  body .auth-actions > :is(a, button) {
+    padding: 8px 12px;
+  }
+  body .member-area {
+    min-width: 0;
+  }
+}

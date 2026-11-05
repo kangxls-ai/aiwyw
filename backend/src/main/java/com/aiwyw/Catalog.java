@@ -15,8 +15,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * 正式商品目录、首页栏目与不可变发布快照。 写操作先锁catalog_guard，再校验客户端revision；跨进程同样能守住最多6栏目。 发布顺序：净化资料 → 写完整HTML文件 →
- * 事务保存快照并切指针 → 提交后失效内存缓存。 任何一步失败都不切换公开内容；孤立文件可以按运维手册清理，禁止反向猜测并自动发布。
+ * 正式商品目录、首页栏目与不可变发布快照。 写操作先锁catalog_guard，再校验客户端revision；跨进程同样能守住最多6个应用栏目（文章导航独立）。 发布顺序：净化资料 →
+ * 写完整HTML文件 → 事务保存快照并切指针 → 提交后失效内存缓存。 任何一步失败都不切换公开内容；孤立文件可以按运维手册清理，禁止反向猜测并自动发布。
  */
 @Service
 public class Catalog {
@@ -157,6 +157,36 @@ public class Catalog {
                 System.currentTimeMillis());
             db.update("UPDATE catalog_product SET created_at=updated_at WHERE created_at=0");
             db.update("UPDATE catalog_guard SET revision=1 WHERE id=1");
+          }
+          // 文章是导航栏目，不占六个应用展示区；只迁移一次，管理员删除或停用后不会重启复活。
+          if (db.queryForObject(
+                  "SELECT COUNT(*) FROM schema_migration WHERE version='V008_ARTICLE_NAV'",
+                  Integer.class)
+              == 0) {
+            var article =
+                new SectionInput(
+                    "文章与教程",
+                    "Articles and tutorials",
+                    "",
+                    "",
+                    "note",
+                    true,
+                    4,
+                    "ARTICLES",
+                    "LATEST",
+                    30,
+                    20,
+                    List.of(),
+                    List.of(),
+                    0);
+            db.update(
+                "INSERT INTO home_section(id,config_json,revision,created_at)"
+                    + " VALUES('articles-navigation',?,0,?)",
+                encode(article),
+                System.currentTimeMillis());
+            db.update(
+                "INSERT INTO schema_migration VALUES('V008_ARTICLE_NAV','可维护的文章导航栏目',?)",
+                System.currentTimeMillis());
           }
         });
     initializedGeneration = database.generation();
@@ -360,7 +390,7 @@ public class Catalog {
         || c.mode() == null
         || c.sort() == null
         || c.icon() == null
-        || !Set.of("MANUAL", "TAG", "AUTO").contains(c.mode())
+        || !Set.of("MANUAL", "TAG", "AUTO", "ARTICLES").contains(c.mode())
         || !Set.of("LATEST", "VIEWS", "DOWNLOADS").contains(c.sort())
         || !Set.of(0, 7, 30).contains(c.days())
         || c.limit() < 1
@@ -389,8 +419,21 @@ public class Catalog {
     return tx.execute(
         status -> {
           lock();
-          if (id == null
-              && db.queryForObject("SELECT COUNT(*) FROM home_section", Integer.class) >= 6)
+          var others =
+              db
+                  .query(
+                      "SELECT id,config_json FROM home_section",
+                      (r, n) ->
+                          new Section(
+                              r.getString(1), decode(r.getString(2), SectionInput.class), 0, 0))
+                  .stream()
+                  .filter(s -> !s.id().equals(id))
+                  .toList();
+          if (safe.mode().equals("ARTICLES")
+              && others.stream().anyMatch(s -> s.config().mode().equals("ARTICLES")))
+            throw new Api.Failure(409, "文章与教程栏目已存在，请编辑已有栏目");
+          if (!safe.mode().equals("ARTICLES")
+              && others.stream().filter(s -> !s.config().mode().equals("ARTICLES")).count() >= 6)
             throw new Api.Failure(409, "首页最多6个栏目，请编辑或删除已有栏目");
           for (String productId : safe.productIds())
             if (db.queryForObject(
@@ -650,6 +693,10 @@ public class Catalog {
     for (Section s : sections())
       if (s.config().enabled()) {
         SectionInput c = s.config();
+        if (c.mode().equals("ARTICLES")) {
+          views.add(new SectionView(s.id(), c, List.of()));
+          continue;
+        }
         List<Product> selected =
             products.stream()
                 .filter(p -> p.status().equals("PUBLISHED"))

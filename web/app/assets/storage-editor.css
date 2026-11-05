@@ -81,7 +81,7 @@
   display: flex;
   flex-direction: column;
   gap: 7px;
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
   color: #67718a;
 }
 .application-filters input,
@@ -107,7 +107,7 @@
 }
 .application-filters legend {
   color: #81899d;
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
 }
 .application-filters .catalog-selection {
   max-height: 140px;
@@ -121,7 +121,7 @@
 }
 .application-filters small {
   color: #9299ac;
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
 }
 .application-table-name {
   display: flex;
@@ -147,7 +147,7 @@
 .catalog-pagination {
   align-items: center;
   flex-wrap: wrap;
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
   color: #80899d;
 }
 .catalog-pagination label {
@@ -249,7 +249,7 @@
   gap: 12px;
   margin: 14px 0;
   color: #837398;
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
 }
 .asset-upload-progress progress {
   height: 8px;
@@ -305,13 +305,13 @@
   height: 38px;
 }
 .asset-library-grid strong {
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
   font-weight: 500;
   overflow-wrap: anywhere;
   max-width: 100%;
 }
 .asset-library-grid small {
-  font-size: 10px;
+  font-size: var(--ui-help, 13px);
   color: #a9a0b9;
 }
 .editor-screenshots {
@@ -342,14 +342,14 @@
   background: none;
   color: #927bad;
   padding: 7px;
-  font-size: 11px;
+  font-size: var(--ui-help, 13px);
   cursor: pointer;
 }
 .storage-clear-secret {
   display: flex;
   gap: 8px;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
   color: #a3839a;
 }
 .storage-clear-secret input {
@@ -374,7 +374,7 @@
   background: #fff;
   border-color: #e5dfed;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--ui-help, 13px);
 }
 .summernote-field .note-btn:hover {
   background: #f3ecfc;

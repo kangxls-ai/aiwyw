@@ -1,4 +1,5 @@
 <script setup lang="ts">
+definePageMeta({ layout: "catalog" });
 /** 用户先核对价格与发布版本，再显式确认兑换；服务端重新校验，拒绝静默采用更新价格。 */
 import "~/assets/element-admin.css";
 const { t } = useLanguage(),

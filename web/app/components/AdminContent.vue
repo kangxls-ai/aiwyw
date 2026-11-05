@@ -326,7 +326,11 @@ onBeforeUnmount(() => unregister?.());
           ><template #default="{ row }">{{
             stateLabels[row.state]
           }}</template></el-table-column
-        ><el-table-column label="操作" min-width="200"
+        ><el-table-column
+          align="center"
+          header-align="center"
+          label="操作"
+          min-width="200"
           ><template #default="{ row }"
             ><el-button link type="primary" @click="edit(row.id)"
               >编辑</el-button

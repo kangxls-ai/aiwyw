@@ -144,13 +144,7 @@ onBeforeUnmount(() => unregister?.());
           label="角色名称"
           sortable
           :sort-orders="['descending', 'ascending']"
-        /><el-table-column label="绑定菜单"
-          ><template #default="{ row }"
-            ><el-tag v-for="key in row.menus" :key="key" style="margin: 3px">{{
-              menus[key] || key
-            }}</el-tag></template
-          ></el-table-column
-        ><el-table-column label="操作"
+        /><el-table-column align="center" header-align="center" label="操作"
           ><template #default="{ row }"
             ><el-button link type="primary" @click="edit(row)">编辑</el-button
             ><el-button

@@ -91,7 +91,11 @@ const groupName = computed(
   () =>
     adminMenuGroups.find((g) => g.items.some((i) => i.id === props.activeId))
       ?.label ||
-    (current.value.id.startsWith("editor-") ? "商品管理" : "工作空间"),
+    (current.value.id.startsWith("api-editor-")
+      ? "API 服务"
+      : current.value.id.startsWith("editor-")
+        ? "商品管理"
+        : "工作空间"),
 );
 // 右键菜单固定定位并限制在视口内，Escape/外部点击可收起，Shift+F10支持键盘。
 const context = ref<{ id: string; x: number; y: number } | null>(null);

@@ -391,7 +391,11 @@ watch(changed, load);
             ><template #default="{ row }"
               ><el-tag>{{ labels[row.status] }}</el-tag></template
             ></el-table-column
-          ><el-table-column label="操作" width="160"
+          ><el-table-column
+            align="center"
+            header-align="center"
+            label="操作"
+            width="160"
             ><template #default="{ row }"
               ><a
                 v-if="row.status === 'READY'"

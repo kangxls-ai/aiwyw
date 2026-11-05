@@ -156,16 +156,26 @@ async function submit() {
         }}</el-button
       ></el-form
     ><el-divider />
-    <div class="catalog-editor-actions">
-      <el-button text @click="action = 'login'">{{
-        t("登录", "Sign in")
-      }}</el-button
-      ><el-button text @click="action = 'register'">{{
-        t("注册", "Register")
-      }}</el-button
-      ><el-button text @click="action = 'forgot'">{{
-        t("忘记密码", "Forgot password")
-      }}</el-button>
-    </div></el-card
+    <nav class="auth-actions" :aria-label="t('账户入口', 'Account access')">
+      <el-button
+        text
+        :class="{ active: action === 'login' }"
+        :aria-current="action === 'login' ? 'page' : undefined"
+        @click="action = 'login'"
+        >{{ t("登录", "Sign in") }}</el-button
+      ><el-button
+        text
+        :class="{ active: action === 'register' }"
+        :aria-current="action === 'register' ? 'page' : undefined"
+        @click="action = 'register'"
+        >{{ t("注册", "Register") }}</el-button
+      ><el-button
+        text
+        :class="{ active: action === 'forgot' }"
+        :aria-current="action === 'forgot' ? 'page' : undefined"
+        @click="action = 'forgot'"
+        >{{ t("找回密码", "Recover password") }}</el-button
+      >
+    </nav></el-card
   >
 </template>

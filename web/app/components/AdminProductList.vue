@@ -198,7 +198,9 @@ watch(changed, () => load());
             filterable
             clearable
             ><el-option
-              v-for="item in facets.sections"
+              v-for="item in facets.sections.filter(
+                (s) => s.config.mode !== 'ARTICLES',
+              )"
               :key="item.id"
               :label="
                 item.config.titleZh + (item.config.enabled ? '' : '（停用）')
@@ -339,7 +341,12 @@ watch(changed, () => load());
             time(row.lastPublishedAt)
           }}</template></el-table-column
         >
-        <el-table-column label="操作" min-width="210" fixed="right"
+        <el-table-column
+          align="center"
+          header-align="center"
+          label="操作"
+          min-width="210"
+          fixed="right"
           ><template #default="{ row }"
             ><div class="admin-table-actions">
               <el-button link type="primary" @click="openEditor(row as Row)"
