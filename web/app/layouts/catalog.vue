@@ -37,6 +37,9 @@ const site = useState<Record<string, string>>("site-settings", () => ({}));
     <slot />
     <footer class="directory-footer directory-width">
       <div>
+        <NuxtLink to="/articles">{{
+          t("文章与教程", "Articles and tutorials")
+        }}</NuxtLink>
         <strong>{{ site["site.name"] || "AI万有网" }}</strong
         ><span>{{
           t("实用工具，触手可及。", "Useful tools, within reach.")

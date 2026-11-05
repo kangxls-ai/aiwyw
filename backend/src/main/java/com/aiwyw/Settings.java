@@ -30,6 +30,7 @@ public class Settings {
   public static final List<Definition> DEFINITIONS = new ArrayList<>();
 
   static {
+    bool("seo.allow_indexing", "SEO与内容", "允许搜索引擎索引", true, "控制robots和站点地图，不能保证搜索引擎收录或AI引用");
     number(
         "security.password_change_hour_limit",
         "账号与安全",

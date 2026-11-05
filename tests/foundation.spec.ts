@@ -691,6 +691,145 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
   await adminContext.close();
 });
 
+test("content draft isolation, static bilingual publishing and SEO discovery", async ({
+  browser,
+}) => {
+  test.setTimeout(180000);
+  const context = await browser.newContext({
+    storageState: join(directory(), "admin-state.json"),
+  });
+  await context.addCookies([
+    { name: "aiwyw_language", value: "zh", url: "http://127.0.0.1:3000" },
+  ]);
+  const admin = await context.newPage();
+  await admin.goto("/admin/workspace?view=articles");
+  await admin.getByRole("button", { name: "新增内容", exact: true }).click();
+  await admin
+    .getByLabel("内容中文标题", { exact: true })
+    .fill("markdo 使用教程");
+  await admin
+    .getByLabel("内容英文标题", { exact: true })
+    .fill("markdo tutorial");
+  await admin
+    .getByLabel("内容公开地址", { exact: true })
+    .fill("markdo-tutorial");
+  await admin
+    .getByLabel("内容中文摘要", { exact: true })
+    .fill("了解 markdo 的常用功能与操作步骤。");
+  await admin
+    .getByRole("textbox", { name: "内容中文正文", exact: true })
+    .fill("最初发布的教程正文");
+  await admin
+    .getByRole("textbox", { name: "内容英文正文", exact: true })
+    .fill("Published English instructions");
+  await admin.getByRole("button", { name: "保存草稿", exact: true }).click();
+  await expect(admin.getByText("草稿已保存", { exact: true })).toBeVisible();
+  const draft = (
+    await (
+      await admin.request.get("/api/admin/content?scope=articles&q=markdo")
+    ).json()
+  ).items.find((r: any) => r.slug === "markdo-tutorial");
+  const publicContext = await browser.newContext({ javaScriptEnabled: false });
+  const visitor = await publicContext.newPage();
+  expect(
+    (
+      await visitor.request.get(
+        "http://127.0.0.1:3000/articles/markdo-tutorial",
+      )
+    ).status(),
+  ).toBe(404);
+  await admin.getByRole("button", { name: "保存并发布", exact: true }).click();
+  await expect(
+    admin.getByText("发布成功，双语静态页面已生成", { exact: true }),
+  ).toBeVisible();
+  const browse = await context.newPage();
+  await browse.goto("/articles");
+  await browse.getByRole("link", { name: /markdo 使用教程/ }).click();
+  await expect(browse.locator("article")).toContainText("最初发布的教程正文");
+  await browse.close();
+  await visitor.goto("http://127.0.0.1:3000/articles/markdo-tutorial");
+  await expect(
+    visitor.getByRole("heading", { name: "markdo 使用教程", exact: true }),
+  ).toBeVisible();
+  await expect(visitor.locator("article")).toContainText("最初发布的教程正文");
+  expect(
+    await visitor.locator('link[rel="canonical"]').getAttribute("href"),
+  ).toContain("/articles/markdo-tutorial");
+  expect(
+    await visitor.locator('script[type="application/ld+json"]').textContent(),
+  ).toContain('"Article"');
+  await visitor.screenshot({
+    path: "test-results/content-static.png",
+    fullPage: true,
+  });
+  await visitor.goto("http://127.0.0.1:3000/articles/markdo-tutorial?lang=en");
+  await expect(visitor.locator("article")).toContainText(
+    "Published English instructions",
+  );
+  expect(
+    await (
+      await visitor.request.get("http://127.0.0.1:3000/sitemap.xml")
+    ).text(),
+  ).toContain("/articles/markdo-tutorial");
+  await admin
+    .getByRole("textbox", { name: "内容中文正文", exact: true })
+    .fill("第二版尚未发布正文");
+  await admin.getByRole("button", { name: "保存草稿", exact: true }).click();
+  await expect(admin.getByText("草稿已保存", { exact: true })).toBeVisible();
+  await visitor.goto("http://127.0.0.1:3000/articles/markdo-tutorial");
+  await expect(visitor.locator("article")).toContainText("最初发布的教程正文");
+  await expect(visitor.locator("article")).not.toContainText(
+    "第二版尚未发布正文",
+  );
+  await admin.screenshot({
+    path: "test-results/content-editor.png",
+    fullPage: true,
+  });
+  await admin.getByRole("button", { name: "保存并发布", exact: true }).click();
+  await expect(
+    admin.getByText("发布成功，双语静态页面已生成", { exact: true }),
+  ).toBeVisible();
+  await visitor.reload();
+  await expect(visitor.locator("article")).toContainText("第二版尚未发布正文");
+  await configuration(admin, { "seo.allow_indexing": "false" });
+  const noindex = await visitor.request.get(
+    "http://127.0.0.1:3000/articles/markdo-tutorial",
+  );
+  expect(noindex.headers()["x-robots-tag"]).toBe("noindex, nofollow");
+  expect(
+    await (
+      await visitor.request.get("http://127.0.0.1:3000/robots.txt")
+    ).text(),
+  ).toContain("Disallow: /");
+  await configuration(admin, { "seo.allow_indexing": "true" });
+  await admin
+    .getByRole("row")
+    .filter({ hasText: "markdo 使用教程" })
+    .getByRole("button", { name: "下架", exact: true })
+    .click();
+  await expect(
+    admin.getByText("已下架", { exact: true }).first(),
+  ).toBeVisible();
+  expect(
+    (
+      await visitor.request.get(
+        "http://127.0.0.1:3000/articles/markdo-tutorial",
+      )
+    ).status(),
+  ).toBe(404);
+  expect(
+    await (
+      await visitor.request.get("http://127.0.0.1:3000/sitemap.xml")
+    ).text(),
+  ).not.toContain("/articles/markdo-tutorial");
+  expect(
+    (await (await admin.request.get("/api/admin/content/" + draft.id)).json())
+      .state,
+  ).toBe("UNLISTED");
+  await publicContext.close();
+  await context.close();
+});
+
 test("compact horizontal forms, server sorting, license replacement and refund revocation", async ({
   browser,
 }) => {

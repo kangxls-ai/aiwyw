@@ -131,6 +131,7 @@ public class Database {
     ListSchema.migrate(d, j);
     LicenseSchema.migrate(j);
     Identity.schema(d, j);
+    ContentSchema.migrate(j);
   }
 
   /** 先写加密待定文件再原子更名；成功后锁安装入口并删除一次性安装码。 */

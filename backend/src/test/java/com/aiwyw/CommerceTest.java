@@ -1128,4 +1128,195 @@ class CommerceTest {
     mvc.perform(get("/api/admin/catalog/products").cookie(member)).andExpect(status().isOk());
     mvc.perform(get("/api/admin/catalog/tags").cookie(member)).andExpect(status().isForbidden());
   }
+
+  @Autowired ContentService content;
+
+  ContentService.Input article(String slug, String title, String body, long revision) {
+    return new ContentService.Input(
+        slug,
+        "ARTICLE",
+        title,
+        "English " + title,
+        "发布摘要",
+        "Published summary",
+        body,
+        "<p>English published body</p>",
+        revision);
+  }
+
+  long contentRevision(String id) {
+    return ((Number) content.draft(id).get("revision")).longValue();
+  }
+
+  @Test
+  void contentDraftIsPrivateAndPublishedSnapshotDoesNotFollowDraft() {
+    String slug = "article-" + key(),
+        id =
+            content.save(
+                null,
+                article(
+                    slug,
+                    "发布标题" + slug,
+                    "<h2>旧发布正文</h2><script>alert(1)</script><img src='https://example.com/x'"
+                        + " onerror='alert(1)'>",
+                    0),
+                admin.id());
+    assertThrows(Api.Failure.class, () -> content.page(slug, "zh"));
+    content.publish(id, contentRevision(id), admin.id());
+    String first = content.page(slug, "zh").html();
+    assertTrue(first.contains("旧发布正文"));
+    assertFalse(first.contains("onerror="));
+    assertFalse(first.contains("<script>alert"));
+    assertTrue(first.contains("application/ld+json"));
+    assertTrue(content.page(slug, "en").html().contains("English published body"));
+    content.save(id, article(slug, "尚未发布" + slug, "<p>未公开草稿</p>", contentRevision(id)), admin.id());
+    assertEquals(first, content.page(slug, "zh").html());
+    assertEquals(
+        0L,
+        content
+            .list(false, Set.of(), "尚未发布" + slug, "", 1, 20, "created_at", "descending")
+            .get("total"));
+    content.publish(id, contentRevision(id), admin.id());
+    assertTrue(content.page(slug, "zh").html().contains("未公开草稿"));
+    assertThrows(
+        Api.Failure.class,
+        () ->
+            content.save(
+                id, article("new-" + key(), "改地址", "<p>x</p>", contentRevision(id)), admin.id()));
+  }
+
+  @Test
+  void failedContentPublicationRetainsPreviousPointerAndFiles() throws Exception {
+    String slug = "failure-" + key(),
+        id = content.save(null, article(slug, "发布失败保护", "<p>原正文</p>", 0), admin.id());
+    content.publish(id, contentRevision(id), admin.id());
+    String before =
+        db.queryForObject(
+            "SELECT active_publication FROM content_document WHERE id=?", String.class, id);
+    Path folder = crypto.root.resolve("content-pages"),
+        backup = crypto.root.resolve("content-pages-" + key());
+    Files.move(folder, backup);
+    Files.writeString(folder, "isolated test blocker");
+    try {
+      assertThrows(Api.Failure.class, () -> content.publish(id, contentRevision(id), admin.id()));
+      assertEquals(
+          before,
+          db.queryForObject(
+              "SELECT active_publication FROM content_document WHERE id=?", String.class, id));
+    } finally {
+      Files.delete(folder);
+      Files.move(backup, folder);
+    }
+    assertTrue(content.page(slug, "zh").html().contains("原正文"));
+  }
+
+  @Test
+  void contentMenuBoundariesSeoWhitelistAndFaqStructuredData() throws Exception {
+    String slug = "faq-" + key(),
+        faq =
+            content.save(
+                null,
+                new ContentService.Input(
+                    slug, "FAQ", "如何使用？", "", "使用说明", "", "<p>操作说明</p>", "", 0),
+                admin.id());
+    content.publish(faq, contentRevision(faq), admin.id());
+    assertTrue(content.page(slug, "zh").html().contains("\"@type\":\"FAQPage\""));
+    String role = key(), id = user();
+    db.update(
+        "INSERT INTO access_role VALUES(?, '内容角色',FALSE,1,?)", role, System.currentTimeMillis());
+    db.update("INSERT INTO access_role_menu VALUES(?,'articles')", role);
+    db.update("INSERT INTO access_role_menu VALUES(?,'seo')", role);
+    db.update("INSERT INTO access_user_role VALUES(?,?)", id, role);
+    Cookie staff = cookie(id, "USER", false);
+    mvc.perform(get("/api/admin/content/" + faq).cookie(staff)).andExpect(status().isForbidden());
+    mvc.perform(get("/api/admin/content").param("scope", "faq").cookie(staff))
+        .andExpect(status().isForbidden());
+    mvc.perform(get("/api/admin/seo").cookie(staff)).andExpect(status().isOk());
+    mvc.perform(get("/api/admin/settings").cookie(staff)).andExpect(status().isForbidden());
+    mvc.perform(
+            put("/api/admin/seo")
+                .cookie(staff)
+                .header("X-AIWYW-Request", "1")
+                .contentType("application/json")
+                .content(
+                    "{\"changes\":[{\"key\":\"mail.password\",\"value\":\"not-allowed\",\"revision\":0,\"clear\":false}]}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void contentReferencesProtectPublishedMediaAndUnlistRemovesDiscovery() throws Exception {
+    byte[] image = getClass().getResourceAsStream("/tiny.webp").readAllBytes();
+    var asset =
+        storage.upload(
+            new MockMultipartFile("file", "cover.webp", "image/webp", image), "IMAGE", admin.id());
+    String slug = "media-" + key(),
+        id =
+            content.save(
+                null,
+                article(slug, "图片引用保护", "<p>正文</p><img src='" + asset.url() + "'>", 0),
+                admin.id());
+    assertThrows(Api.Failure.class, () -> storage.delete(asset.id(), admin.id()));
+    content.publish(id, contentRevision(id), admin.id());
+    mvc.perform(get("/api/public/content-pages/" + slug))
+        .andExpect(status().isOk())
+        .andExpect(header().exists("ETag"));
+    String sitemap =
+        mvc.perform(get("/api/public/seo/sitemap")).andReturn().getResponse().getContentAsString();
+    assertTrue(sitemap.contains("/articles/" + slug));
+    content.unlist(id, contentRevision(id), admin.id());
+    assertThrows(Api.Failure.class, () -> content.page(slug, "zh"));
+    assertThrows(Api.Failure.class, () -> content.remove(id, contentRevision(id), admin.id()));
+    assertThrows(Api.Failure.class, () -> storage.delete(asset.id(), admin.id()));
+    assertFalse(
+        mvc.perform(get("/api/public/seo/sitemap"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString()
+            .contains("/articles/" + slug));
+    String draft =
+        content.save(null, article("draft-" + key(), "可删除草稿", "<p>x</p>", 0), admin.id());
+    content.remove(draft, contentRevision(draft), admin.id());
+    assertThrows(Api.Failure.class, () -> content.draft(draft));
+  }
+
+  @Test
+  void seoIndexSwitchIsDynamicForAlreadyPublishedHtml() throws Exception {
+    String slug = "index-" + key(),
+        id = content.save(null, article(slug, "索引控制", "<p>公开正文</p>", 0), admin.id());
+    content.publish(id, contentRevision(id), admin.id());
+    var old =
+        settings.list().stream()
+            .filter(e -> e.definition().key().equals("seo.allow_indexing"))
+            .findFirst()
+            .orElseThrow();
+    try {
+      settings.save(
+          List.of(new Settings.Change("seo.allow_indexing", "false", old.revision(), false)),
+          admin.id());
+      mvc.perform(get("/api/public/content-pages/" + slug))
+          .andExpect(header().string("X-Robots-Tag", "noindex, nofollow"));
+      assertTrue(
+          mvc.perform(get("/api/public/seo/robots"))
+              .andReturn()
+              .getResponse()
+              .getContentAsString()
+              .contains("Disallow: /"));
+      assertFalse(
+          mvc.perform(get("/api/public/seo/sitemap"))
+              .andReturn()
+              .getResponse()
+              .getContentAsString()
+              .contains("/articles/" + slug));
+    } finally {
+      var current =
+          settings.list().stream()
+              .filter(e -> e.definition().key().equals("seo.allow_indexing"))
+              .findFirst()
+              .orElseThrow();
+      settings.save(
+          List.of(
+              new Settings.Change("seo.allow_indexing", old.value(), current.revision(), false)),
+          admin.id());
+    }
+  }
 }
