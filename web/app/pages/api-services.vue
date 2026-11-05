@@ -59,7 +59,16 @@ async function load() {
     if (![401, 403].includes(e.status)) error.value = message(e);
   }
 }
-await load();
+// SSR只加载公开目录，私人数据挂载后再加载，避免服务端不带Cookie时与浏览器产生不一致。
+const initialCatalog = await useAsyncData("api-service-directory", () =>
+  request<any>("/api/public/apis"),
+);
+if (initialCatalog.data.value) catalog.value = initialCatalog.data.value;
+onMounted(() => load().catch((e) => (error.value = message(e))));
+const dialogButtons = () => ({
+  confirmButtonText: t("确定", "Confirm"),
+  cancelButtonText: t("取消", "Cancel"),
+});
 const keyDialog = ref(false),
   token = ref(""),
   keyId = ref("");
@@ -118,8 +127,12 @@ async function saveKey() {
 async function removeKey(row: any) {
   try {
     await ElMessageBox.confirm(
-      "未使用Key可删除；已有调用记录的Key请编辑停用。",
-      "删除Key",
+      t(
+        "未使用Key可删除；已有调用记录的Key请编辑停用。",
+        "Unused keys may be deleted. Disable keys with call history instead.",
+      ),
+      t("删除Key", "Delete key"),
+      dialogButtons(),
     );
     await request("/api/member/api/keys/" + row.id, {
       method: "DELETE",
@@ -138,6 +151,7 @@ async function rotateKey(row: any) {
         "Rotating immediately invalidates the old key. Save the new key and update your clients.",
       ),
       t("轮换Key", "Rotate key"),
+      dialogButtons(),
     );
     const r = await request<any>("/api/member/api/keys/" + row.id + "/rotate", {
       method: "POST",
@@ -156,7 +170,7 @@ async function preference(api: any) {
       method: "PUT",
       body: preferences[api.id],
     });
-    notice.value = "计费选择已保存";
+    notice.value = t("计费选择已保存", "Billing preferences saved");
   } catch (e) {
     error.value = message(e);
   }
@@ -169,8 +183,12 @@ async function buy(plan: any) {
   }
   try {
     await ElMessageBox.confirm(
-      `消耗 ${decimalUnits(plan.price_units)} 积分，${plan.quota} 次 / ${plan.days} 天。提前续费接当前到期，余量不结转。当前为模拟账本。`,
-      "确认购买或续费",
+      t(
+        `消耗 ${decimalUnits(plan.price_units)} 积分，${plan.quota} 次 / ${plan.days} 天。提前续费接当前到期，余量不结转。当前为模拟账本。`,
+        `Costs ${decimalUnits(plan.price_units)} points for ${plan.quota} calls / ${plan.days} days. Early renewal starts at the previous expiry. Unused quota does not carry over. This uses the simulated ledger.`,
+      ),
+      t("确认购买或续费", "Confirm purchase or renewal"),
+      dialogButtons(),
     );
     busy.value = true;
     const k = plan.id + ":" + plan.revision;
@@ -185,7 +203,10 @@ async function buy(plan: any) {
     });
     purchases.delete(k);
     await load();
-    notice.value = "套餐已购买，请查看周期时间";
+    notice.value = t(
+      "套餐已购买，请查看周期时间",
+      "Plan purchased. Check the start and expiry dates.",
+    );
     active.value = "subscriptions";
   } catch (e) {
     if (e !== "cancel" && e !== "close") error.value = message(e);
@@ -196,16 +217,23 @@ async function buy(plan: any) {
 async function refund(row: any) {
   try {
     const r = await ElMessageBox.prompt(
-      "仅未发生成功调用的套餐可整单退积分，提交后该周期暂停调用，等待客服审核。",
-      "申请套餐退款",
-      { inputValidator: (v: string) => !!v?.trim() || "请填写理由" },
+      t(
+        "仅未发生成功调用的套餐可整单退积分，提交后该周期暂停调用，等待客服审核。",
+        "Only unused plans qualify for a full points refund. Calls on this period pause while support reviews the request.",
+      ),
+      t("申请套餐退款", "Request plan refund"),
+      {
+        ...dialogButtons(),
+        inputValidator: (v: string) =>
+          !!v?.trim() || t("请填写理由", "Enter a reason"),
+      },
     );
     await request("/api/member/api/subscriptions/" + row.id + "/refund", {
       method: "POST",
       body: { reason: r.value },
     });
     await load();
-    notice.value = "退款申请已提交";
+    notice.value = t("退款申请已提交", "Refund request submitted");
     await loadPeriods();
   } catch (e) {
     if (e !== "cancel" && e !== "close") error.value = message(e);
@@ -239,7 +267,10 @@ async function run() {
     output.value = JSON.stringify(r, null, 2);
     await logs();
   } catch (e) {
-    error.value = e instanceof SyntaxError ? "请输入有效JSON" : message(e);
+    error.value =
+      e instanceof SyntaxError
+        ? t("请输入有效JSON", "Enter valid JSON")
+        : message(e);
   } finally {
     debugBusy.value = false;
   }
@@ -472,14 +503,18 @@ Content-Type: application/json
           "
         /><el-form class="debug-form" label-position="right" label-width="130px"
           ><el-form-item :label="t('本人Key', 'Your key')"
-            ><el-select v-model="debug.keyId" aria-label="调试Key"
+            ><el-select
+              v-model="debug.keyId"
+              :aria-label="t('调试Key', 'Debug key')"
               ><el-option
                 v-for="key in member.keys.filter((k: any) => k.enabled)"
                 :key="key.id"
                 :value="key.id"
                 :label="key.name" /></el-select></el-form-item
           ><el-form-item label="API"
-            ><el-select v-model="debug.slug" aria-label="调试API"
+            ><el-select
+              v-model="debug.slug"
+              :aria-label="t('调试API', 'Debug API')"
               ><el-option
                 v-for="api in scopedApis"
                 :key="api.id"
@@ -488,7 +523,7 @@ Content-Type: application/json
           ><el-form-item :label="t('请求标识', 'Request ID')"
             ><el-input
               v-model="debug.requestKey"
-              aria-label="调试请求标识"
+              :aria-label="t('调试请求标识', 'Debug request ID')"
             /><el-button @click="newDebugRequest">{{
               t("新请求", "New request")
             }}</el-button></el-form-item
@@ -497,7 +532,9 @@ Content-Type: application/json
               v-model="debug.input"
               type="textarea"
               :rows="6"
-              aria-label="调试JSON输入" /></el-form-item
+              :aria-label="
+                t('调试JSON输入', 'Debug JSON input')
+              " /></el-form-item
           ><el-form-item
             ><el-button
               type="primary"
@@ -575,7 +612,7 @@ Content-Type: application/json
           :model-value="token"
           readonly
           type="textarea"
-          aria-label="新建API密钥"
+          :aria-label="t('新建API密钥', 'New API secret')"
           :rows="3"
         /><el-button @click="keyDialog = false">{{
           t("已保存，关闭", "Saved, close")
@@ -585,10 +622,13 @@ Content-Type: application/json
         ><el-form-item :label="t('名称', 'Name')"
           ><el-input
             v-model="keyForm.name"
-            aria-label="Key名称"
+            :aria-label="t('Key名称', 'Key name')"
             maxlength="80" /></el-form-item
         ><el-form-item :label="t('API权限', 'API permissions')"
-          ><el-select v-model="keyForm.apiIds" multiple aria-label="Key API权限"
+          ><el-select
+            v-model="keyForm.apiIds"
+            multiple
+            :aria-label="t('Key API权限', 'Key API permissions')"
             ><el-option
               v-for="api in catalog.apis"
               :key="api.id"

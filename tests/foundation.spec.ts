@@ -1502,6 +1502,20 @@ test("API configuration, one-time keys, billable debugger and subscription refun
       })
     ).status(),
   ).toBe(401);
+  await member.getByRole("button", { name: "English", exact: true }).click();
+  await member.getByRole("tab", { name: "My keys", exact: true }).click();
+  await member
+    .getByRole("row")
+    .filter({ hasText: "浏览器调用Key" })
+    .getByRole("button", { name: "Delete", exact: true })
+    .click();
+  await expect(
+    member.getByRole("dialog", { name: "Delete key", exact: true }),
+  ).toContainText("Unused keys may be deleted");
+  await member
+    .getByRole("dialog")
+    .getByRole("button", { name: "Cancel", exact: true })
+    .click();
   expect(errors).toEqual([]);
   await member.close();
   await context.close();
@@ -1726,6 +1740,22 @@ test("guest support, private image, claim and transfer, moderated feedback and o
     path: "test-results/operations-statistics.png",
     fullPage: true,
   });
+  await guest.getByRole("button", { name: "English", exact: true }).click();
+  await expect(
+    guest.getByRole("tab", { name: "Recover guest history", exact: true }),
+  ).toBeVisible();
+  await guest
+    .getByRole("button", { name: "New conversation", exact: true })
+    .click();
+  await expect(
+    guest.getByRole("dialog", { name: "New conversation", exact: true }),
+  ).toBeVisible();
+  await expect(
+    guest
+      .getByRole("dialog")
+      .getByRole("button", { name: "Start conversation", exact: true }),
+  ).toBeVisible();
+  await guest.getByRole("dialog").locator(".el-dialog__headerbtn").click();
   expect(errors).toEqual([]);
   await stranger.close();
   await guestContext.close();

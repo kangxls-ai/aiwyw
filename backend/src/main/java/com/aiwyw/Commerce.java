@@ -321,20 +321,23 @@ public class Commerce {
         db.queryForList(
             "SELECT * FROM wallet_hold_part WHERE hold_id=? ORDER BY batch_id,id", id)) {
       Long expiry = p.get("expires_at") == null ? null : ((Number) p.get("expires_at")).longValue();
-      if (expiry != null && expiry <= now && refund) {
+      if (expiry != null && expiry <= now) {
+        // 原批次未预留余额可能已经到期并写入唯一EXPIRE流水。过期预留另建批次，
+        // 失败释放保留原到期日并立即到期；审核退款才延长有效期，避免重复流水导致释放回滚。
         db.update(
             "INSERT INTO"
                 + " wallet_batch(id,user_id,mode,source_type,source_id,total_units,remaining_units,cost_fen,remaining_cost_fen,expires_at,created_at)"
-                + " VALUES(?,?,?,'API_REFUND',?,?,?,?,?,?,?)",
+                + " VALUES(?,?,?,?,?,?,?,?,?,?,?)",
             UUID.randomUUID().toString(),
             user,
             MODE,
+            refund ? "API_REFUND" : "API_RELEASE",
             p.get("id"),
             p.get("units"),
             p.get("units"),
             p.get("cost_fen"),
             p.get("cost_fen"),
-            now + settings.integer("wallet.refund_expired_days") * 86400000L,
+            refund ? now + settings.integer("wallet.refund_expired_days") * 86400000L : expiry,
             now);
       } else
         db.update(

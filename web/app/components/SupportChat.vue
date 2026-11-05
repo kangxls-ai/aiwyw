@@ -11,7 +11,8 @@ const props = defineProps<{
   }>(),
   emit = defineEmits<{ updated: [] }>(),
   { request, message } = useApi(),
-  { t } = useLanguage();
+  language = useLanguage();
+const t = (cn: string, en: string) => (props.staff ? cn : language.t(cn, en));
 const items = ref<any[]>([]),
   conversation = ref<any>(null),
   body = ref(""),
@@ -138,6 +139,10 @@ async function state() {
           )
         : t("重新打开当前会话？", "Reopen this conversation?"),
       t("确认", "Confirm"),
+      {
+        confirmButtonText: t("确定", "Confirm"),
+        cancelButtonText: t("取消", "Cancel"),
+      },
     );
     await request(base.value + "/state", {
       method: "POST",
@@ -235,7 +240,7 @@ defineExpose({ draft, conversation, refresh: () => load(true) });
             'Type a message or paste an image; Ctrl+Enter sends',
           )
         "
-        aria-label="客服消息输入"
+        :aria-label="t('客服消息输入', 'Support message')"
         @paste="paste"
         @keydown.ctrl.enter.prevent="send"
       />

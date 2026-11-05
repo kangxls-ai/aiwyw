@@ -335,3 +335,12 @@ onBeforeUnmount(() => {
     </div></Teleport
   >
 </template>
+<style scoped>
+.management-banner-actions button.management-visit {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+</style>

@@ -907,7 +907,7 @@ class OperationsTest {
   }
 
   @Test
-  void expiredRefundReceivesConfiguredGraceButFailureDoesNotExtend() {
+  void expiredRefundReceivesConfiguredGrace() {
     String user = user("USER", true), a = definition("1.00");
     credit(user, 10000, 1000);
     String subscription = buy(user, plan(a, 3));
@@ -925,6 +925,61 @@ class OperationsTest {
             user);
     assertTrue(expiry >= before + 29 * 86400000L);
     assertTrue(expiry <= System.currentTimeMillis() + 31 * 86400000L);
+  }
+
+  @Test
+  void failedInFlightCallReleasesAlreadyExpiredBatchWithoutDuplicateExpiryLedger()
+      throws Exception {
+    String user = user("USER", true), a = definition("1.00");
+    credit(user, 10000, 1000);
+    api.preference(user, a, true, false);
+    String k = (String) key(user, a, 0).get("id");
+    CountDownLatch entered = new CountDownLatch(1), release = new CountDownLatch(1);
+    stub(
+        a,
+        x -> {
+          entered.countDown();
+          assertTrue(release.await(10, TimeUnit.SECONDS));
+          throw new java.net.SocketTimeoutException();
+        });
+    var executor = Executors.newSingleThreadExecutor();
+    try {
+      var running = executor.submit(() -> api.invoke(user, k, slug(a), id(), input("x"), false));
+      assertTrue(entered.await(10, TimeUnit.SECONDS));
+      // 仅在隔离测试库模拟调用期间原批次到期；先读取余额，触发未预留部分的到期流水。
+      db.update("UPDATE wallet_batch SET expires_at=0 WHERE user_id=?", user);
+      db.update(
+          "UPDATE wallet_hold_part SET expires_at=0 WHERE hold_id IN (SELECT id FROM wallet_hold"
+              + " WHERE user_id=?)",
+          user);
+      assertEquals(0, balance(user));
+      release.countDown();
+      var error = assertThrows(ExecutionException.class, () -> running.get(10, TimeUnit.SECONDS));
+      assertInstanceOf(Api.Failure.class, error.getCause());
+      assertEquals(504, ((Api.Failure) error.getCause()).status);
+      assertEquals(0, balance(user));
+      assertEquals(
+          "RELEASED",
+          db.queryForObject("SELECT state FROM wallet_hold WHERE user_id=?", String.class, user));
+      assertEquals(
+          "FAILED",
+          db.queryForObject("SELECT state FROM api_call WHERE user_id=?", String.class, user));
+      assertEquals(
+          0L,
+          db.queryForObject(
+              "SELECT expires_at FROM wallet_batch WHERE user_id=? AND source_type='API_RELEASE'",
+              Long.class,
+              user));
+      assertEquals(
+          0L,
+          db.queryForObject(
+              "SELECT SUM(remaining_cost_fen) FROM wallet_batch WHERE user_id=?",
+              Long.class,
+              user));
+    } finally {
+      release.countDown();
+      executor.shutdownNow();
+    }
   }
 
   @Test

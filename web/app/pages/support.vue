@@ -87,7 +87,10 @@ async function recover() {
       method: "POST",
       body: recovery,
     });
-    notice.value = r.message;
+    notice.value = t(
+      "资料匹配时会发送核验邮件；无法核验请新建咨询。",
+      "If the details match, a verification email will be sent. If you cannot verify, start a new conversation.",
+    );
   } catch (e) {
     error.value = message(e);
   }
@@ -243,7 +246,9 @@ useHead(() => ({
                 type="textarea"
                 :rows="4"
                 maxlength="4000"
-                aria-label="意见反馈内容" /></el-form-item
+                :aria-label="
+                  t('意见反馈内容', 'Feedback message')
+                " /></el-form-item
             ><el-form-item
               ><el-button
                 type="primary"
@@ -333,7 +338,7 @@ useHead(() => ({
           ><el-input
             v-model="form.subject"
             maxlength="120"
-            aria-label="咨询主题" /></el-form-item
+            :aria-label="t('咨询主题', 'Conversation subject')" /></el-form-item
         ><el-form-item :label="t('咨询类型', 'Topic')"
           ><el-select v-model="form.topic"
             ><el-option
