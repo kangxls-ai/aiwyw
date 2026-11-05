@@ -96,7 +96,7 @@ public class Commerce {
 
   /** 唯一锁顺序是账户→充值/购买→批次；同一账户并发消费不能读到相同可扣余额。 */
   /** 先锁真实账户行再取钱包行，避免MySQL重复INSERT的共享锁升级死锁。锁定读始终读取最新提交值。 */
-  private void lock(String user) {
+  void lock(String user) {
     db.queryForMap("SELECT id FROM app_user WHERE id=? FOR UPDATE", user);
     var rows =
         db.queryForList(
@@ -148,7 +148,7 @@ public class Commerce {
         System.currentTimeMillis());
   }
 
-  private void notify(String user, String title, String text) {
+  void notify(String user, String title, String text) {
     db.update(
         "INSERT INTO member_notification(id,user_id,title,body,created_at) VALUES(?,?,?,?,?)",
         UUID.randomUUID().toString(),
@@ -238,6 +238,187 @@ public class Commerce {
                       user,
                       MODE)));
         });
+  }
+
+  /** API与套餐共用原钱包批次顺序。调用方必须已在事务中锁账户；预留不等于收入。 */
+  void hold(String user, String id, long units) {
+    hold(user, id, units, "API_HOLD");
+  }
+
+  private void hold(String user, String id, long units, String kind) {
+    if (!org.springframework.transaction.support.TransactionSynchronizationManager
+        .isActualTransactionActive())
+      throw new IllegalStateException("Wallet hold requires transaction");
+    if (units < 0 || balance(user) < units) throw new Api.Failure(402, "可用积分不足");
+    long rest = units, cost = 0;
+    for (var b :
+        db.queryForList(
+            "SELECT * FROM wallet_batch WHERE user_id=? AND mode=? AND remaining_units>0 ORDER BY"
+                + " CASE WHEN expires_at IS NULL THEN 1 ELSE 0 END,expires_at,created_at,id FOR"
+                + " UPDATE",
+            user,
+            MODE)) {
+      long take = Math.min(rest, number(b, "remaining_units"));
+      if (take == 0) break;
+      long fen =
+          BigInteger.valueOf(number(b, "remaining_cost_fen"))
+              .multiply(BigInteger.valueOf(take))
+              .divide(BigInteger.valueOf(number(b, "remaining_units")))
+              .longValueExact();
+      db.update(
+          "UPDATE wallet_batch SET"
+              + " remaining_units=remaining_units-?,remaining_cost_fen=remaining_cost_fen-? WHERE"
+              + " id=?",
+          take,
+          fen,
+          b.get("id"));
+      db.update(
+          "INSERT INTO wallet_hold_part(id,hold_id,batch_id,units,cost_fen,expires_at)"
+              + " VALUES(?,?,?,?,?,?)",
+          UUID.randomUUID().toString(),
+          id,
+          b.get("id"),
+          take,
+          fen,
+          b.get("expires_at"));
+      rest -= take;
+      cost = Math.addExact(cost, fen);
+    }
+    if (rest != 0) throw new IllegalStateException("Wallet and batches diverged");
+    db.update(
+        "INSERT INTO wallet_hold(id,user_id,mode,units,cost_fen,state,created_at)"
+            + " VALUES(?,?,?,?,?,'HELD',?)",
+        id,
+        user,
+        MODE,
+        units,
+        cost,
+        System.currentTimeMillis());
+    ledger(user, kind, id, -units, -cost);
+  }
+
+  void settleHold(String user, String id) {
+    settleHold(user, id, "API_SETTLE");
+  }
+
+  private void settleHold(String user, String id, String kind) {
+    if (db.update(
+            "UPDATE wallet_hold SET state='SETTLED' WHERE id=? AND user_id=? AND state='HELD'",
+            id,
+            user)
+        != 1) throw new Api.Failure(409, "预留已变化");
+    ledger(user, kind, id, 0, 0);
+  }
+
+  /** 失败释放不延长积分原期限；正式审核退款才对已过期部分延长既定30天。 */
+  void releaseHold(String user, String id, boolean refund) {
+    var h = one("SELECT * FROM wallet_hold WHERE id=? AND user_id=? FOR UPDATE", id, user);
+    String target = refund ? "REFUNDED" : "RELEASED", expected = refund ? "SETTLED" : "HELD";
+    if (h.get("state").equals(target)) return;
+    if (!h.get("state").equals(expected)) throw new Api.Failure(409, "预留状态不允许退回");
+    long now = System.currentTimeMillis();
+    for (var p :
+        db.queryForList(
+            "SELECT * FROM wallet_hold_part WHERE hold_id=? ORDER BY batch_id,id", id)) {
+      Long expiry = p.get("expires_at") == null ? null : ((Number) p.get("expires_at")).longValue();
+      if (expiry != null && expiry <= now && refund) {
+        db.update(
+            "INSERT INTO"
+                + " wallet_batch(id,user_id,mode,source_type,source_id,total_units,remaining_units,cost_fen,remaining_cost_fen,expires_at,created_at)"
+                + " VALUES(?,?,?,'API_REFUND',?,?,?,?,?,?,?)",
+            UUID.randomUUID().toString(),
+            user,
+            MODE,
+            p.get("id"),
+            p.get("units"),
+            p.get("units"),
+            p.get("cost_fen"),
+            p.get("cost_fen"),
+            now + settings.integer("wallet.refund_expired_days") * 86400000L,
+            now);
+      } else
+        db.update(
+            "UPDATE wallet_batch SET"
+                + " remaining_units=remaining_units+?,remaining_cost_fen=remaining_cost_fen+? WHERE"
+                + " id=?",
+            p.get("units"),
+            p.get("cost_fen"),
+            p.get("batch_id"));
+    }
+    ledger(
+        user, refund ? "API_REFUND" : "API_RELEASE", id, number(h, "units"), number(h, "cost_fen"));
+    db.update("UPDATE wallet_hold SET state=? WHERE id=?", target, id);
+    expire(user);
+  }
+
+  public record Adjustment(
+      String userId, BigDecimal points, int validDays, String reason, String requestKey) {}
+
+  /** 管理员例外处理必须独立留痕；赠分成本0，扣分按原批次顺序，不能凭此伪造充值或已用套餐退款。 */
+  public String adjust(Auth.User actor, Adjustment b) {
+    if (!actor.hasRole("ADMIN") || !actor.mfaVerified())
+      throw new Api.Failure(403, "仅完成当前安全策略的管理员可调整积分");
+    if (actor.id().equals(b.userId())) throw new Api.Failure(403, "不能调整本人账户");
+    String reason = MeteredApi.text(b.reason(), 1000, true),
+        request = MeteredApi.requestKey(b.requestKey());
+    if (b.points() == null || b.points().signum() == 0 || b.validDays() < 0 || b.validDays() > 3650)
+      throw new Api.Failure(400, "请输入非零积分及正确有效期");
+    long amount = units(b.points().abs()), delta = b.points().signum() < 0 ? -amount : amount;
+    String hash = crypto.digest(b.userId() + ":" + delta + ":" + b.validDays() + ":" + reason);
+    try {
+      return tx.execute(
+          s -> {
+            lock(b.userId());
+            var old =
+                db.queryForList(
+                    "SELECT id,request_hash FROM wallet_adjustment WHERE actor_id=? AND"
+                        + " request_key=?",
+                    actor.id(),
+                    request);
+            if (!old.isEmpty()) {
+              if (!old.get(0).get("request_hash").equals(hash))
+                throw new Api.Failure(409, "调整标识不能更换参数");
+              return (String) old.get(0).get("id");
+            }
+            String key = UUID.randomUUID().toString();
+            long now = System.currentTimeMillis();
+            if (delta > 0) {
+              db.update(
+                  "INSERT INTO"
+                      + " wallet_batch(id,user_id,mode,source_type,source_id,total_units,remaining_units,cost_fen,remaining_cost_fen,expires_at,created_at)"
+                      + " VALUES(?,?,?,'ADJUSTMENT',?,?,?,0,0,?,?)",
+                  UUID.randomUUID().toString(),
+                  b.userId(),
+                  MODE,
+                  key,
+                  amount,
+                  amount,
+                  b.validDays() == 0 ? null : now + b.validDays() * 86400000L,
+                  now);
+              ledger(b.userId(), "ADJUST_CREDIT", key, delta, 0);
+            } else {
+              hold(b.userId(), key, amount, "ADJUST_DEBIT");
+              settleHold(b.userId(), key, "ADJUST_DONE");
+            }
+            db.update(
+                "INSERT INTO wallet_adjustment VALUES(?,?,?,?,?,?,?,?,?,?)",
+                key,
+                b.userId(),
+                actor.id(),
+                MODE,
+                delta,
+                b.validDays(),
+                reason,
+                request,
+                hash,
+                now);
+            audit(actor.id(), key, "ADJUST_POINTS", reason);
+            notify(b.userId(), "积分人工调整", decimal(delta) + " 积分。原因：" + reason);
+            return key;
+          });
+    } catch (org.springframework.dao.DuplicateKeyException conflict) {
+      throw new Api.Failure(409, "调整请求已处理，请重新读取");
+    }
   }
 
   public record Recharge(BigDecimal amount, String packageId, String requestKey) {}

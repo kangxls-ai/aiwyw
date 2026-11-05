@@ -105,8 +105,10 @@ main{max-width:1160px;margin:36px auto;padding:0 20px}.back{display:block;margin
             escape(p.version()),
             escape(p.type()),
             p.pricePoints().stripTrailingZeros().toPlainString(),
-            p.pricePoints().signum() == 0 ? "下载应用" : "兑换与下载",
-            p.pricePoints().signum() == 0 ? "Download" : "Redeem and download",
+            p.type().equals("API") ? "进入API服务" : p.pricePoints().signum() == 0 ? "下载应用" : "兑换与下载",
+            p.type().equals("API")
+                ? "API services"
+                : p.pricePoints().signum() == 0 ? "Download" : "Redeem and download",
             screenshots.isEmpty()
                 ? ""
                 : "<section class=\"screenshots\"><h2><span class=\"zh\">应用截图</span><span"

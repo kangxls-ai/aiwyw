@@ -40,6 +40,12 @@ export const adminMenuGroups: AdminMenuGroup[] = [
         "从工作台了解当前站点与待办事项。",
         "/admin",
       ),
+      item(
+        "statistics",
+        "运营统计",
+        "chart",
+        "分析来源、搜索、留存、商品/API收入和客服运营。",
+      ),
     ],
   },
   {

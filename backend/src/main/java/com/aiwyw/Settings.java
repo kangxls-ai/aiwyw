@@ -102,6 +102,14 @@ public class Settings {
     number("api.expiry_reminder_days", "API服务", "订阅到期提前提醒 天", 3, 1, 30, "此值为可编辑初始值，业务模块接入后生效");
     bool("api.overage_default", "API服务", "默认允许超额扣积分", false, "用户必须主动开启，当前初始值为关闭");
     bool("api.debug_billable", "API服务", "在线调试正常计费", true, "使用用户本人Key，成功调用正常计费");
+    number("api.max_keys", "API服务", "每账户Key数量上限", 20, 1, 200, "停用Key仍计数，可修改或删除未使用Key");
+    number("api.account_minute_limit", "API服务", "账户每分钟调用上限", 120, 1, 10000, "多个Key及调试共用；失败尝试也计限速");
+    number("api.concurrent_limit", "API服务", "单进程上游并发上限", 16, 1, 64, "有界工作池，满载拒绝且释放预留；多进程仍共用数据库配额");
+    number("api.timeout_seconds", "API服务", "上游调用超时 秒", 30, 1, 60, "超时不计费，不自动重放上游");
+    number("api.body_limit_kb", "API服务", "调用输入输出上限 KB", 256, 1, 4096, "非流式JSON适配器的内存与内容边界");
+    number("api.response_days", "API服务", "幂等响应保留天数", 7, 1, 90, "到期只清正文，保留最小幂等计费事实，旧键不重新执行");
+    number(
+        "api.invalid_hour_limit", "API服务", "无效Key来源每小时上限", 120, 1, 10000, "按实际连接来源摘要限速，不记录完整Key");
     number("license.activate_hour_limit", "软件授权", "激活每来源每小时上限", 60, 1, 10000, "程序激活频控；来源以实际连接地址为准");
     number(
         "license.verify_hour_limit",
@@ -117,6 +125,24 @@ public class Settings {
     bool("support.public_review", "客服与通知", "公开留言先审核", true, "私密反馈始终不公开");
     bool("support.email_default", "客服与通知", "用户业务邮件默认开启", false, "验证和找回邮件不受业务邮件偏好限制");
     text("support.inbox", "客服与通知", "客服通知邮箱", "", false, "离线留言的邮件接收地址");
+    number("support.hour_limit", "客服与通知", "每来源每小时交互上限", 120, 1, 10000, "游客咨询、消息、反馈与图片上传防滥用");
+    number("support.poll_seconds", "客服与通知", "会话刷新间隔 秒", 3, 2, 30, "增量拉取消息及未读，不刷新整页");
+    number("support.recovery_minutes", "客服与通知", "游客找回链接有效 分", 30, 5, 60, "邮箱核验成功后换发浏览器凭据");
+    number("support.presence_seconds", "客服与通知", "客服在线心跳有效 秒", 90, 30, 600, "离线仍保留负责人");
+    number(
+        "support.offline_mail_minutes", "客服与通知", "同会话离线邮件最短间隔 分", 10, 1, 1440, "站内消息始终保留，减少重复邮件");
+    number("analytics.retention_days", "运营统计", "行为事件保留天数", 400, 31, 3650, "仅行为数据；交易及API计费事实不按此删除");
+    number("analytics.hour_limit", "运营统计", "每来源每小时事件上限", 1000, 10, 100000, "客户端事件按日去重且不作为账务凭据");
+    bool("analytics.exclude_staff", "运营统计", "行为统计排除后台账户", true, "减少维护操作对来源、搜索和留存的干扰");
+    bool("redis.enabled", "缓存与限流", "启用Redis辅助", false, "未配置时使用数据库计量；Redis故障不放宽配额或丢失账务");
+    text("redis.host", "缓存与限流", "Redis主机", "127.0.0.1", false, "站点专用Redis连接，后台配置");
+    number("redis.port", "缓存与限流", "Redis端口", 6379, 1, 65535, "由服务提供方给出");
+    number("redis.database", "缓存与限流", "Redis数据库编号", 0, 0, 15, "仅使用站点专用逻辑数据库");
+    secret("redis.password", "缓存与限流", "Redis密码", "仅加密保存，不进入连接日志");
+    bool("redis.tls", "缓存与限流", "Redis使用TLS", false, "远程网络建议启用并使用可信服务端证书");
+    number("redis.timeout_ms", "缓存与限流", "Redis连接命令超时 毫秒", 200, 50, 2000, "故障快速退回数据库，缓存不作为账务事实");
+    number("redis.retry_seconds", "缓存与限流", "Redis故障重试间隔 秒", 30, 5, 300, "熔断期间不反复连接");
+    bool("analytics.enabled", "运营统计", "启用访问行为统计", true, "关闭不影响交易、API及客服的服务端事实报表");
     bool("mail.enabled", "邮件服务", "启用邮件服务", false, "先填写服务商资料并测试后开启");
     text("mail.host", "邮件服务", "SMTP主机", "", false, "服务商SMTP地址");
     number("mail.port", "邮件服务", "SMTP端口", 587, 1, 65535, "按服务商说明设置");

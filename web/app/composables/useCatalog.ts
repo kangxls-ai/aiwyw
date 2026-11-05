@@ -20,6 +20,13 @@ export function useCatalog() {
   }
   /** 只在服务端确认交付成功后跳转；按钮点击本身不累加下载次数，也不本机扣积分。 */
   async function download(product: CatalogProduct) {
+    if (
+      product.content.type === "API" ||
+      product.content.deliveryMode === "API"
+    ) {
+      await navigateTo({ path: "/api-services", query: { api: product.slug } });
+      return;
+    }
     if (product.content.pricePoints > 0) {
       await navigateTo({ path: "/checkout", query: { slug: product.slug } });
       return;

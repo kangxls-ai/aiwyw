@@ -34,6 +34,55 @@ const q = ref(""),
   approve = ref(true),
   actual = ref(0),
   reason = ref("");
+const adjustmentDialog = ref(false),
+  adjustUsers = ref<any[]>([]),
+  adjusting = ref(false),
+  adjustment = reactive({
+    userId: "",
+    points: 1,
+    validDays: 0,
+    reason: "",
+    requestKey: "",
+  });
+async function loadAdjustUsers(q = "") {
+  try {
+    adjustUsers.value = await request("/api/admin/commerce/adjust-options", {
+      query: { q },
+    });
+  } catch (e) {
+    error.value = message(e);
+  }
+}
+function openAdjustment() {
+  Object.assign(adjustment, {
+    userId: "",
+    points: 1,
+    validDays: 0,
+    reason: "",
+    requestKey: crypto.randomUUID(),
+  });
+  adjustmentDialog.value = true;
+  loadAdjustUsers();
+}
+async function adjustPoints() {
+  adjusting.value = true;
+  try {
+    await request("/api/admin/commerce/adjust", {
+      method: "POST",
+      body: {
+        ...adjustment,
+        validDays: adjustment.points > 0 ? adjustment.validDays : 0,
+      },
+    });
+    adjustmentDialog.value = false;
+    notice.value = "人工积分调整已完成并记录审计";
+    await load();
+  } catch (e) {
+    error.value = message(e);
+  } finally {
+    adjusting.value = false;
+  }
+}
 const canReview = computed(() =>
   user.value?.roles?.some((r: string) => ["ADMIN", "SUPPORT"].includes(r)),
 );
@@ -138,6 +187,15 @@ onMounted(load);
         <h1>{{ title }}</h1>
         <p>模拟交易账本，与真实收款隔离。时间统一为北京时间。</p>
       </div>
+      <el-button
+        v-if="
+          view === 'points' &&
+          (user?.roles?.includes('ADMIN') || user?.role === 'ADMIN')
+        "
+        type="primary"
+        @click="openAdjustment"
+        >人工积分调整</el-button
+      >
     </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <p v-if="notice" class="alert success" role="status">{{ notice }}</p>
@@ -345,6 +403,66 @@ onMounted(load);
         ><el-button @click="dialog = false">取消</el-button
         ><el-button type="primary" :loading="busy" @click="save"
           >确认处理</el-button
+        ></template
+      ></el-dialog
+    >
+    <AdminApi
+      v-if="view === 'refunds'"
+      view="api-refunds"
+      style="margin-top: 28px"
+    />
+    <el-dialog
+      v-model="adjustmentDialog"
+      title="人工积分调整"
+      width="min(620px,94vw)"
+      ><el-alert
+        type="info"
+        :closable="false"
+        title="异常补偿独立留痕，赠分成本为0，不替代人民币退款或标准套餐退款；禁止调整本人。"
+      /><el-form
+        label-position="right"
+        label-width="140px"
+        style="margin-top: 20px"
+        ><el-form-item label="目标账户"
+          ><el-select
+            v-model="adjustment.userId"
+            filterable
+            remote
+            :remote-method="loadAdjustUsers"
+            placeholder="搜索昵称或输入完整账户ID"
+            aria-label="调整积分目标账户"
+            ><el-option
+              v-for="u in adjustUsers"
+              :key="u.id"
+              :value="u.id"
+              :label="
+                u.nickname + ' (' + u.id.slice(0, 8) + ')'
+              " /></el-select></el-form-item
+        ><el-form-item label="调整积分"
+          ><el-input-number
+            v-model="adjustment.points"
+            :precision="2"
+            :min="-1000000"
+            :max="1000000"
+          /><span>正数增加，负数扣减</span></el-form-item
+        ><el-form-item v-if="adjustment.points > 0" label="有效天数"
+          ><el-input-number
+            v-model="adjustment.validDays"
+            :min="0"
+            :max="3650"
+          /><span>0为永久</span></el-form-item
+        ><el-form-item label="业务原因"
+          ><el-input
+            v-model="adjustment.reason"
+            type="textarea"
+            :rows="4"
+            maxlength="1000"
+            placeholder="填写业务原因，不填密码或完整Key"
+            aria-label="人工积分调整原因" /></el-form-item></el-form
+      ><template #footer
+        ><el-button @click="adjustmentDialog = false">取消</el-button
+        ><el-button type="primary" :loading="adjusting" @click="adjustPoints"
+          >确认调整并审计</el-button
         ></template
       ></el-dialog
     >

@@ -14,12 +14,19 @@ public class ContentController {
   private final Auth auth;
   private final Settings settings;
   private final JdbcTemplate db;
+  private final OperationsStats statistics;
 
-  ContentController(ContentService service, Auth auth, Settings settings, JdbcTemplate db) {
+  ContentController(
+      ContentService service,
+      Auth auth,
+      Settings settings,
+      JdbcTemplate db,
+      OperationsStats statistics) {
     this.service = service;
     this.auth = auth;
     this.settings = settings;
     this.db = db;
+    this.statistics = statistics;
   }
 
   @GetMapping("/api/admin/content")
@@ -102,8 +109,10 @@ public class ContentController {
   ResponseEntity<String> page(
       @PathVariable String slug,
       @RequestParam(defaultValue = "zh") String lang,
-      HttpServletRequest r) {
+      HttpServletRequest r,
+      jakarta.servlet.http.HttpServletResponse response) {
     var p = service.page(slug, lang);
+    statistics.pageEvent("/articles/" + slug, r, response);
     String etag = "\"" + p.hash() + "\"";
     var headers = new HttpHeaders();
     headers.setETag(etag);

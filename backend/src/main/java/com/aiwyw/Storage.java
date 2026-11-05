@@ -243,11 +243,15 @@ public class Storage {
 
   /** 按流校验实际长度，图片先读取尺寸再解码；安装包不进入内存，也不按原始文件名落盘。 */
   public Asset upload(MultipartFile input, String purpose, String actor) {
-    if (purpose == null || !Set.of("IMAGE", "DOWNLOAD", "RECEIPT").contains(purpose))
+    if (purpose == null || !Set.of("IMAGE", "DOWNLOAD", "RECEIPT", "CHAT").contains(purpose))
       throw new Api.Failure(400, "请选择图片或下载文件");
     long maximum =
         settings.integer(
-                !purpose.equals("DOWNLOAD") ? "storage.image_limit_mb" : "storage.file_limit_mb")
+                purpose.equals("CHAT")
+                    ? "support.image_limit_mb"
+                    : !purpose.equals("DOWNLOAD")
+                        ? "storage.image_limit_mb"
+                        : "storage.file_limit_mb")
             * 1024L
             * 1024;
     if (input.isEmpty() || input.getSize() > maximum) throw new Api.Failure(400, "上传内容为空或超出当前大小限制");
@@ -406,9 +410,11 @@ public class Storage {
             ((Number) r.get("created_at")).longValue(),
             Boolean.TRUE.equals(r.get("public_visible")),
             ((Number) r.get("refs")).longValue(),
-            purpose.equals("RECEIPT")
-                ? "/api/member/evidence/" + id
-                : purpose.equals("IMAGE") ? "/api/public/media/" + id : "asset:" + id,
+            purpose.equals("CHAT")
+                ? "/api/support/assets/" + id
+                : purpose.equals("RECEIPT")
+                    ? "/api/member/evidence/" + id
+                    : purpose.equals("IMAGE") ? "/api/public/media/" + id : "asset:" + id,
             "/api/admin/storage/assets/" + id + "/content");
     return new Stored(
         asset,
@@ -456,7 +462,7 @@ public class Storage {
         || query == null
         || query.length() > 200) throw new Api.Failure(400, "分页或查询参数不正确");
     List<Object> values = new ArrayList<>();
-    String where = " WHERE a.purpose<>'RECEIPT'";
+    String where = " WHERE a.purpose NOT IN ('RECEIPT','CHAT')";
     if (!query.isBlank()) {
       where += " AND LOWER(a.original_name) LIKE ? ESCAPE '!'";
       values.add(

@@ -13,12 +13,19 @@ public class CatalogController {
   private final Auth auth;
   private final Settings settings;
   private final CatalogAdminQuery query;
+  private final OperationsStats statistics;
 
-  public CatalogController(Catalog catalog, Auth auth, Settings settings, CatalogAdminQuery query) {
+  public CatalogController(
+      Catalog catalog,
+      Auth auth,
+      Settings settings,
+      CatalogAdminQuery query,
+      OperationsStats statistics) {
     this.catalog = catalog;
     this.auth = auth;
     this.settings = settings;
     this.query = query;
+    this.statistics = statistics;
   }
 
   public record Revision(long revision) {}
@@ -190,6 +197,10 @@ public class CatalogController {
       @PathVariable String slug, HttpServletRequest req, HttpServletResponse res) {
     var product = catalog.findPublic(slug);
     if (product.status().equals("PUBLISHED")
+        && (product.content().type().equals("API")
+            || product.content().deliveryMode().equals("API")))
+      return Map.of("url", "/api-services?api=" + product.slug());
+    if (product.status().equals("PUBLISHED")
         && (product.content().pricePoints().signum() > 0
             || product.content().deliveryMode().equals("LICENSE")))
       return Map.of("url", "/checkout?slug=" + product.slug());
@@ -202,6 +213,7 @@ public class CatalogController {
     // 不要求Nuxt渲染，不查商品详情接口；内存指针命中文件。no-cache允许浏览器验证更新，CDN可配置短TTL。
     visitor(req, res);
     String html = catalog.page(slug);
+    statistics.pageEvent("/apps/" + slug, req, res);
     String etag = "\"" + catalog.hash(html) + "\"";
     String csp =
         "default-src 'self'; script-src 'sha256-"

@@ -14,6 +14,21 @@ async function load() {
       query: { q: q.value, kind: kind.value, page: page.value, pageSize: 12 },
     });
     page.value = data.value.page;
+    if (import.meta.client && q.value.trim()) {
+      let source = "";
+      try {
+        source = new URL(document.referrer).hostname;
+      } catch {}
+      request("/api/public/events", {
+        method: "POST",
+        body: {
+          kind: "SEARCH",
+          path: "/articles",
+          keyword: q.value.trim(),
+          source,
+        },
+      }).catch(() => {});
+    }
   } catch (e) {
     error.value = message(e);
   }

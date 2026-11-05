@@ -179,6 +179,27 @@ public class CommerceController {
 
   record RechargeReview(BigDecimal actual, boolean approve, String reason) {}
 
+  @PostMapping("/api/admin/commerce/adjust")
+  Map<String, String> adjust(@RequestBody Commerce.Adjustment b, HttpServletRequest r) {
+    return Map.of("id", service.adjust(auth.permission(r, "points"), b));
+  }
+
+  @GetMapping("/api/admin/commerce/adjust-options")
+  List<Map<String, Object>> adjustmentUsers(
+      @RequestParam(defaultValue = "") String q, HttpServletRequest r) {
+    var actor = auth.permission(r, "points");
+    if (!actor.hasRole("ADMIN")) throw new Api.Failure(403, "仅管理员可选择调整账户");
+    String value = MeteredApi.text(q, 100, false),
+        term = "%" + value.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+    return Commerce.safeRows(
+        db.queryForList(
+            "SELECT id,nickname FROM app_user WHERE disabled=FALSE AND id<>? AND (nickname LIKE ?"
+                + " ESCAPE '!' OR id=?) ORDER BY created_at DESC,id LIMIT 20",
+            actor.id(),
+            term,
+            value));
+  }
+
   @PostMapping("/api/admin/commerce/recharge/{id}/review")
   Map<String, Boolean> review(
       @PathVariable String id, @RequestBody RechargeReview b, HttpServletRequest r) {

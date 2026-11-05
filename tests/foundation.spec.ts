@@ -1291,3 +1291,443 @@ test("profile nickname and password, asymmetric menu tree and light authenticati
   await member.close();
   await adminContext.close();
 });
+
+test("API configuration, one-time keys, billable debugger and subscription refund", async ({
+  browser,
+}) => {
+  test.setTimeout(180000);
+  const context = await browser.newContext({
+    storageState: join(directory(), "admin-state.json"),
+  });
+  await context.addCookies([
+    { name: "aiwyw_language", value: "zh", url: "http://127.0.0.1:3000" },
+  ]);
+  const admin = await context.newPage(),
+    errors: string[] = [];
+  admin.on("pageerror", (e) => errors.push(e.message));
+  await admin.goto("/admin/workspace?view=apis");
+  const apiPanel = admin.locator('[data-workspace="apis"]');
+  await apiPanel.getByRole("button", { name: "新增API", exact: true }).click();
+  await apiPanel
+    .getByLabel("API配置名称", { exact: true })
+    .fill("浏览器文本API");
+  await apiPanel
+    .getByLabel("API调用地址", { exact: true })
+    .fill("browser-text-api");
+  await apiPanel
+    .getByLabel("API中文说明", { exact: true })
+    .fill("输入text字符串，返回字符、词和行数。");
+  await apiPanel.getByLabel("API积分价格", { exact: true }).fill("1.25");
+  await apiPanel.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(
+    apiPanel.getByText("已保存，已有购买和调用条款不被覆盖", { exact: true }),
+  ).toBeVisible();
+  const api = (await (await admin.request.get("/api/admin/apis")).json()).find(
+    (a: any) => a.slug === "browser-text-api",
+  );
+  await menu(admin, "套餐与订阅");
+  const planPanel = admin.locator('[data-workspace="plans"]');
+  await planPanel
+    .getByRole("button", { name: "新增套餐", exact: true })
+    .click();
+  await planPanel
+    .getByLabel("API配置名称", { exact: true })
+    .fill("浏览器月度套餐");
+  await planPanel.getByLabel("API积分价格", { exact: true }).fill("2.00");
+  await select(admin, "套餐所属API", "浏览器文本API");
+  await planPanel.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(
+    planPanel.getByText("已保存，已有购买和调用条款不被覆盖", { exact: true }),
+  ).toBeVisible();
+  const plans = await (await admin.request.get("/api/admin/api-plans")).json(),
+    plan = plans.find((p: any) => p.name === "浏览器月度套餐");
+  const member = await browser.newPage();
+  member.on("pageerror", (e) => errors.push(e.message));
+  await member
+    .context()
+    .addCookies([
+      { name: "aiwyw_language", value: "zh", url: "http://127.0.0.1:3000" },
+    ]);
+  await member.goto("/account-access");
+  await member.getByLabel("邮箱", { exact: true }).fill("member@example.com");
+  await member
+    .getByLabel("密码", { exact: true })
+    .fill("brand-new-member-password-456");
+  await member.getByRole("button", { name: "确认", exact: true }).click();
+  await expect(member).toHaveURL(/\/account$/);
+  const before = BigInt(
+    (
+      await (await member.request.get("/api/member/wallet")).json()
+    ).balance.replace(".", ""),
+  );
+  await member.goto("/api-services");
+  const card = member.locator(".api-card").filter({
+    has: member.getByRole("heading", { name: "浏览器文本API", exact: true }),
+  });
+  await card
+    .locator(".el-checkbox")
+    .filter({ hasText: "无有效套餐时允许按次扣分" })
+    .click();
+  await card.getByRole("button", { name: "保存计费选择", exact: true }).click();
+  await expect(
+    member.getByText("计费选择已保存", { exact: true }),
+  ).toBeVisible();
+  await member.getByRole("tab", { name: "我的Key", exact: true }).click();
+  await member.getByRole("button", { name: "新增Key", exact: true }).click();
+  const dialog = member.getByRole("dialog");
+  await dialog.getByLabel("Key名称", { exact: true }).fill("浏览器调用Key");
+  await select(member, "Key API权限", "浏览器文本API");
+  await dialog.getByRole("button", { name: "保存Key", exact: true }).click();
+  const token = await dialog
+    .getByLabel("新建API密钥", { exact: true })
+    .inputValue();
+  expect(token).toMatch(/^aiwyw_/);
+  await dialog
+    .getByRole("button", { name: "已保存，关闭", exact: true })
+    .click();
+  expect(
+    JSON.stringify(await (await member.request.get("/api/member/api")).json()),
+  ).not.toContain(token);
+  await member.getByRole("tab", { name: "在线调试", exact: true }).click();
+  await select(member, "调试Key", "浏览器调用Key");
+  await select(member, "调试API", "浏览器文本API");
+  await member
+    .getByLabel("调试JSON输入", { exact: true })
+    .fill('{"text":"Hello world"}');
+  await member
+    .getByRole("button", { name: "执行（正常计费）", exact: true })
+    .click();
+  await expect(member.locator(".debug-output")).toContainText(
+    '"chargedPoints": "1.25"',
+  );
+  await expect(member.locator(".debug-output")).toContainText(
+    '"characters": 11',
+  );
+  await member
+    .getByRole("button", { name: "执行（正常计费）", exact: true })
+    .click();
+  await expect(
+    member.getByRole("button", { name: "执行（正常计费）", exact: true }),
+  ).toBeEnabled();
+  const after = BigInt(
+    (
+      await (await member.request.get("/api/member/wallet")).json()
+    ).balance.replace(".", ""),
+  );
+  expect(before - after).toBe(125n);
+  await member.screenshot({
+    path: "test-results/api-debugger.png",
+    fullPage: true,
+  });
+  const call = await member.request.post("/api/v1/invoke/browser-text-api", {
+    headers: {
+      Authorization: "Bearer " + token,
+      "Idempotency-Key": "browser-programmatic-123",
+    },
+    data: { text: "programmatic" },
+  });
+  expect(call.status()).toBe(200);
+  expect((await call.json()).status).toBe("SUCCESS");
+  await member.getByRole("tab", { name: "接口与套餐", exact: true }).click();
+  await card.getByRole("button", { name: "购买 / 续费", exact: true }).click();
+  await member
+    .getByRole("dialog")
+    .getByRole("button", { name: /确定|确认/ })
+    .click();
+  await expect(
+    member.getByText("套餐已购买，请查看周期时间", { exact: true }),
+  ).toBeVisible();
+  let sub = (
+    await (await member.request.get("/api/member/api")).json()
+  ).subscriptions.find((s: any) => s.plan_id === plan.id);
+  expect(Number(sub.used_count)).toBe(0);
+  await member
+    .getByRole("row")
+    .filter({ hasText: "浏览器月度套餐" })
+    .getByRole("button", { name: "申请退积分", exact: true })
+    .click();
+  await member
+    .getByRole("dialog")
+    .locator("input")
+    .fill("尚未使用，申请退积分");
+  await member
+    .getByRole("dialog")
+    .getByRole("button", { name: /确定|确认/ })
+    .click();
+  await expect(
+    member.getByText("退款申请已提交", { exact: true }),
+  ).toBeVisible();
+  await admin.goto("/admin/workspace?view=refunds");
+  const refundPanel = admin.locator('[data-workspace="refunds"]');
+  await expect(
+    refundPanel.getByRole("heading", { name: "API套餐退款", exact: true }),
+  ).toBeVisible();
+  await refundPanel
+    .getByRole("row")
+    .filter({ hasText: "浏览器月度套餐" })
+    .getByRole("button", { name: "批准", exact: true })
+    .click();
+  await admin
+    .getByRole("dialog")
+    .locator("input,textarea")
+    .first()
+    .fill("核实无成功调用，整单退积分");
+  await admin
+    .getByRole("dialog")
+    .getByRole("button", { name: /确定|确认/ })
+    .click();
+  await expect(
+    refundPanel.getByText("退款审核完成", { exact: true }),
+  ).toBeVisible();
+  sub = (
+    await (await member.request.get("/api/member/api")).json()
+  ).subscriptions.find((s: any) => s.id === sub.id);
+  expect(sub.state).toBe("REFUNDED");
+  const key = (
+    await (await member.request.get("/api/member/api")).json()
+  ).keys.find((k: any) => k.name === "浏览器调用Key");
+  const revoke = await admin.request.post(
+    "/api/admin/api-keys/" + key.id + "/revoke",
+    { headers: { "X-AIWYW-Request": "1" }, data: { revision: key.revision } },
+  );
+  expect(revoke.status()).toBe(200);
+  expect(
+    (
+      await member.request.post("/api/v1/invoke/browser-text-api", {
+        headers: {
+          Authorization: "Bearer " + token,
+          "Idempotency-Key": "revoked-request-123",
+        },
+        data: { text: "x" },
+      })
+    ).status(),
+  ).toBe(401);
+  expect(errors).toEqual([]);
+  await member.close();
+  await context.close();
+});
+
+test("guest support, private image, claim and transfer, moderated feedback and operational reports", async ({
+  browser,
+}) => {
+  test.setTimeout(180000);
+  const adminContext = await browser.newContext({
+      storageState: join(directory(), "admin-state.json"),
+    }),
+    guestContext = await browser.newContext();
+  for (const c of [adminContext, guestContext])
+    await c.addCookies([
+      { name: "aiwyw_language", value: "zh", url: "http://127.0.0.1:3000" },
+    ]);
+  const guest = await guestContext.newPage(),
+    admin = await adminContext.newPage(),
+    errors: string[] = [];
+  for (const p of [guest, admin])
+    p.on("pageerror", (e) => errors.push(e.message));
+  await guest.goto("/support");
+  await guest.getByRole("button", { name: "新建咨询", exact: true }).click();
+  await guest
+    .getByRole("dialog")
+    .getByLabel("咨询主题", { exact: true })
+    .fill("浏览器游客咨询");
+  await guest
+    .getByRole("dialog")
+    .getByRole("button", { name: "开始咨询", exact: true })
+    .click();
+  await expect(
+    guest.getByRole("textbox", { name: "客服消息输入", exact: true }),
+  ).toBeVisible();
+  await guest
+    .getByRole("textbox", { name: "客服消息输入", exact: true })
+    .fill("请问如何使用这个工具？");
+  const chooser = guest.waitForEvent("filechooser");
+  await guest
+    .getByRole("button", { name: "上传图片 / 截图", exact: true })
+    .click();
+  await (
+    await chooser
+  ).setFiles({
+    name: "shot.webp",
+    mimeType: "image/webp",
+    buffer: readFileSync("backend/src/test/resources/tiny.webp"),
+  });
+  await expect(guest.locator(".pending-image img")).toBeVisible();
+  await guest.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(guest.locator(".chat-feed")).toContainText(
+    "请问如何使用这个工具？",
+  );
+  const history = await (
+      await guest.request.get("/api/support/conversations")
+    ).json(),
+    c = history.items.find((x: any) => x.subject === "浏览器游客咨询"),
+    msgs = await (
+      await guest.request.get(
+        "/api/support/conversations/" + c.id + "/messages",
+      )
+    ).json(),
+    image = msgs.items.find((m: any) => m.asset_id).asset_id;
+  const stranger = await browser.newContext();
+  expect(
+    (
+      await stranger.request.get(
+        "http://127.0.0.1:3000/api/support/conversations/" + c.id + "/messages",
+      )
+    ).status(),
+  ).toBe(404);
+  expect(
+    (
+      await stranger.request.get(
+        "http://127.0.0.1:3000/api/support/assets/" + image,
+      )
+    ).status(),
+  ).toBe(404);
+  await admin.goto("/admin/workspace?view=conversations");
+  await admin
+    .getByRole("row")
+    .filter({ hasText: "浏览器游客咨询" })
+    .getByRole("button", { name: "抢单领取", exact: true })
+    .click();
+  await expect(
+    admin.getByRole("textbox", { name: "客服消息输入", exact: true }),
+  ).toBeVisible();
+  await admin
+    .getByRole("textbox", { name: "客服消息输入", exact: true })
+    .fill("已收到截图，我来协助你。");
+  await admin.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(guest.locator(".chat-feed")).toContainText(
+    "已收到截图，我来协助你。",
+    { timeout: 15000 },
+  );
+  await admin.screenshot({
+    path: "test-results/support-admin.png",
+    fullPage: true,
+  });
+  const created = await admin.request.post("/api/admin/accounts", {
+    headers: { "X-AIWYW-Request": "1" },
+    data: {
+      email: "support-browser@example.com",
+      password: "support-browser-password-123",
+      roles: ["SUPPORT"],
+      disabled: false,
+    },
+  });
+  expect(created.status()).toBe(200);
+  const agents = await (
+      await admin.request.get("/api/admin/support/conversations")
+    ).json(),
+    target = agents.agents.find((a: any) => a.id !== agents.self);
+  expect(target).toBeTruthy();
+  const transfer = await admin.request.post(
+    "/api/admin/support/conversations/" + c.id + "/assign",
+    {
+      headers: { "X-AIWYW-Request": "1" },
+      data: {
+        userId: target.id,
+        revision: (
+          await (
+            await admin.request.get(
+              "/api/admin/support/conversations/" + c.id + "/messages",
+            )
+          ).json()
+        ).conversation.revision,
+      },
+    },
+  );
+  expect(transfer.status()).toBe(200);
+  await admin.reload();
+  await admin
+    .getByRole("row")
+    .filter({ hasText: "浏览器游客咨询" })
+    .getByRole("button", { name: "查看", exact: true })
+    .click();
+  await expect(
+    admin.getByRole("textbox", { name: "客服消息输入", exact: true }),
+  ).toHaveCount(0);
+  await guest.getByRole("tab", { name: "留言与意见", exact: true }).click();
+  await guest
+    .getByLabel("意见反馈内容", { exact: true })
+    .fill("公开留言：希望补充更多工具。");
+  await guest.getByRole("button", { name: "提交反馈", exact: true }).click();
+  await expect(
+    guest.getByText("已提交，公开留言审核后展示；私密反馈仅本人和客服可见。", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const privateResult = await guest.request.post("/api/support/feedback", {
+    headers: { "X-AIWYW-Request": "1" },
+    data: { kind: "PRIVATE", body: "私密意见：只允许客服查看。" },
+  });
+  expect(privateResult.status()).toBe(200);
+  await admin.goto("/admin/workspace?view=messages");
+  await admin
+    .getByRole("row")
+    .filter({ hasText: "公开留言：希望补充更多工具。" })
+    .getByRole("button", { name: "批准 / 回复", exact: true })
+    .click();
+  await admin
+    .getByRole("dialog")
+    .locator("textarea,input")
+    .first()
+    .fill("已记录，感谢建议。");
+  await admin
+    .getByRole("dialog")
+    .getByRole("button", { name: /确定|确认/ })
+    .click();
+  await expect(admin.getByText("处理已保存", { exact: true })).toBeVisible();
+  const publicFeed = await (
+    await stranger.request.get("http://127.0.0.1:3000/api/public/messages")
+  ).json();
+  expect(JSON.stringify(publicFeed)).toContain("公开留言：希望补充更多工具。");
+  expect(JSON.stringify(publicFeed)).not.toContain("私密意见");
+  const trackedSearch = guest.waitForResponse(
+    (r) =>
+      r.url().endsWith("/api/public/events") &&
+      r.request().postData()?.includes('"kind":"SEARCH"') === true,
+  );
+  await guest.goto("/apps?q=markdo");
+  await expect(
+    guest.getByRole("heading", { name: /全部应用|All applications/ }),
+  ).toBeVisible();
+  await trackedSearch;
+  await guest.goto("/support");
+  await guest.setViewportSize({ width: 390, height: 844 });
+  await guest.screenshot({
+    path: "test-results/support-mobile.png",
+    fullPage: true,
+  });
+  expect(
+    await guest.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await admin.goto("/admin/workspace?view=statistics");
+  await expect(
+    admin.getByRole("heading", { name: "运营统计", exact: true }),
+  ).toBeVisible();
+  await select(admin, "统计账本模式", "模拟账本（独立分析）");
+  await admin.getByRole("button", { name: "查询统计", exact: true }).click();
+  await expect(admin.locator(".report-scope")).toContainText(
+    "当前显示模拟账本",
+  );
+  await admin.getByRole("tab", { name: "搜索关键词", exact: true }).click();
+  await expect(
+    admin.getByRole("row").filter({ hasText: "markdo" }),
+  ).toBeVisible();
+  await admin.getByRole("tab", { name: "商品与API收入", exact: true }).click();
+  await expect(
+    admin.getByRole("row").filter({ hasText: "浏览器文本API" }),
+  ).toBeVisible();
+  const csv = await admin.request.get(
+    "/api/admin/statistics/export?mode=SIMULATED",
+  );
+  expect(csv.status()).toBe(200);
+  expect(await csv.text()).toContain("API_CALL");
+  await admin.screenshot({
+    path: "test-results/operations-statistics.png",
+    fullPage: true,
+  });
+  expect(errors).toEqual([]);
+  await stranger.close();
+  await guestContext.close();
+  await adminContext.close();
+});

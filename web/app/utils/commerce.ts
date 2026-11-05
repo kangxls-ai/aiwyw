@@ -29,6 +29,13 @@ export const commerceStates: Record<string, string> = {
   PURCHASE: "兑换",
   REFUND: "退款",
   EXPIRE: "到期失效",
+  API_HOLD: "API积分预留",
+  API_SETTLE: "API预留结算",
+  API_RELEASE: "API失败释放",
+  API_REFUND: "API套餐退积分",
+  ADJUST_CREDIT: "人工增加积分",
+  ADJUST_DEBIT: "人工扣减积分",
+  ADJUST_DONE: "人工调整结算",
 };
 
 /** 后台快捷区间依据北京时间的日历日期构造，避免海外浏览器把今天选成北京时间昨天。 */

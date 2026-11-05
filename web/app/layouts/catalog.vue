@@ -20,6 +20,9 @@ const site = useState<Record<string, string>>("site-settings", () => ({}));
           ></NuxtLink
         >
         <nav :aria-label="t('首页导航', 'Main navigation')">
+          <NuxtLink to="/api-services">{{
+            t("API 服务", "API services")
+          }}</NuxtLink>
           <NuxtLink
             v-for="section in catalog.sections"
             :key="section.id"
@@ -37,6 +40,10 @@ const site = useState<Record<string, string>>("site-settings", () => ({}));
     <slot />
     <footer class="directory-footer directory-width">
       <div>
+        <NuxtLink to="/support">{{
+          t("联系客服与反馈", "Support and feedback")
+        }}</NuxtLink>
+        <NuxtLink to="/account">{{ t("我的账户", "My account") }}</NuxtLink>
         <NuxtLink to="/articles">{{
           t("文章与教程", "Articles and tutorials")
         }}</NuxtLink>

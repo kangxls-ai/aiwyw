@@ -9,6 +9,7 @@ public final class Identity {
   private static final Map<String, String> LEAF_MENUS =
       Map.ofEntries(
           Map.entry("dashboard", "工作台概览"),
+          Map.entry("statistics", "运营统计"),
           Map.entry("applications", "应用管理"),
           Map.entry("versions", "版本与文件"),
           Map.entry("licenses", "软件授权与换机"),
@@ -42,6 +43,7 @@ public final class Identity {
   public static final Map<String, String> PARENTS =
       Map.ofEntries(
           Map.entry("dashboard", "group:workspace"),
+          Map.entry("statistics", "group:workspace"),
           Map.entry("applications", "group:products"),
           Map.entry("versions", "group:products"),
           Map.entry("licenses", "group:products"),
@@ -157,6 +159,21 @@ public final class Identity {
     }
     for (String id : db.queryForList("SELECT id FROM app_user WHERE nickname=''", String.class))
       db.update("UPDATE app_user SET nickname=? WHERE id=? AND nickname=''", nickname(), id);
+    // 新增统计菜单只在迁移首次授予内置管理员/财务；后续手动撤销不会被每次启动覆盖。
+    if (db.queryForObject(
+            "SELECT COUNT(*) FROM schema_migration WHERE version='V007_OPERATIONS_MENU'",
+            Integer.class)
+        == 0) {
+      for (String role : List.of("ADMIN", "FINANCE"))
+        if (db.queryForObject(
+                "SELECT COUNT(*) FROM access_role_menu WHERE role_id=? AND menu_id='statistics'",
+                Integer.class,
+                role)
+            == 0) db.update("INSERT INTO access_role_menu VALUES(?,'statistics')", role);
+      db.update(
+          "INSERT INTO schema_migration VALUES('V007_OPERATIONS_MENU','API客服统计菜单',?)",
+          System.currentTimeMillis());
+    }
   }
 
   public static Set<String> defaults(String role) {
@@ -177,7 +194,15 @@ public final class Identity {
               "seo",
               "security");
       case "FINANCE" ->
-          Set.of("dashboard", "packages", "orders", "recharge", "points", "refunds", "security");
+          Set.of(
+              "dashboard",
+              "statistics",
+              "packages",
+              "orders",
+              "recharge",
+              "points",
+              "refunds",
+              "security");
       case "SUPPORT" ->
           Set.of(
               "dashboard",

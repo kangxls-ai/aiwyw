@@ -156,6 +156,19 @@ async function testMail() {
     saving.value = false;
   }
 }
+async function testRedis() {
+  saving.value = true;
+  error.value = "";
+  notice.value = "";
+  try {
+    await request("/api/admin/redis/check", { method: "POST" });
+    notice.value = "Redis连接检查通过";
+  } catch (e) {
+    error.value = message(e);
+  } finally {
+    saving.value = false;
+  }
+}
 onBeforeRouteLeave(
   (to) =>
     to.path.startsWith("/admin") ||
@@ -342,6 +355,12 @@ onBeforeUnmount(() => unregister?.());
           :disabled="saving || !!changes.length"
           @click="testMail"
           >发送测试邮件</el-button
+        >
+        <el-button
+          v-if="!filter && group === '缓存与限流'"
+          :disabled="saving || !!changes.length"
+          @click="testRedis"
+          >测试Redis连接</el-button
         >
       </el-card>
     </div>

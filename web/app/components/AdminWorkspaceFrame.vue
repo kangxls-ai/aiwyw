@@ -15,6 +15,8 @@ const props = defineProps<{
     roles?: string[];
     menus?: string[];
     role?: string;
+    mfaRequired?: boolean;
+    mfaVerified?: boolean;
   } | null;
   dirty?: Record<string, boolean>;
 }>();
@@ -27,6 +29,30 @@ const emit = defineEmits<{
 const expanded = ref<string[]>(["workspace", "products", "system"]);
 const collapsed = ref(false),
   userMenu = ref(false);
+const unread = ref(0),
+  waiting = ref(0),
+  { request } = useApi();
+async function supportBadge() {
+  if (
+    !props.user?.menus?.includes("conversations") ||
+    (props.user.mfaRequired && !props.user.mfaVerified) ||
+    document.hidden
+  )
+    return;
+  try {
+    const r = await request<any>("/api/admin/support/unread");
+    unread.value = Number(r.unread);
+    waiting.value = Number(r.waiting);
+  } catch {
+    /* 权限撤销/会话过期时由页面入口处理，不用轮询错误打断编辑。 */
+  }
+}
+let supportTimer: ReturnType<typeof setInterval> | undefined;
+onMounted(() => {
+  supportBadge();
+  supportTimer = setInterval(supportBadge, 15000);
+});
+onBeforeUnmount(() => clearInterval(supportTimer));
 watch(
   () => props.activeId,
   (id) => {
@@ -118,6 +144,13 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div class="management-banner-actions">
+        <button
+          v-if="user?.menus?.includes('conversations')"
+          class="management-visit"
+          @click="emit('open', 'conversations')"
+        >
+          客服未读 {{ unread }} · 待领取 {{ waiting }}
+        </button>
         <NuxtLink to="/" class="management-visit"
           ><SiteIcon name="browser" />访问网站<SiteIcon
             name="arrow" /></NuxtLink

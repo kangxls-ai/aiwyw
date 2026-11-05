@@ -79,13 +79,15 @@ public class StorageController {
       @RequestParam("file") MultipartFile file,
       @RequestParam(defaultValue = "DOWNLOAD") String purpose,
       HttpServletRequest req) {
+    if (!Set.of("IMAGE", "DOWNLOAD").contains(purpose))
+      throw new Api.Failure(400, "请选择公开图片或下载文件；私有附件应从对应业务上传");
     return storage.upload(file, purpose, auth.editor(req).id());
   }
 
   @DeleteMapping("/api/admin/storage/assets/{id}")
   public Map<String, Boolean> delete(@PathVariable String id, HttpServletRequest req) {
     var operator = auth.editor(req);
-    if (storage.stored(id, false).asset().purpose().equals("RECEIPT"))
+    if (Set.of("RECEIPT", "CHAT").contains(storage.stored(id, false).asset().purpose()))
       throw new Api.Failure(404, "文件不存在");
     storage.delete(id, operator.id());
     return Map.of("success", true);
@@ -95,7 +97,8 @@ public class StorageController {
   public Storage.Asset get(@PathVariable String id, HttpServletRequest req) {
     auth.editor(req);
     var file = storage.stored(id, true);
-    if (file.asset().purpose().equals("RECEIPT")) throw new Api.Failure(404, "文件不存在");
+    if (Set.of("RECEIPT", "CHAT").contains(file.asset().purpose()))
+      throw new Api.Failure(404, "文件不存在");
     return file.asset();
   }
 
@@ -103,7 +106,8 @@ public class StorageController {
   public ResponseEntity<?> preview(@PathVariable String id, HttpServletRequest req) {
     auth.editor(req);
     var file = storage.stored(id, true);
-    if (file.asset().purpose().equals("RECEIPT")) throw new Api.Failure(404, "文件不存在");
+    if (Set.of("RECEIPT", "CHAT").contains(file.asset().purpose()))
+      throw new Api.Failure(404, "文件不存在");
     return content(file, false);
   }
 

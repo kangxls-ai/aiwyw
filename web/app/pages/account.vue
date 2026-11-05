@@ -221,6 +221,14 @@ onMounted(load);
       <el-button @click="logout">{{ t("退出登录", "Sign out") }}</el-button>
     </div>
     <AccountProfileSettings v-if="profile" @changed="load" />
+    <div class="admin-table-actions" style="margin: 20px 0">
+      <NuxtLink class="button secondary" to="/api-services">{{
+        t("API、Key与订阅", "APIs, keys and subscriptions")
+      }}</NuxtLink
+      ><NuxtLink class="button secondary" to="/support">{{
+        t("咨询客服与查看历史", "Support and history")
+      }}</NuxtLink>
+    </div>
     <el-alert
       v-if="error"
       :title="error"
