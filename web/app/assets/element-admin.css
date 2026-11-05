@@ -1,0 +1,351 @@
+/* Element Plus统一后台控件尺寸和浅紫主题，避免旧版原生input规则覆盖组件内部结构。 */
+:root,
+.management-workspace,
+.member-area,
+.account-access {
+  --el-color-primary: #8068cb;
+  --el-color-primary-light-3: #a18ddd;
+  --el-color-primary-light-5: #bdafe8;
+  --el-color-primary-light-7: #d9d1f2;
+  --el-color-primary-light-8: #e6e0f7;
+  --el-color-primary-light-9: #f3effb;
+  --el-color-primary-dark-2: #6653a3;
+  --el-border-radius-base: 7px;
+  --el-font-size-base: 14px;
+  --el-component-size: 38px;
+}
+.el-input__inner,
+.management-workspace .el-textarea__inner {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  height: inherit !important;
+  min-height: 0 !important;
+  border-radius: 0 !important;
+  outline: 0 !important;
+  font: inherit !important;
+  color: var(--el-text-color-regular) !important;
+  width: 100% !important;
+}
+.management-workspace .el-textarea__inner {
+  background: var(--el-fill-color-blank) !important;
+  box-shadow: 0 0 0 1px var(--el-border-color) inset !important;
+  padding: 10px 12px !important;
+  min-height: 80px !important;
+}
+.management-workspace .el-select,
+.management-workspace .el-input-number,
+.management-workspace .el-date-editor {
+  width: 100%;
+  min-width: 0;
+}
+.management-workspace .el-form-item__label {
+  line-height: 24px;
+  font-weight: 500;
+  color: #46516c;
+}
+.management-workspace .el-form-item {
+  margin-bottom: 20px;
+}
+.management-workspace .el-button + .el-button {
+  margin-left: 0;
+}
+.management-workspace .el-table {
+  --el-table-header-bg-color: #f7f5fc;
+  --el-table-border-color: #eeeaf5;
+  border-radius: 8px;
+}
+.management-workspace .el-pagination {
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 18px 0;
+}
+.admin-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 0 20px;
+}
+.admin-filter-grid .wide {
+  grid-column: span 2;
+}
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+}
+.admin-form-grid .full {
+  grid-column: 1/-1;
+}
+.admin-table-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.member-area {
+  max-width: 1180px;
+  margin: 32px auto;
+  padding: 0 22px;
+}
+.member-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.member-area .el-card {
+  margin-bottom: 20px;
+  border-radius: 12px;
+}
+.member-area .el-tabs__content {
+  overflow: visible;
+}
+.account-access {
+  max-width: 520px;
+  margin: 50px auto;
+  padding: 28px;
+}
+.money {
+  font-size: 30px;
+  font-weight: 700;
+  color: #8068cb;
+}
+.admin-muted {
+  font-size: 12px;
+  color: #9299ab;
+}
+.admin-filter-grid .el-form-item__content {
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .admin-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 650px) {
+  .admin-form-grid,
+  .admin-filter-grid,
+  .member-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-filter-grid .wide {
+    grid-column: auto;
+  }
+  .management-workspace .el-date-editor {
+    max-width: 100%;
+  }
+}
+
+.asset-library-item.el-button {
+  height: auto;
+  min-height: 150px;
+  white-space: normal;
+  margin: 0;
+}
+.asset-library-item > span {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.asset-library-item .el-image {
+  height: 80px;
+  width: 100%;
+}
+.asset-library-item strong {
+  overflow-wrap: anywhere;
+}
+.catalog-editor-actions .el-upload {
+  display: inline-flex;
+}
+.member-area .member-grid > .el-card:last-child {
+  grid-column: span 2;
+}
+@media (max-width: 650px) {
+  .member-area .member-grid > .el-card:last-child {
+    grid-column: auto !important;
+  }
+}
+
+.management-workspace .el-pagination .el-select {
+  width: 128px !important;
+  min-width: 128px;
+}
+.management-workspace .el-pagination .el-input {
+  width: auto;
+}
+.admin-table-actions {
+  gap: 12px;
+}
+
+/* 表单按内容确定宽度，桌面标签在左；长图文与上传保持完整工作区。 */
+.management-workspace .el-form-item__label {
+  line-height: 38px;
+  height: auto;
+  white-space: normal;
+}
+.admin-filter-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 18px;
+  align-items: flex-start;
+}
+.admin-filter-grid .el-form-item {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+.admin-filter-grid .el-form-item__label {
+  width: 128px !important;
+}
+.admin-filter-grid .el-form-item__content {
+  flex: 0 1 240px;
+  width: 240px;
+}
+.admin-filter-grid .wide .el-form-item__content {
+  flex-basis: 330px;
+  width: 330px;
+}
+.admin-filter-grid > .full {
+  flex-basis: 100%;
+}
+.management-workspace .el-form .el-input {
+  width: min(100%, 320px);
+}
+.management-workspace .el-form .el-select {
+  width: min(100%, 240px);
+}
+.management-workspace .el-form .el-input-number {
+  width: min(100%, 160px);
+}
+.management-workspace .el-form .el-date-editor {
+  width: min(100%, 330px);
+  flex-grow: 0;
+}
+.management-workspace .el-form .el-textarea {
+  width: min(100%, 640px);
+}
+.admin-form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 1fr));
+}
+.admin-form-grid .full {
+  grid-column: 1/-1;
+}
+.management-workspace .admin-filter-grid .el-input,
+.management-workspace .admin-filter-grid .el-select {
+  width: 100%;
+}
+@media (max-width: 650px) {
+  .management-workspace .el-form-item__label {
+    width: 104px !important;
+  }
+  .admin-filter-grid .el-form-item {
+    width: 100%;
+  }
+  .admin-filter-grid .el-form-item__content,
+  .admin-filter-grid .wide .el-form-item__content {
+    flex: 1;
+    width: 0;
+  }
+  .management-workspace .el-form-item__content {
+    min-width: 0;
+  }
+}
+
+/* 弹窗通过Teleport挂到body，不能依赖工作区祖先选择器。 */
+.el-dialog .el-form-item__label {
+  line-height: 38px;
+  height: auto;
+  white-space: normal;
+}
+.el-dialog .el-form .el-input {
+  width: min(100%, 320px);
+}
+.el-dialog .el-form .el-select {
+  width: min(100%, 240px);
+}
+.el-dialog .el-form .el-input-number {
+  width: min(100%, 160px);
+}
+.el-dialog .el-form .el-textarea {
+  width: 100%;
+  max-width: 640px;
+}
+
+.management-workspace .asset-control,
+.management-workspace .summernote-field {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 12px 18px;
+  align-items: start;
+}
+.management-workspace .asset-control > *,
+.management-workspace .summernote-field > * {
+  grid-column: 2;
+  min-width: 0;
+}
+.management-workspace .asset-control > .asset-control-label,
+.management-workspace .summernote-field > .asset-control-label {
+  grid-column: 1;
+  grid-row: 1;
+  text-align: right;
+  padding-top: 8px;
+}
+.management-workspace .asset-control > .el-input {
+  max-width: 520px;
+}
+.management-workspace .el-input[aria-label="版本"] {
+  max-width: 180px;
+}
+@media (max-width: 650px) {
+  .management-workspace .asset-control,
+  .management-workspace .summernote-field {
+    grid-template-columns: 85px minmax(0, 1fr);
+    gap: 8px;
+  }
+}
+
+/* 原生label的间距不能继承到组件标签，否则标签行与控件会相差9像素。 */
+.el-form-item__label {
+  margin-bottom: 0;
+}
+.login-form .el-form .el-input,
+.install-card .el-form .el-input,
+.account-access .el-form .el-input,
+.security-panel .el-form .el-input {
+  width: min(100%, 320px);
+}
+.login-form .el-form .el-select,
+.install-card .el-form .el-select {
+  width: min(100%, 240px);
+}
+.install-card .el-form .el-input-number {
+  width: min(100%, 160px);
+}
+
+/* 排序箭头仅作状态提示，点击统一交给表头按钮按降序/升序循环，避免箭头第三次取消排序。 */
+.el-table .sort-caret {
+  pointer-events: none;
+}
+
+/* 同一网格行的多选标签可能变高，其他字段仍从行顶部对齐，避免控件落到标签下方。 */
+.management-workspace .el-form-item,
+.el-dialog .el-form-item {
+  align-items: flex-start;
+}
+.management-workspace .el-form-item__content,
+.el-dialog .el-form-item__content {
+  align-items: flex-start;
+}
+.management-workspace .el-form-item__content > small,
+.el-dialog .el-form-item__content > small {
+  flex-basis: 100%;
+  margin-top: 4px;
+  line-height: 1.5;
+  color: #9299ab;
+}
+.management-workspace .el-form .el-input.field-short {
+  width: min(100%, 180px);
+}
+.management-workspace .el-form .el-input.field-address {
+  width: min(100%, 240px);
+}

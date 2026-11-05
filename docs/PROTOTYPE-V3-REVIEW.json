@@ -1,0 +1,24 @@
+{
+  "homeTile": {
+    "width": 139.296875,
+    "height": 193
+  },
+  "hoverDownload": true,
+  "mobileDownloadVisible": true,
+  "publicApiRequests": 0,
+  "tabs": {
+    "duplicateSuppressed": true,
+    "formPreserved": true,
+    "dirtyCloseProtected": true,
+    "activeCloseSelectsNeighbor": true,
+    "inactiveCloseKeepsSelection": true,
+    "reopenCreatesFreshPanel": true
+  },
+  "staticPages": 30,
+  "standaloneStatic": {
+    "apiRequests": 0,
+    "readableWithoutJavaScript": true,
+    "runtimeErrors": []
+  },
+  "errors": []
+}

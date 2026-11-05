@@ -1,0 +1,2093 @@
+.management-workspace {
+  --m-primary: #7064e8;
+  --m-ink: #343c53;
+  --m-text: #8990a3;
+  --m-line: #e9edf5;
+  font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
+  background: #f5f7fb;
+  color: var(--m-ink);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+.management-workspace * {
+  box-sizing: border-box;
+}
+.management-workspace button,
+.management-workspace input,
+.management-workspace textarea,
+.management-workspace select {
+  font: inherit;
+}
+.management-workspace button {
+  cursor: pointer;
+}
+.management-workspace button:disabled {
+  cursor: default;
+}
+.management-workspace a {
+  text-decoration: none;
+  color: inherit;
+}
+.management-workspace svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  fill: none;
+}
+.management-workspace h1,
+.management-workspace h2,
+.management-workspace h3,
+.management-workspace p {
+  margin: 0;
+}
+.management-banner {
+  min-height: 108px;
+  background: linear-gradient(110deg, #fff 40%, #f5f3ff);
+  border-bottom: 1px solid #e6e8f4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 36px;
+  gap: 30px;
+  position: relative;
+  z-index: 20;
+}
+.management-brand {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.management-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(140deg, #8d7bf5, #6960e7);
+  color: white !important;
+  box-shadow: 0 6px 18px #8c7ee427;
+  font-weight: 650;
+  font-size: 28px;
+  position: relative;
+}
+.management-logo > span {
+  width: 5px;
+  height: 5px;
+  position: absolute;
+  right: 7px;
+  bottom: 9px;
+  border-radius: 50%;
+  background: #d8d5ff;
+}
+.management-brand strong {
+  font-size: 21px;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-weight: 650;
+}
+.management-brand strong > span {
+  font-size: 12px;
+  font-weight: 400;
+  color: #a7a4ba;
+  border-left: 1px solid #deddec;
+  padding-left: 16px;
+  letter-spacing: 1px;
+}
+.management-brand p {
+  font-size: 10px;
+  color: #abb0bf;
+  margin-top: 7px;
+  letter-spacing: 0.5px;
+}
+.management-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.management-visit {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  color: #9d98b4 !important;
+}
+.management-visit svg:last-child {
+  width: 12px;
+  height: 12px;
+  transform: rotate(-35deg);
+  color: #b2aacb;
+}
+.management-mode {
+  font-size: 10px;
+  color: #a69ab9;
+  border: 1px solid #e6ddf4;
+  background: #f7f2fd;
+  border-radius: 20px;
+  padding: 6px 10px;
+}
+.management-account {
+  position: relative;
+}
+.management-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: #767b91;
+  text-align: left;
+}
+.management-avatar {
+  display: grid;
+  place-items: center;
+  width: 39px;
+  height: 39px;
+  border-radius: 50%;
+  background: #e9e4ff;
+  color: #9682cf;
+  font-size: 15px;
+  position: relative;
+}
+.management-avatar > span {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #f9f7ff;
+  background: #a2c3a0;
+  border-radius: 50%;
+  bottom: 0;
+  right: 0;
+}
+.management-user > span:nth-child(2) > strong {
+  font-size: 12px;
+  font-weight: 500;
+  display: block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.management-user small {
+  font-size: 10px;
+  color: #b3abc3;
+  display: block;
+  margin-top: 5px;
+}
+.management-user > svg {
+  width: 12px;
+  height: 12px;
+  transform: rotate(90deg);
+  color: #b0a7c4;
+  margin-left: 7px;
+}
+.management-user-menu {
+  position: absolute;
+  right: 0;
+  top: 51px;
+  background: white;
+  border: 1px solid #e7e3f0;
+  box-shadow: 0 12px 30px #4a3d6c15;
+  border-radius: 9px;
+  min-width: 150px;
+  padding: 7px;
+  z-index: 50;
+}
+.management-user-menu > button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  padding: 12px 9px;
+  font-size: 11px;
+  color: #9d94b1;
+  text-align: left;
+}
+.management-user-menu > button:hover {
+  background: #f7f4fc;
+}
+.management-user-menu svg {
+  width: 14px;
+  height: 14px;
+}
+.management-body {
+  display: flex;
+  min-height: calc(100vh - 108px);
+  align-items: stretch;
+}
+.management-sidebar {
+  width: 218px;
+  flex-shrink: 0;
+  background: white;
+  border-right: 1px solid #e7ebf4;
+  padding: 16px 13px 20px;
+  display: flex;
+  flex-direction: column;
+}
+.management-sidebar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #b2b5c3;
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 4px 14px 17px;
+}
+.management-sidebar-top > button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #a4a8b9;
+  display: flex;
+  align-items: center;
+}
+.management-sidebar-top > button > svg {
+  width: 13px;
+  height: 13px;
+}
+.management-menu-group {
+  margin-bottom: 5px;
+}
+.management-group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 13px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: #9599ac;
+  border-radius: 7px;
+  font-size: 12px !important;
+}
+.management-group-toggle > svg:first-child {
+  width: 15px;
+  height: 15px;
+  color: #a7a9bf;
+}
+.management-group-toggle > svg:last-child {
+  width: 11px;
+  height: 11px;
+  color: #bec0ce;
+  margin-left: auto;
+  transition: transform 0.15s;
+}
+.management-group-toggle > svg.expanded {
+  transform: rotate(90deg);
+}
+.management-group-toggle.selected {
+  color: #8779c5;
+}
+.management-group-toggle:hover {
+  background: #faf9fe;
+}
+.management-submenu {
+  margin: 0 0 7px;
+  padding-left: 9px;
+}
+.management-submenu > button {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: 0;
+  padding: 10px 12px 10px 19px;
+  background: none;
+  border-radius: 6px;
+  width: 100%;
+  color: #a1a5b6;
+  font-size: 11px !important;
+  text-align: left;
+  min-height: 35px;
+}
+.management-submenu > button.active {
+  color: #7f6cce;
+  background: #f1edff;
+  font-weight: 550;
+}
+.management-submenu > button:hover:not(.active) {
+  background: #faf8fe;
+}
+.management-submenu-dot {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #d3d1df;
+  flex-shrink: 0;
+}
+.management-submenu > .active > .management-submenu-dot {
+  background: #ac9ce9;
+}
+.management-menu-dirty,
+.management-tab-dirty {
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #e0bd88;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.management-sidebar-foot {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  border-top: 1px solid #f0f1f7;
+  padding: 20px 12px 0;
+  margin-top: auto;
+  color: #a2a8b9;
+  font-size: 10px;
+}
+.management-sidebar-foot > span:first-child {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #acc6b4;
+}
+.management-sidebar-foot small {
+  font-size: 10px;
+  margin-top: 5px;
+  color: #c3c6d1;
+}
+.management-right {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.management-tabs-row {
+  display: flex;
+  align-items: stretch;
+  min-height: 51px;
+  border-bottom: 1px solid #e9edf5;
+  background: #fff;
+  padding-left: 18px;
+}
+.management-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 5px;
+  flex: 1;
+  overflow-x: auto;
+  min-width: 0;
+  scrollbar-width: thin;
+}
+.management-tab {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  position: relative;
+  flex-shrink: 0;
+  border-radius: 7px 7px 0 0;
+  min-height: 50px;
+  padding-right: 6px;
+  margin-top: 5px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+}
+.management-tab.active {
+  background: #f5f7fb;
+  border-color: #e7eaf4;
+}
+.management-tab.active:after {
+  position: absolute;
+  left: 17px;
+  right: 17px;
+  top: 0;
+  height: 2px;
+  content: "";
+  background: #ab9ae8;
+  border-radius: 0 0 3px 3px;
+}
+.management-tab > button[role="tab"] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: #a3a5b8;
+  font-size: 11px;
+  border: 0;
+  background: none;
+  padding: 0 11px 0 13px;
+  white-space: nowrap;
+}
+.management-tab.active > button[role="tab"] {
+  color: #8d7bc1;
+}
+.management-tab > button[role="tab"] > svg {
+  width: 13px;
+  height: 13px;
+}
+.management-tab-close {
+  border: 0;
+  background: none;
+  display: grid;
+  place-items: center;
+  color: #c1bcce;
+  width: 24px;
+  height: 27px;
+  padding: 0;
+  border-radius: 4px;
+}
+.management-tab-close:hover {
+  color: #a595b9;
+  background: #eae5f5;
+}
+.management-tab-close > svg {
+  width: 11px;
+  height: 11px;
+}
+.management-tabs-home {
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-left: 1px solid #f0eef6;
+  min-width: 48px;
+  background: white;
+  color: #b1a9c0;
+}
+.management-tabs-home > svg {
+  width: 14px;
+  height: 14px;
+}
+.management-workspace-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 32px 0;
+  font-size: 10px;
+  color: #b1b4c3;
+}
+.management-workspace-bar > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.management-workspace-bar > span > svg {
+  width: 10px;
+  height: 10px;
+  color: #c2c4d1;
+}
+.management-workspace-bar strong {
+  font-weight: 400;
+  color: #969daf;
+}
+.management-workspace-bar i {
+  height: 5px;
+  width: 5px;
+  background: #bdcdbb;
+  border-radius: 50%;
+}
+.management-content {
+  padding: 25px 32px 35px;
+  flex: 1;
+  min-width: 0;
+}
+.management-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin: 0 32px;
+  padding: 17px 0;
+  border-top: 1px solid #e9edf5;
+  font-size: 10px;
+  color: #b6bdca;
+}
+.management-panel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 22px;
+  margin-bottom: 24px;
+}
+.management-panel-heading > div > span {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: #aba4c0;
+  margin-bottom: 9px;
+}
+.management-panel-heading h1 {
+  font-size: 25px;
+  letter-spacing: -0.6px;
+  font-weight: 600;
+}
+.management-panel-heading p {
+  font-size: 11px;
+  color: #abb0be;
+  line-height: 1.9;
+  margin-top: 10px;
+}
+.management-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  background: #9b87de;
+  border: 0;
+  border-radius: 7px;
+  color: #fff !important;
+  font-size: 11px !important;
+  padding: 10px 16px;
+  white-space: nowrap;
+}
+.management-primary:hover {
+  background: #8b77cc;
+}
+.management-primary svg {
+  width: 14px;
+  height: 14px;
+}
+.management-status-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #e2eee8;
+  background: #f2f8f5;
+  color: #91b09f;
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.management-status-badge.pending {
+  border-color: #efe8df;
+  background: #faf7f1;
+  color: #c4b497;
+}
+.management-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 25px;
+  background: linear-gradient(115deg, #eeebfa, #f8f8fc);
+  border: 1px solid #e5e1f4;
+  border-radius: 13px;
+  padding: 29px 31px;
+  margin-bottom: 23px;
+  overflow: hidden;
+  position: relative;
+}
+.management-welcome > div:first-child {
+  position: relative;
+  z-index: 1;
+}
+.management-welcome > div > span {
+  font-size: 10px;
+  letter-spacing: 1.6px;
+  color: #b1a5c7;
+}
+.management-welcome h2 {
+  font-size: 23px;
+  font-weight: 550;
+  letter-spacing: -0.6px;
+  color: #766c99;
+  line-height: 1.6;
+  margin: 13px 0 10px;
+}
+.management-welcome p {
+  font-size: 11px;
+  color: #aaa3bb;
+  line-height: 1.9;
+}
+.management-welcome button {
+  display: inline-flex;
+  align-items: center;
+  gap: 15px;
+  border: 1px solid #dcd3ee;
+  color: #a091bf;
+  background: #ffffff65;
+  padding: 9px 13px;
+  font-size: 10px;
+  border-radius: 6px;
+  margin-top: 20px;
+}
+.management-welcome button > svg {
+  width: 13px;
+  height: 13px;
+}
+.management-welcome-art {
+  width: 145px;
+  height: 135px;
+  position: relative;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  margin-right: 15px;
+}
+.management-welcome-art > span {
+  position: absolute;
+  inset: 6px;
+  border: 1px solid #ddd6ec;
+  border-radius: 25px;
+  transform: rotate(18deg);
+  background: #f2effb;
+}
+.management-welcome-art > span:nth-child(2) {
+  inset: 15px;
+  transform: rotate(-9deg);
+  border-color: #e9e3f3;
+  background: #f9f7fd;
+}
+.management-welcome-art > svg {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  color: #c0b3dd;
+  stroke-width: 1.1;
+}
+.management-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 24px;
+}
+.management-overview-grid > div {
+  position: relative;
+  background: white;
+  border: 1px solid #e9ecf4;
+  border-radius: 11px;
+  padding: 21px 23px;
+  min-height: 151px;
+}
+.management-overview-grid > div > span:not(.management-metric-icon) {
+  font-size: 10px;
+  color: #a7adbb;
+  display: block;
+}
+.management-overview-grid strong {
+  display: block;
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -1px;
+  color: #86829d;
+  margin: 18px 0 10px;
+}
+.management-overview-grid strong > small {
+  display: inline;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #bec0cf;
+  margin-left: 7px;
+}
+.management-overview-grid p {
+  font-size: 10px;
+  color: #bac0cd;
+}
+.management-overview-grid strong.management-word-value {
+  font-size: 21px;
+  letter-spacing: -0.4px;
+}
+.management-metric-icon {
+  position: absolute;
+  top: 19px;
+  right: 21px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+}
+.management-metric-icon.purple {
+  background: #f1ecfb;
+  color: #b39bda;
+}
+.management-metric-icon.blue {
+  background: #eaf2fa;
+  color: #a0b8da;
+}
+.management-metric-icon.amber {
+  background: #fbf4e5;
+  color: #d8c18b;
+}
+.management-metric-icon > svg {
+  width: 16px;
+  height: 16px;
+}
+.management-dashboard-bottom {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 20px;
+}
+.management-white-card {
+  background: white;
+  border: 1px solid #e7ebf4;
+  border-radius: 11px;
+  padding: 22px 24px;
+  margin-bottom: 20px;
+  min-width: 0;
+}
+.management-card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+.management-card-title > h2 {
+  font-size: 14px;
+  font-weight: 550;
+  color: #778095;
+}
+.management-card-title > span {
+  font-size: 10px;
+  color: #bdc1ce;
+}
+.management-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+.management-shortcuts > button {
+  background: #fcfcff;
+  border: 1px solid #f0eff7;
+  padding: 15px 12px;
+  text-align: left;
+  border-radius: 8px;
+}
+.management-shortcuts > button > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: #f0ecfa;
+  color: #b4a3d2;
+  margin-bottom: 10px;
+}
+.management-shortcuts strong {
+  font-size: 11px;
+  font-weight: 500;
+  color: #8d8ba3;
+  display: block;
+}
+.management-shortcuts small {
+  font-size: 10px;
+  font-weight: 400;
+  color: #b9b9c8;
+  line-height: 1.9;
+  margin-top: 6px;
+  display: block;
+}
+.management-publish-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.management-publish-steps li {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  align-items: center;
+}
+.management-publish-steps li > span {
+  background: #f6f3fc;
+  border: 1px solid #ece7f5;
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #c1b0d9;
+  font-size: 10px;
+}
+.management-publish-steps strong {
+  font-size: 11px;
+  font-weight: 500;
+  color: #9591a8;
+}
+.management-publish-steps p {
+  font-size: 10px;
+  color: #c0bfcc;
+  margin-top: 6px;
+}
+.management-table-card {
+  padding: 0;
+  overflow: hidden;
+}
+.management-table-toolbar {
+  padding: 20px 23px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.management-segmented {
+  display: flex;
+  background: #f7f6fc;
+  border: 1px solid #f0edf8;
+  padding: 3px;
+  border-radius: 7px;
+}
+.management-segmented > button {
+  background: none;
+  border: 1px solid transparent;
+  color: #aaa4b9;
+  font-size: 10px;
+  padding: 8px 12px;
+  border-radius: 5px;
+}
+.management-segmented > button.active {
+  background: white;
+  border-color: #e8e2f3;
+  color: #a48cce;
+  box-shadow: 0 2px 6px #9484b909;
+}
+.management-table-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 210px;
+  max-width: 270px;
+  border: 1px solid #e9e5f2;
+  border-radius: 7px;
+  padding: 9px 11px;
+  margin: 0 !important;
+}
+.management-table-search > svg {
+  color: #c1b8d0;
+  width: 14px;
+  height: 14px;
+}
+.management-table-search input {
+  width: 100%;
+  padding: 0 !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: none;
+  font-size: 10px !important;
+  color: #a8a0b8;
+  margin: 0 !important;
+  min-width: 0;
+}
+.management-table-search input::placeholder {
+  color: #c0b7ce;
+}
+.management-table-scroll {
+  overflow: auto;
+}
+.management-table-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.management-table-scroll th {
+  font-weight: 400;
+  color: #b1afc2;
+  background: #faf9fd;
+  padding: 14px 20px;
+  border-bottom: 1px solid #f0edf7;
+}
+.management-table-scroll td {
+  padding: 15px 20px;
+  color: #a5a8b9;
+  border-bottom: 1px solid #f2f1f8;
+}
+.management-table-scroll tr:last-child td {
+  border-bottom: 0;
+}
+.management-product-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.management-workspace .directory-app-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 35px;
+  height: 35px;
+  border-radius: 10px;
+  position: relative;
+  flex-shrink: 0;
+}
+.management-workspace .directory-app-logo > span {
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -1px;
+  display: flex;
+  align-items: baseline;
+}
+.management-workspace .directory-app-logo > span.small-glyph {
+  font-size: 12px;
+  letter-spacing: -0.5px;
+}
+.management-workspace .directory-app-logo svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.6;
+}
+.management-workspace .directory-app-logo.markdo-logo {
+  background: #9b8ae1;
+  color: #fff;
+  box-shadow: 0 3px 7px #9e8ddd16;
+}
+.management-workspace .markdo-logo > span {
+  font-size: 26px;
+}
+.management-workspace .markdo-logo i {
+  height: 4px;
+  width: 4px;
+  border-radius: 50%;
+  background: #ddd7f7;
+  margin-left: 1px;
+}
+.management-workspace .violet {
+  background: #f0ecfa;
+  color: #b39ada;
+}
+.management-workspace .blue {
+  background: #ebf1fa;
+  color: #a3b8df;
+}
+.management-workspace .red {
+  background: #fcecf2;
+  color: #dca2b7;
+}
+.management-workspace .orange {
+  background: #fcf0e7;
+  color: #dbb797;
+}
+.management-workspace .teal {
+  background: #eaf5ef;
+  color: #9db9aa;
+}
+.management-workspace .pink {
+  background: #f8ecf6;
+  color: #c7a3c1;
+}
+.management-workspace .indigo {
+  background: #eff0fb;
+  color: #b1afd6;
+}
+.management-workspace .amber {
+  background: #fbf5e8;
+  color: #d2bd95;
+}
+.management-workspace .cyan {
+  background: #ecf5f8;
+  color: #a0bfcb;
+}
+.management-workspace .purple {
+  background: #f2ecf9;
+  color: #baa7d3;
+}
+.management-workspace .slate {
+  background: #f0f2f7;
+  color: #a7b2c8;
+}
+.management-workspace .green {
+  background: #eff7ec;
+  color: #b2c3a6;
+}
+.management-product-cell strong {
+  font-size: 11px;
+  color: #8c8b9e;
+  font-weight: 500;
+  display: block;
+}
+.management-product-cell small {
+  font-size: 10px;
+  color: #c3becf;
+  display: block;
+  margin-top: 5px;
+}
+.management-tag {
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 10px;
+  color: #b8a8ce;
+  background: #f7f3fb;
+  border-radius: 3px;
+  padding: 4px 5px;
+}
+.management-free {
+  color: #a4bdac;
+}
+.management-table-scroll td > a {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: #b09dcc;
+}
+.management-table-scroll td > a > svg {
+  width: 11px;
+  height: 11px;
+  transform: rotate(-35deg);
+}
+.management-table-footer {
+  padding: 15px 23px;
+  border-top: 1px solid #f0edf6;
+  font-size: 10px;
+  color: #c1bbcf;
+}
+.management-empty {
+  text-align: center;
+  padding: 40px 20px !important;
+}
+.management-config-layout {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 21px;
+  align-items: start;
+}
+.management-config-groups > button {
+  width: 100%;
+  border: 0;
+  background: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #a8a2b9;
+  font-size: 11px;
+  padding: 13px;
+  border-radius: 7px;
+  margin-bottom: 5px;
+  text-align: left;
+}
+.management-config-groups > button.active {
+  background: #eee8fb;
+  color: #aa90cf;
+}
+.management-config-groups > button > svg {
+  width: 11px;
+  height: 11px;
+}
+.management-config-groups > p {
+  font-size: 10px;
+  line-height: 2;
+  color: #c2b8d1;
+  padding: 15px 10px;
+  margin-top: 13px;
+  border-top: 1px solid #e9e1f2;
+}
+.management-form-card {
+  padding: 25px 29px;
+}
+.management-form-card > .management-card-title {
+  border-bottom: 1px solid #f0ebf7;
+  padding-bottom: 20px;
+  margin-bottom: 25px;
+}
+.management-form-card > label {
+  font-size: 11px;
+  color: #a395b5;
+  font-weight: 400;
+  display: block;
+  margin-bottom: 24px;
+}
+.management-form-card input,
+.management-form-card select,
+.management-note-pad textarea,
+.management-add-tag input {
+  display: block;
+  max-width: 540px;
+  width: 100%;
+  border: 1px solid #e6deef;
+  border-radius: 7px;
+  background: white;
+  color: #9f91b0;
+  font-size: 12px;
+  padding: 11px 13px;
+  margin-top: 10px;
+  box-shadow: none;
+}
+.management-form-card input:focus,
+.management-form-card select:focus,
+.management-note-pad textarea:focus,
+.management-add-tag input:focus {
+  outline: 2px solid #e4d8f5;
+  border-color: #cfbee5;
+}
+.management-form-card small {
+  font-size: 10px;
+  color: #c3b5d0;
+  margin-top: 9px;
+  display: block;
+  line-height: 1.8;
+}
+.management-form-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 7px;
+  background: #f8f4fc;
+  color: #baa7cb;
+  padding: 12px 14px;
+  font-size: 10px;
+  margin-top: 30px;
+  line-height: 1.9;
+}
+.management-form-note svg {
+  width: 13px;
+  height: 13px;
+}
+.management-form-card .management-inline-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 18px;
+  font-size: 11px;
+  line-height: 1.9;
+}
+.management-inline-check > input {
+  width: auto;
+  margin: 0;
+  accent-color: #c4b0df;
+}
+.management-field-help {
+  font-size: 10px;
+  line-height: 2;
+  color: #bdb0cc;
+}
+.management-notice {
+  background: #f0f7f2;
+  border: 1px solid #e0ece3;
+  border-radius: 7px;
+  color: #a0b7a5;
+  font-size: 10px;
+  line-height: 1.9;
+  padding: 12px 15px;
+  margin-bottom: 20px;
+}
+.management-outline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #e6dbf1;
+  border-radius: 6px;
+  font-size: 10px;
+  color: #b6a0cb !important;
+  padding: 10px 13px;
+  margin-top: 20px;
+}
+.management-outline-link svg {
+  width: 12px;
+  height: 12px;
+}
+.management-static-note {
+  font-size: 10px;
+  line-height: 2;
+  color: #b1a4c1;
+  background: #faf7fd;
+  border: 1px solid #eee6f6;
+  border-radius: 7px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.management-static-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid #f0edf6;
+  padding: 16px 2px;
+}
+.management-static-row:last-child {
+  border-bottom: 0;
+}
+.management-static-row > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+.management-static-row > div > svg {
+  width: 17px;
+  height: 17px;
+  color: #b8a7cd;
+}
+.management-static-row strong {
+  font-size: 12px;
+  font-weight: 500;
+  color: #a494b7;
+}
+.management-static-row small {
+  font-size: 10px;
+  display: block;
+  color: #c4b6cf;
+  margin-top: 6px;
+}
+.management-static-row > a {
+  font-size: 10px;
+  color: #b29bc9 !important;
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+.management-static-row > a > svg {
+  width: 11px;
+  height: 11px;
+}
+.management-tag-collection {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 24px 0 29px;
+}
+.management-tag-collection > span {
+  font-size: 11px;
+  background: #f7f1fc;
+  border: 1px solid #eadff3;
+  color: #baa2cd;
+  border-radius: 5px;
+  padding: 9px 14px;
+}
+.management-add-tag {
+  border-top: 1px solid #f0e7f7;
+  padding-top: 23px;
+  display: flex;
+  gap: 15px;
+  align-items: end;
+  margin-bottom: 18px;
+}
+.management-add-tag > label {
+  flex: 1;
+  max-width: 360px;
+  font-size: 10px;
+  color: #b39cbe;
+  margin-bottom: 0;
+}
+.management-add-tag input {
+  font-size: 11px;
+  margin-top: 8px;
+}
+.management-module-preview {
+  display: flex;
+  align-items: start;
+  gap: 25px;
+  padding: 32px;
+}
+.management-module-icon {
+  width: 50px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: #f5effc;
+  color: #c0a8d9;
+  flex-shrink: 0;
+}
+.management-module-icon svg {
+  width: 25px;
+  height: 25px;
+}
+.management-module-preview h2 {
+  font-size: 17px;
+  color: #a494b5;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+.management-module-preview p {
+  font-size: 11px;
+  color: #bdb0c8;
+  line-height: 1.9;
+}
+.management-module-preview ul {
+  padding: 0;
+  list-style: none;
+  margin: 24px 0 0;
+}
+.management-module-preview li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11px;
+  color: #baa9c9;
+  margin: 14px 0;
+}
+.management-module-preview li > svg {
+  width: 13px;
+  height: 13px;
+  color: #c7b6d8;
+}
+.management-note-pad > h2 {
+  font-size: 14px;
+  font-weight: 500;
+  color: #ac9ab8;
+  margin-bottom: 12px;
+}
+.management-note-pad > p {
+  font-size: 10px;
+  color: #c1b0cc;
+  line-height: 1.9;
+  margin-bottom: 18px;
+}
+.management-note-pad textarea {
+  max-width: 100%;
+  resize: vertical;
+  font-size: 12px;
+}
+.management-placeholder {
+  text-align: center;
+  padding: 70px 30px;
+}
+.management-placeholder > svg {
+  width: 35px;
+  height: 35px;
+  color: #b6a0cc;
+  margin-bottom: 21px;
+}
+.management-placeholder h2 {
+  font-size: 19px;
+  font-weight: 500;
+  color: #a594b8;
+}
+.management-placeholder p {
+  font-size: 12px;
+  line-height: 2;
+  color: #baacc8;
+  max-width: 600px;
+  margin: 18px auto 25px;
+}
+.management-placeholder ul {
+  display: inline-block;
+  text-align: left;
+  font-size: 11px;
+  line-height: 2.3;
+  color: #b6a3c6;
+}
+.management-workspace .button.primary {
+  background: #a38bdd;
+}
+.management-workspace .eyebrow {
+  color: #ab9bc5;
+}
+.management-workspace .page-heading h1 {
+  color: #887b9e;
+  font-size: 25px;
+}
+.management-workspace .page-heading p {
+  color: #b2a5c0;
+}
+.management-workspace .settings-notice {
+  background: #f5f0fc;
+  border-color: #e9def5;
+  color: #b199cc;
+}
+.management-workspace .settings-notice > div > span {
+  color: #bda9ce;
+}
+.management-workspace .settings-groups > button.active {
+  background: #f0e6fa;
+  color: #b397cc;
+}
+.management-workspace .save-dock {
+  left: calc(218px + 32px + 208px);
+  right: 32px;
+}
+.management-workspace .config-input input:focus,
+.management-workspace .config-input select:focus {
+  outline-color: #e4d2f2;
+  border-color: #cbb3dd;
+}
+.management-workspace.compact .management-sidebar {
+  width: 70px;
+  padding: 16px 9px;
+}
+.management-workspace.compact .management-sidebar-top > span,
+.management-workspace.compact .management-group-toggle > span,
+.management-workspace.compact .management-group-toggle > svg:last-child,
+.management-workspace.compact .management-submenu,
+.management-workspace.compact .management-sidebar-foot {
+  display: none;
+}
+.management-workspace.compact .management-sidebar-top {
+  justify-content: center;
+  padding: 4px 0 17px;
+}
+.management-workspace.compact .management-group-toggle {
+  justify-content: center;
+  padding: 13px 0;
+}
+.management-workspace.compact .save-dock {
+  left: calc(70px + 32px + 208px);
+}
+@media (max-width: 1150px) {
+  .management-banner {
+    padding: 20px 25px;
+  }
+  .management-brand strong {
+    font-size: 19px;
+  }
+  .management-brand strong > span {
+    font-size: 11px;
+  }
+  .management-sidebar {
+    width: 200px;
+    padding: 16px 10px;
+  }
+  .management-content {
+    padding: 25px 24px 30px;
+  }
+  .management-workspace-bar {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  .management-footer {
+    margin: 0 24px;
+  }
+  .management-banner-actions {
+    gap: 17px;
+  }
+  .management-visit {
+    font-size: 10px;
+  }
+  .management-mode {
+    display: none;
+  }
+  .management-overview-grid {
+    gap: 14px;
+  }
+  .management-overview-grid > div {
+    padding: 20px;
+  }
+  .management-welcome {
+    padding: 25px;
+  }
+  .management-welcome h2 {
+    font-size: 20px;
+  }
+  .management-welcome-art {
+    width: 110px;
+    height: 110px;
+    margin: 0;
+  }
+  .management-dashboard-bottom {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .management-white-card {
+    padding: 21px;
+  }
+  .management-table-card {
+    padding: 0;
+  }
+  .management-table-scroll th,
+  .management-table-scroll td {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .management-tag {
+    font-size: 10px;
+  }
+  .management-workspace .save-dock {
+    left: calc(200px + 24px + 171px);
+    right: 24px;
+  }
+}
+@media (max-width: 820px) {
+  .management-sidebar {
+    width: 180px;
+  }
+  .management-brand strong > span,
+  .management-brand p {
+    display: none;
+  }
+  .management-banner {
+    min-height: 85px;
+    padding: 18px 22px;
+  }
+  .management-logo {
+    width: 41px;
+    height: 41px;
+    font-size: 24px;
+  }
+  .management-brand {
+    gap: 11px;
+  }
+  .management-banner-actions {
+    gap: 16px;
+  }
+  .management-visit {
+    display: none;
+  }
+  .management-user > span:nth-child(2) > strong {
+    font-size: 11px;
+    max-width: 170px;
+  }
+  .management-user small {
+    font-size: 10px;
+  }
+  .management-body {
+    min-height: calc(100vh - 85px);
+  }
+  .management-content {
+    padding: 23px 19px;
+  }
+  .management-workspace-bar {
+    padding-left: 19px;
+    padding-right: 19px;
+  }
+  .management-overview-grid {
+    gap: 10px;
+  }
+  .management-overview-grid > div {
+    padding: 17px 14px;
+  }
+  .management-overview-grid strong {
+    font-size: 26px;
+  }
+  .management-overview-grid p {
+    line-height: 1.8;
+  }
+  .management-metric-icon {
+    display: none;
+  }
+  .management-welcome {
+    padding: 22px;
+  }
+  .management-welcome h2 {
+    font-size: 19px;
+  }
+  .management-welcome-art {
+    display: none;
+  }
+  .management-dashboard-bottom {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .management-config-layout {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .management-config-groups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+  .management-config-groups > button {
+    width: auto;
+    padding: 8px 12px;
+    background: #efedf6;
+    font-size: 10px;
+    gap: 15px;
+    margin: 0;
+  }
+  .management-config-groups > p {
+    display: none;
+  }
+  .management-config-groups > button > svg {
+    display: none;
+  }
+  .management-table-toolbar {
+    flex-wrap: wrap;
+    padding: 18px;
+  }
+  .management-table-search {
+    width: 100%;
+    max-width: none;
+  }
+  .management-panel-heading h1 {
+    font-size: 23px;
+  }
+  .management-panel-heading p {
+    font-size: 10px;
+  }
+  .management-static-row {
+    gap: 13px;
+  }
+  .management-static-row > .management-status-badge {
+    display: none;
+  }
+  .management-workspace .save-dock {
+    left: 199px;
+    right: 19px;
+  }
+}
+@media (max-width: 600px) {
+  .management-banner {
+    min-height: 82px;
+    padding: 17px 16px;
+    gap: 10px;
+  }
+  .management-brand strong {
+    font-size: 17px;
+  }
+  .management-logo {
+    width: 36px;
+    height: 36px;
+    font-size: 22px;
+    border-radius: 11px;
+  }
+  .management-user {
+    gap: 8px;
+  }
+  .management-avatar {
+    width: 33px;
+    height: 33px;
+    font-size: 13px;
+  }
+  .management-user > span:nth-child(2) > strong {
+    font-size: 10px;
+    max-width: 110px;
+  }
+  .management-user small {
+    font-size: 10px;
+  }
+  .management-user > svg {
+    width: 10px;
+    height: 10px;
+    margin-left: 0;
+  }
+  .management-body {
+    display: block;
+  }
+  .management-sidebar {
+    width: 100%;
+    padding: 9px 12px;
+    border-right: 0;
+    border-bottom: 1px solid #e8e7f2;
+  }
+  .management-sidebar-top {
+    padding: 7px 7px 10px;
+    font-size: 10px;
+  }
+  .management-sidebar > nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px 8px;
+    align-items: start;
+  }
+  .management-menu-group {
+    margin: 0;
+  }
+  .management-group-toggle {
+    padding: 10px !important;
+    font-size: 11px !important;
+    gap: 8px;
+  }
+  .management-group-toggle > svg:first-child {
+    width: 13px;
+    height: 13px;
+  }
+  .management-submenu {
+    padding-left: 0;
+    margin: 0 0 4px;
+  }
+  .management-submenu > button {
+    font-size: 10px !important;
+    padding: 9px 9px 9px 21px;
+    gap: 9px;
+    min-height: 32px;
+  }
+  .management-sidebar-foot {
+    display: none;
+  }
+  .management-tabs-row {
+    padding-left: 7px;
+    min-height: 46px;
+  }
+  .management-tab {
+    min-height: 44px;
+    margin-top: 4px;
+    min-width: 0;
+  }
+  .management-tab > button[role="tab"] {
+    min-height: 40px;
+    font-size: 10px;
+    gap: 6px;
+    padding-left: 10px;
+    padding-right: 6px;
+  }
+  .management-tab > button[role="tab"] > svg {
+    width: 11px;
+    height: 11px;
+  }
+  .management-tab-close {
+    width: 23px;
+    height: 28px;
+  }
+  .management-tabs-home {
+    min-width: 37px;
+  }
+  .management-tabs-home svg {
+    width: 12px;
+    height: 12px;
+  }
+  .management-workspace-bar {
+    font-size: 10px;
+    padding: 16px 16px 0;
+  }
+  .management-workspace-bar > span:last-child {
+    font-size: 10px;
+    gap: 5px;
+  }
+  .management-content {
+    padding: 20px 16px 27px;
+  }
+  .management-footer {
+    margin: 0 16px;
+    gap: 10px;
+    font-size: 10px;
+    padding: 16px 0;
+    line-height: 1.8;
+  }
+  .management-footer > span:last-child {
+    max-width: 48%;
+    text-align: right;
+  }
+  .management-panel-heading {
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .management-panel-heading > div > span {
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+  .management-panel-heading h1 {
+    font-size: 23px;
+  }
+  .management-panel-heading p {
+    font-size: 10px;
+    line-height: 1.9;
+    margin-top: 9px;
+  }
+  .management-primary {
+    font-size: 10px !important;
+    padding: 9px 12px;
+    min-height: 36px;
+  }
+  .management-primary > svg {
+    width: 13px;
+    height: 13px;
+  }
+  .management-welcome {
+    padding: 23px 20px;
+    margin-bottom: 17px;
+  }
+  .management-welcome h2 {
+    font-size: 19px;
+    line-height: 1.8;
+  }
+  .management-welcome p {
+    font-size: 10px;
+    line-height: 2;
+  }
+  .management-welcome > div > span {
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+  .management-welcome button {
+    font-size: 10px;
+    padding: 9px 11px;
+    margin-top: 18px;
+  }
+  .management-overview-grid {
+    grid-template-columns: 1fr;
+    gap: 11px;
+    margin-bottom: 17px;
+  }
+  .management-overview-grid > div {
+    min-height: 120px;
+    padding: 18px 20px;
+  }
+  .management-overview-grid strong {
+    font-size: 28px;
+    margin: 13px 0 9px;
+  }
+  .management-metric-icon {
+    display: grid;
+    top: 17px;
+    right: 20px;
+  }
+  .management-overview-grid > div > span:not(.management-metric-icon) {
+    font-size: 10px;
+  }
+  .management-overview-grid p {
+    font-size: 10px;
+  }
+  .management-white-card {
+    padding: 20px;
+    margin-bottom: 17px;
+  }
+  .management-card-title {
+    margin-bottom: 17px;
+  }
+  .management-card-title > h2 {
+    font-size: 13px;
+  }
+  .management-card-title > span {
+    font-size: 10px;
+  }
+  .management-shortcuts {
+    gap: 10px;
+  }
+  .management-shortcuts > button {
+    padding: 13px 11px;
+  }
+  .management-shortcuts strong {
+    font-size: 11px;
+  }
+  .management-shortcuts small {
+    font-size: 10px;
+  }
+  .management-table-card {
+    padding: 0;
+  }
+  .management-table-toolbar {
+    padding: 16px;
+    gap: 14px;
+  }
+  .management-segmented {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .management-segmented > button {
+    font-size: 10px;
+    padding: 8px 11px;
+    flex: 1;
+  }
+  .management-table-search {
+    padding: 10px;
+  }
+  .management-table-scroll th,
+  .management-table-scroll td {
+    padding: 13px 15px;
+    font-size: 10px;
+  }
+  .management-table-footer {
+    padding: 14px 16px;
+    font-size: 10px;
+    line-height: 1.8;
+  }
+  .management-config-groups > button {
+    font-size: 10px;
+    padding: 8px 10px;
+  }
+  .management-form-card {
+    padding: 20px;
+  }
+  .management-form-card > label {
+    font-size: 11px;
+    margin-bottom: 21px;
+  }
+  .management-form-card input,
+  .management-form-card select {
+    font-size: 12px;
+    padding: 11px 12px;
+  }
+  .management-form-card small {
+    font-size: 10px;
+    line-height: 1.9;
+  }
+  .management-form-note {
+    font-size: 10px;
+    padding: 12px;
+    line-height: 1.9;
+    align-items: start;
+  }
+  .management-form-note > svg {
+    margin-top: 3px;
+  }
+  .management-static-note {
+    font-size: 10px;
+    padding: 13px;
+    line-height: 2;
+  }
+  .management-static-row {
+    gap: 10px;
+    padding: 16px 0;
+  }
+  .management-static-row > div {
+    gap: 9px;
+    min-width: 0;
+  }
+  .management-static-row > div > svg {
+    width: 14px;
+    height: 14px;
+  }
+  .management-static-row strong {
+    font-size: 11px;
+  }
+  .management-static-row small {
+    font-size: 10px;
+    overflow-wrap: anywhere;
+    line-height: 1.8;
+  }
+  .management-static-row > a {
+    font-size: 10px;
+    white-space: nowrap;
+    gap: 4px;
+  }
+  .management-static-row > a > svg {
+    width: 10px;
+    height: 10px;
+  }
+  .management-tag-collection {
+    gap: 9px;
+    margin: 20px 0 23px;
+  }
+  .management-tag-collection > span {
+    font-size: 10px;
+    padding: 8px 11px;
+  }
+  .management-add-tag {
+    flex-wrap: wrap;
+    padding-top: 20px;
+  }
+  .management-add-tag > label {
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .management-module-preview {
+    padding: 23px 20px;
+    gap: 16px;
+  }
+  .management-module-icon {
+    width: 39px;
+    height: 39px;
+    border-radius: 11px;
+  }
+  .management-module-icon > svg {
+    width: 21px;
+    height: 21px;
+  }
+  .management-module-preview h2 {
+    font-size: 16px;
+    line-height: 1.8;
+    margin-bottom: 9px;
+  }
+  .management-module-preview p,
+  .management-module-preview li {
+    font-size: 10px;
+    line-height: 1.9;
+  }
+  .management-module-preview li {
+    gap: 6px;
+  }
+  .management-note-pad > h2 {
+    font-size: 13px;
+  }
+  .management-note-pad > p {
+    font-size: 10px;
+  }
+  .management-note-pad textarea {
+    font-size: 12px;
+  }
+  .management-workspace.compact .management-sidebar {
+    width: 100%;
+    padding: 8px 12px;
+  }
+  .management-workspace.compact .management-sidebar > nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 0;
+  }
+  .management-workspace.compact .management-group-toggle {
+    padding: 10px 7px !important;
+  }
+  .management-workspace.compact .management-sidebar-top {
+    justify-content: end;
+    padding: 2px 6px 6px;
+  }
+  .management-workspace .settings-layout {
+    grid-template-columns: 1fr;
+  }
+  .management-workspace .settings-groups {
+    position: static;
+  }
+  .management-workspace .save-dock,
+  .management-workspace.compact .save-dock {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+  }
+  .management-workspace .page-heading h1 {
+    font-size: 23px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .management-group-toggle > svg:last-child {
+    transition: none;
+  }
+}
+
+/* Keep the light surfaces while giving labels and controls readable contrast. */
+.management-workspace .directory-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.management-panel-heading h1 {
+  color: #464d64;
+}
+.management-panel-heading p,
+.management-table-scroll td {
+  color: #8a91a5;
+}
+.management-primary {
+  background: #7e6acb;
+}
+.management-primary:hover {
+  background: #705cbc;
+}
+.management-table-scroll td {
+  font-size: 11px;
+}
+.management-table-scroll th {
+  color: #9fa5b5;
+  font-size: 11px;
+}
+.management-product-cell strong {
+  color: #747c92;
+  font-size: 12px;
+}
+.management-product-cell small {
+  color: #a8b0c1;
+}
+.management-group-toggle {
+  color: #838b9f;
+}
+.management-submenu > button {
+  color: #929aad;
+}
+.management-submenu > button.active {
+  color: #8c72bd;
+}
+.management-form-card > label {
+  color: #8b799f;
+}
+.management-form-card input,
+.management-form-card select {
+  color: #806d94;
+}
+.management-form-card small {
+  color: #ae9abd;
+}
+.management-welcome h2 {
+  color: #817099;
+}
+.management-card-title > h2 {
+  color: #788199;
+}
+.management-brand strong {
+  color: #454c64;
+}
+.management-user > span:nth-child(2) > strong {
+  color: #80768f;
+}
+.management-workspace .config-label label {
+  color: #81718d;
+}

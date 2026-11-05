@@ -1,0 +1,454 @@
+/* 存储与多编辑页签沿用浅色工作台；对话框使用原生模态焦点，避免误操作背景表单。 */
+.management-tab-context {
+  position: fixed;
+  z-index: 1000;
+  width: 202px;
+  padding: 7px;
+  background: #fff;
+  border: 1px solid #e2dced;
+  border-radius: 9px;
+  box-shadow: 0 14px 40px #39314e24;
+}
+.management-tab-context button {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: none;
+  color: #596078;
+  text-align: left;
+  padding: 11px 14px;
+  border-radius: 5px;
+  cursor: pointer;
+  font:
+    13px system-ui,
+    "Microsoft YaHei",
+    sans-serif;
+}
+.management-tab-context button:hover,
+.management-tab-context button:focus-visible {
+  background: #f2edff;
+  color: #725bb9;
+}
+.management-close-dialog,
+.asset-library-dialog {
+  border: 1px solid #e4dfef;
+  border-radius: 14px;
+  padding: 27px;
+  color: #414b63;
+  background: #fff;
+  box-shadow: 0 18px 70px #30284026;
+  font:
+    14px/1.7 system-ui,
+    "Microsoft YaHei",
+    sans-serif;
+  max-height: 85vh;
+  overflow: auto;
+}
+.management-close-dialog {
+  width: min(550px, calc(100vw - 30px));
+}
+.asset-library-dialog {
+  width: min(880px, calc(100vw - 30px));
+}
+.management-close-dialog::backdrop,
+.asset-library-dialog::backdrop {
+  background: #30354b66;
+}
+.management-close-dialog h2,
+.asset-library-dialog h2 {
+  font-size: 20px;
+  margin: 0 0 15px;
+}
+.management-close-dialog ul {
+  max-height: 230px;
+  overflow: auto;
+  padding-left: 22px;
+}
+.management-close-dialog li {
+  padding: 5px;
+  color: #73628b;
+}
+.management-close-dialog button:focus-visible {
+  outline: 2px solid #9985d8;
+  outline-offset: 3px;
+}
+.application-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.application-filters > label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+  color: #67718a;
+}
+.application-filters input,
+.application-filters select,
+.catalog-controls select,
+.catalog-pagination select {
+  font: inherit;
+  border: 1px solid #dfe4ef;
+  border-radius: 7px;
+  background: white;
+  padding: 10px 12px;
+  color: #48556e;
+  min-width: 0;
+  max-width: 100%;
+}
+.application-filters .full {
+  grid-column: 1/-1;
+}
+.application-filters fieldset {
+  border: 1px solid #e7e9f1;
+  border-radius: 8px;
+  padding: 10px 15px;
+}
+.application-filters legend {
+  color: #81899d;
+  font-size: 12px;
+}
+.application-filters .catalog-selection {
+  max-height: 140px;
+  overflow: auto;
+}
+.application-filters .catalog-selection input {
+  width: auto;
+}
+.application-filters .catalog-editor-actions {
+  margin: 0;
+}
+.application-filters small {
+  color: #9299ac;
+  font-size: 11px;
+}
+.application-table-name {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 160px;
+}
+.application-table-name img {
+  width: 38px;
+  height: 38px;
+  object-fit: cover;
+  border-radius: 9px;
+}
+.application-table-name strong {
+  font-size: 13px;
+  font-weight: 550;
+}
+.application-table-name small {
+  display: block;
+  color: #9aa2b2;
+  margin-top: 4px;
+}
+.catalog-pagination {
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #80899d;
+}
+.catalog-pagination label {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+.application-editor .management-panel-heading {
+  gap: 20px;
+  align-items: center;
+}
+.application-editor .catalog-editor-actions {
+  margin: 0;
+}
+.application-editor .catalog-form {
+  max-width: 1300px;
+}
+.application-editor .catalog-form .full > small {
+  display: block;
+  margin-top: 12px;
+  color: #8e96a9;
+}
+.asset-control {
+  border: 1px solid #e7e5f0;
+  border-radius: 9px;
+  padding: 18px;
+  background: #fdfcff;
+}
+.asset-control-label {
+  display: block;
+  font-size: 13px;
+  color: #626d85;
+  margin-bottom: 12px;
+  font-weight: 550;
+}
+.asset-control-preview {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 35px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.asset-control-preview img {
+  width: 68px;
+  height: 68px;
+  border-radius: 12px;
+  object-fit: contain;
+  background: #f0edf8;
+}
+.asset-control-preview strong {
+  display: block;
+  font-weight: 500;
+  color: #65718a;
+}
+.asset-control-preview small {
+  display: block;
+  margin-top: 5px;
+  color: #9a9fb0;
+}
+.asset-control .catalog-editor-actions {
+  margin: 14px 0 0;
+}
+.asset-upload-button {
+  position: relative;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  border: 1px solid #ded8ef;
+  color: #725db0;
+  background: #fff;
+  border-radius: 7px;
+  padding: 10px 15px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.asset-upload-button input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.asset-upload-button:focus-within {
+  outline: 2px solid #a998dd;
+  outline-offset: 2px;
+}
+.asset-upload-button:has(input:disabled) {
+  opacity: 0.5;
+  cursor: default;
+}
+.asset-control > label {
+  margin-top: 14px;
+}
+.asset-upload-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0;
+  color: #837398;
+  font-size: 12px;
+}
+.asset-upload-progress progress {
+  height: 8px;
+  accent-color: #9278c8;
+  max-width: 250px;
+  flex: 1;
+}
+.asset-upload-progress button {
+  border: 0;
+  background: none;
+  color: #9278b7;
+  cursor: pointer;
+}
+.asset-dialog-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  align-items: center;
+}
+.asset-dialog-heading button {
+  font-size: 24px;
+  color: #a397b6;
+}
+.asset-library-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.asset-library-grid > button {
+  min-width: 0;
+  border: 1px solid #e5e3ee;
+  border-radius: 9px;
+  background: #fff;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: #7c6b99;
+  cursor: pointer;
+}
+.asset-library-grid > button:hover {
+  border-color: #a897d3;
+  background: #faf8ff;
+}
+.asset-library-grid img {
+  width: 100%;
+  height: 100px;
+  object-fit: contain;
+}
+.asset-library-grid svg {
+  width: 38px;
+  height: 38px;
+}
+.asset-library-grid strong {
+  font-size: 12px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.asset-library-grid small {
+  font-size: 10px;
+  color: #a9a0b9;
+}
+.editor-screenshots {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-top: 15px;
+}
+.editor-screenshots article {
+  border: 1px solid #e5e7f0;
+  border-radius: 9px;
+  padding: 10px;
+  width: 210px;
+  background: white;
+}
+.editor-screenshots img {
+  width: 100%;
+  height: 120px;
+  object-fit: contain;
+}
+.editor-screenshots article > div {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+.editor-screenshots button {
+  border: 0;
+  background: none;
+  color: #927bad;
+  padding: 7px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.storage-clear-secret {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: #a3839a;
+}
+.storage-clear-secret input {
+  width: auto;
+}
+.summernote-field {
+  min-width: 0;
+}
+.summernote-field .note-editor.note-frame {
+  border: 1px solid #dedfeb;
+  border-radius: 8px;
+  background: #fff;
+  overflow: visible;
+}
+.summernote-field .note-toolbar {
+  background: #faf8fd;
+  border-bottom: 1px solid #e7e2f0;
+  padding: 8px;
+}
+.summernote-field .note-btn {
+  color: #75658d;
+  background: #fff;
+  border-color: #e5dfed;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.summernote-field .note-btn:hover {
+  background: #f3ecfc;
+}
+.summernote-field .note-editable {
+  font:
+    14px/1.8 system-ui,
+    "Microsoft YaHei",
+    sans-serif;
+  color: #414d65;
+  background: white;
+  padding: 20px;
+}
+.summernote-field .note-editable img {
+  max-width: 100%;
+}
+.summernote-field .note-editable table {
+  border-collapse: collapse;
+}
+.summernote-field .note-editable td,
+.summernote-field .note-editable th {
+  border: 1px solid #e1ddeb;
+  padding: 8px;
+}
+.summernote-field .note-modal label {
+  display: block;
+  font-size: 13px;
+}
+.summernote-field .note-modal input {
+  display: block;
+}
+.summernote-field .note-modal .note-btn {
+  padding: 8px 15px;
+}
+.summernote-field .note-statusbar {
+  background: #faf8fd;
+}
+.summernote-field .note-editable:focus {
+  outline: 2px solid #c0b3e1;
+  outline-offset: -2px;
+}
+@media (max-width: 1000px) {
+  .application-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .asset-library-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 680px) {
+  .application-filters {
+    grid-template-columns: 1fr;
+  }
+  .asset-library-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .management-close-dialog,
+  .asset-library-dialog {
+    padding: 20px;
+  }
+  .application-editor .management-panel-heading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .asset-control {
+    padding: 14px;
+  }
+  .summernote-field .note-editable {
+    padding: 14px;
+  }
+  .catalog-editor-actions {
+    gap: 7px;
+  }
+  .catalog-editor-actions button {
+    padding: 9px 12px;
+  }
+}

@@ -1,0 +1,82 @@
+/* 登录、注册和找回密码复用首页浅紫/灰白配色和同一品牌标识，覆盖历史绿色登录侧栏。 */
+.auth-page,
+.auth-card {
+  --el-color-primary: #8068cb;
+  --el-color-primary-light-9: #f3effb;
+  --el-border-radius-base: 8px;
+  color: #343c53;
+}
+.auth-page.login-page {
+  background: #f8f9fd;
+}
+.auth-page .login-story {
+  background: linear-gradient(145deg, #eeebfc, #f7f8ff);
+  color: #43445f;
+}
+.auth-page .login-story p {
+  color: #85869e;
+}
+.auth-page .login-story .eyebrow {
+  color: #948bb9;
+}
+.auth-page .login-decoration {
+  color: #e0dcf6;
+}
+.auth-page .login-form {
+  max-width: 520px;
+  background: #fff;
+  border: 1px solid #e9e5f3;
+  border-radius: 20px;
+  box-shadow: 0 16px 55px #7468a00c;
+  padding: 36px;
+}
+.auth-page .login-form .quiet-link {
+  color: #9289b5;
+  margin-bottom: 28px;
+}
+.auth-card.account-access {
+  max-width: 540px;
+  margin: 48px auto;
+  padding: 24px;
+  border: 1px solid #e9e5f3;
+  border-radius: 18px;
+  box-shadow: 0 12px 45px #7468a00a;
+  background: white;
+}
+.auth-card h1 {
+  font-size: 26px;
+  margin-bottom: 26px;
+  color: #43445f;
+}
+.auth-card .el-alert,
+.profile-settings .el-alert {
+  margin-bottom: 18px;
+}
+.profile-settings {
+  margin: 20px 0;
+}
+.profile-settings h2 {
+  margin: 0;
+  font-size: 19px;
+}
+.profile-settings .el-form .el-input {
+  max-width: 320px;
+}
+.auth-page .el-input,
+.auth-card .el-input {
+  max-width: 320px;
+}
+@media (max-width: 650px) {
+  .auth-page .login-form {
+    border: 0;
+    border-radius: 0;
+    padding: 24px;
+  }
+  .auth-card.account-access {
+    margin: 24px 14px;
+    padding: 14px;
+  }
+  .profile-settings .el-form-item__label {
+    width: 98px !important;
+  }
+}

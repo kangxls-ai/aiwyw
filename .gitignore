@@ -1,0 +1,21 @@
+**/target/
+**/node_modules/
+**/.nuxt/
+**/.output/
+/backend/data/
+/data/
+/backend/data-debug/
+/data-debug/
+playwright-report/
+test-results/
+*.log
+.idea/
+.DS_Store
+
+# 本地发布副本、日志和含密钥的数据备份，禁止提交
+/.local/
+
+# 运行环境资料不进入源码仓库；示例模板可提交
+.env
+.env.*
+!.env.example
