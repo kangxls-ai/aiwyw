@@ -1,8 +1,19 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Locator } from "@playwright/test";
 import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { createHmac } from "node:crypto";
 import QRCode from "qrcode";
+
+/** Element Plus水合时表单组与输入框可能暂时共用标签；只定位真实控件，仍要求唯一且可用，不用first掩盖歧义。 */
+function field(
+  root: Page | Locator,
+  name: string,
+  options: { exact?: boolean } = {},
+) {
+  return root
+    .getByLabel(name, options)
+    .and(root.locator("input,textarea,select"));
+}
 
 // 本文件使用单个隔离安装按序运行；本用例在账户/钱包场景之后验证授权及布局。
 function otp(secret: string) {
@@ -120,15 +131,13 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/install");
-  await page
-    .getByLabel("一次性安装码")
-    .fill(readFileSync(join(directory(), "install.token"), "utf8").trim());
-  await page
-    .getByLabel("邮箱", { exact: true })
-    .fill("browser-admin@example.com");
-  await page
-    .getByLabel("密码", { exact: true })
-    .fill("browser-test-admin-password-9182");
+  await field(page, "一次性安装码").fill(
+    readFileSync(join(directory(), "install.token"), "utf8").trim(),
+  );
+  await field(page, "邮箱", { exact: true }).fill("browser-admin@example.com");
+  await field(page, "密码", { exact: true }).fill(
+    "browser-test-admin-password-9182",
+  );
   await page
     .getByRole("button", { name: "测试数据库连接", exact: true })
     .click();
@@ -136,18 +145,16 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   await page.getByRole("button", { name: /完成安装/ }).click();
   await expect(page.getByRole("heading", { name: "安装已完成" })).toBeVisible();
   await page.getByRole("link", { name: /前往登录/ }).click();
-  await page
-    .getByLabel("邮箱", { exact: true })
-    .fill("browser-admin@example.com");
-  await page
-    .getByLabel("密码", { exact: true })
-    .fill("browser-test-admin-password-9182");
+  await field(page, "邮箱", { exact: true }).fill("browser-admin@example.com");
+  await field(page, "密码", { exact: true }).fill(
+    "browser-test-admin-password-9182",
+  );
   await page.getByRole("button", { name: /登录后台/ }).click();
   await expect(page).toHaveURL(/admin\/security$/);
   expect((await page.request.get("/api/admin/settings")).status()).toBe(403);
   await page.getByRole("button", { name: "开始绑定" }).click();
   const secret = (await page.locator(".secret-code").innerText()).trim();
-  await page.getByLabel("6位动态码").fill(otp(secret));
+  await field(page, "6位动态码").fill(otp(secret));
   await page.getByRole("button", { name: "确认绑定" }).click();
   await expect(
     page.getByRole("heading", { name: "双重验证已启用" }),
@@ -156,14 +163,12 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   await page
     .context()
     .storageState({ path: join(directory(), "admin-state.json") });
-  await page
-    .getByLabel("网站名称", { exact: true })
-    .fill("AI万有网 浏览器验证");
+  await field(page, "网站名称", { exact: true }).fill("AI万有网 浏览器验证");
   await page.getByRole("button", { name: /保存修改/ }).click();
   await expect(page.locator(".alert[role=status]:visible")).toHaveText(
     "配置已保存",
   );
-  await page.getByLabel("网站名称", { exact: true }).fill("尚未保存");
+  await field(page, "网站名称", { exact: true }).fill("尚未保存");
   await page
     .getByRole("button", { name: "关闭配置管理页签", exact: true })
     .click();
@@ -171,23 +176,21 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
     .getByRole("dialog")
     .getByRole("button", { name: "取消", exact: true })
     .click();
-  await expect(page.getByLabel("网站名称", { exact: true })).toHaveValue(
+  await expect(field(page, "网站名称", { exact: true })).toHaveValue(
     "尚未保存",
   );
-  await page
-    .getByLabel("网站名称", { exact: true })
-    .fill("AI万有网 浏览器验证");
+  await field(page, "网站名称", { exact: true }).fill("AI万有网 浏览器验证");
   await page
     .locator(".settings-groups")
     .getByRole("button", { name: "邮件服务", exact: true })
     .click();
-  await page
-    .getByLabel("SMTP密码或授权码", { exact: true })
-    .fill("isolated-mail-password");
+  await field(page, "SMTP密码或授权码", { exact: true }).fill(
+    "isolated-mail-password",
+  );
   await page.getByRole("button", { name: /保存修改/ }).click();
-  await expect(
-    page.getByLabel("SMTP密码或授权码", { exact: true }),
-  ).toHaveValue("");
+  await expect(field(page, "SMTP密码或授权码", { exact: true })).toHaveValue(
+    "",
+  );
   expect(
     await (await page.request.get("/api/admin/settings")).text(),
   ).not.toContain("isolated-mail-password");
@@ -218,11 +221,11 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   await menu(page, "应用管理");
   await page.getByRole("button", { name: "新增应用", exact: true }).click();
   const editor = page.locator(".application-editor:visible");
-  await editor.getByLabel("应用名称", { exact: true }).fill("浏览器工具");
-  await editor.getByLabel("英文名称", { exact: true }).fill("Browser utility");
-  await editor.getByLabel("公开地址", { exact: true }).fill("browser-utility");
-  await editor.getByLabel("版本", { exact: true }).fill("1.0.0");
-  await editor.getByLabel("简介", { exact: true }).fill("真实目录端到端验证");
+  await field(editor, "应用名称", { exact: true }).fill("浏览器工具");
+  await field(editor, "英文名称", { exact: true }).fill("Browser utility");
+  await field(editor, "公开地址", { exact: true }).fill("browser-utility");
+  await field(editor, "版本", { exact: true }).fill("1.0.0");
+  await field(editor, "简介", { exact: true }).fill("真实目录端到端验证");
   const rich = page.getByRole("textbox", { name: "图文介绍", exact: true });
   await expect(rich).toBeVisible();
   await rich.evaluate((el) => {
@@ -285,7 +288,7 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
     .filter({ hasText: "站长推荐" })
     .getByRole("button", { name: "编辑", exact: true })
     .click();
-  await page.getByLabel("栏目名称", { exact: true }).fill("精选工具");
+  await field(page, "栏目名称", { exact: true }).fill("精选工具");
   await page.locator(".el-checkbox").filter({ hasText: "浏览器工具" }).click();
   await page.getByRole("button", { name: "保存修改", exact: true }).click();
   await expect(page.locator(".alert[role=status]:visible")).toHaveText(
@@ -299,10 +302,9 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
     page.getByRole("row").filter({ hasText: "办公效率" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "新增标签", exact: true }).click();
-  await page
-    .locator("[data-workspace]:visible")
-    .getByLabel("标签名称", { exact: true })
-    .fill("未使用标签");
+  await field(page.locator("[data-workspace]:visible"), "标签名称", {
+    exact: true,
+  }).fill("未使用标签");
   await page
     .locator("[data-workspace]:visible")
     .getByRole("button", { name: "保存标签", exact: true })
@@ -342,21 +344,19 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   ).toHaveCount(1);
   await page.getByRole("tab", { name: "应用管理", exact: true }).click();
   await page.getByRole("button", { name: "新增应用", exact: true }).click();
-  await page
-    .locator(".application-editor:visible")
-    .getByLabel("应用名称", { exact: true })
-    .fill("并行草稿");
-  await page
-    .locator(".application-editor:visible")
-    .getByLabel("公开地址", { exact: true })
-    .fill("parallel-draft");
+  await field(page.locator(".application-editor:visible"), "应用名称", {
+    exact: true,
+  }).fill("并行草稿");
+  await field(page.locator(".application-editor:visible"), "公开地址", {
+    exact: true,
+  }).fill("parallel-draft");
   await page
     .getByRole("tab", { name: "编辑：浏览器工具", exact: true })
     .click();
   await expect(
-    page
-      .locator(".application-editor:visible")
-      .getByLabel("应用名称", { exact: true }),
+    field(page.locator(".application-editor:visible"), "应用名称", {
+      exact: true,
+    }),
   ).toHaveValue("浏览器工具");
   await page
     .getByRole("tab", { name: "新增应用", exact: true })
@@ -375,9 +375,9 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
     .getByRole("button", { name: "取消", exact: true })
     .click();
   await expect(
-    page
-      .locator(".application-editor:visible")
-      .getByLabel("应用名称", { exact: true }),
+    field(page.locator(".application-editor:visible"), "应用名称", {
+      exact: true,
+    }),
   ).toHaveValue("并行草稿");
   await page
     .getByRole("tab", { name: "新增应用", exact: true })
@@ -418,7 +418,7 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
       ).status(),
     ).toBe(200);
   }
-  await page.getByLabel("名称或关键字", { exact: true }).fill("分页应用");
+  await field(page, "名称或关键字", { exact: true }).fill("分页应用");
   await page.getByRole("button", { name: "查询", exact: true }).click();
   await page.locator(".el-pagination:visible .el-select__wrapper").click();
   await page.getByRole("option", { name: "10条/页", exact: true }).click();
@@ -449,10 +449,9 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
     page.getByRole("tab", { name: "存储管理", exact: true }),
   ).toHaveCount(0);
   await page.getByRole("button", { name: "新增应用", exact: true }).click();
-  await page
-    .locator(".application-editor:visible")
-    .getByLabel("应用名称", { exact: true })
-    .fill("保存失败仍保留");
+  await field(page.locator(".application-editor:visible"), "应用名称", {
+    exact: true,
+  }).fill("保存失败仍保留");
   await page
     .getByRole("button", { name: "关闭新增应用页签", exact: true })
     .click();
@@ -533,10 +532,8 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
   member.on("pageerror", (e) => errors.push(e.message));
   admin.on("pageerror", (e) => errors.push(e.message));
   await member.goto("/account-access?action=register");
-  await member.getByLabel("邮箱", { exact: true }).fill("member@example.com");
-  await member
-    .getByLabel("密码", { exact: true })
-    .fill("member-password-123456");
+  await field(member, "邮箱", { exact: true }).fill("member@example.com");
+  await field(member, "密码", { exact: true }).fill("member-password-123456");
   await member.getByRole("button", { name: "确认", exact: true }).click();
   await expect(member.getByText(/验证邮件将发送/)).toBeVisible();
   const verify = await inboxLink("member@example.com", "verify");
@@ -545,10 +542,8 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
     .getByRole("button", { name: "确认验证邮箱", exact: true })
     .click();
   await expect(member).toHaveURL(/account-access\?action=login/);
-  await member.getByLabel("邮箱", { exact: true }).fill("member@example.com");
-  await member
-    .getByLabel("密码", { exact: true })
-    .fill("member-password-123456");
+  await field(member, "邮箱", { exact: true }).fill("member@example.com");
+  await field(member, "密码", { exact: true }).fill("member-password-123456");
   await member.getByRole("button", { name: "确认", exact: true }).click();
   await expect(member).toHaveURL(/\/account$/);
   await member
@@ -574,9 +569,7 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
     .filter({ hasText: memberNickname })
     .getByRole("button", { name: "审核", exact: true })
     .click();
-  await admin
-    .getByLabel("逐单处理原因", { exact: true })
-    .fill("模拟充值核实通过");
+  await field(admin, "逐单处理原因", { exact: true }).fill("模拟充值核实通过");
   await admin.getByRole("button", { name: "确认处理", exact: true }).click();
   await expect(
     admin
@@ -644,9 +637,9 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
     .filter({ hasText: memberNickname })
     .getByRole("button", { name: "审核", exact: true })
     .click();
-  await admin
-    .getByLabel("逐单处理原因", { exact: true })
-    .fill("交付问题核实，整单退积分并撤销权益");
+  await field(admin, "逐单处理原因", { exact: true }).fill(
+    "交付问题核实，整单退积分并撤销权益",
+  );
   await admin.getByRole("button", { name: "确认处理", exact: true }).click();
   await expect(
     admin
@@ -673,18 +666,18 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
   await member.getByRole("button", { name: "退出登录", exact: true }).click();
   expect((await member.request.get("/api/member/wallet")).status()).toBe(401);
   await member.goto("/account-access?action=forgot");
-  await member.getByLabel("邮箱", { exact: true }).fill("member@example.com");
+  await field(member, "邮箱", { exact: true }).fill("member@example.com");
   await member.getByRole("button", { name: "确认", exact: true }).click();
   const reset = await inboxLink("member@example.com", "reset");
   await member.goto(reset);
-  await member
-    .getByLabel("密码", { exact: true })
-    .fill("updated-member-password-123");
+  await field(member, "密码", { exact: true }).fill(
+    "updated-member-password-123",
+  );
   await member.getByRole("button", { name: "确认", exact: true }).click();
-  await member.getByLabel("邮箱", { exact: true }).fill("member@example.com");
-  await member
-    .getByLabel("密码", { exact: true })
-    .fill("updated-member-password-123");
+  await field(member, "邮箱", { exact: true }).fill("member@example.com");
+  await field(member, "密码", { exact: true }).fill(
+    "updated-member-password-123",
+  );
   await member.getByRole("button", { name: "确认", exact: true }).click();
   await expect(member).toHaveURL(/\/account$/);
   expect(errors).toEqual([]);
@@ -705,18 +698,12 @@ test("content draft isolation, static bilingual publishing and SEO discovery", a
   const admin = await context.newPage();
   await admin.goto("/admin/workspace?view=articles");
   await admin.getByRole("button", { name: "新增内容", exact: true }).click();
-  await admin
-    .getByLabel("内容中文标题", { exact: true })
-    .fill("markdo 使用教程");
-  await admin
-    .getByLabel("内容英文标题", { exact: true })
-    .fill("markdo tutorial");
-  await admin
-    .getByLabel("内容公开地址", { exact: true })
-    .fill("markdo-tutorial");
-  await admin
-    .getByLabel("内容中文摘要", { exact: true })
-    .fill("了解 markdo 的常用功能与操作步骤。");
+  await field(admin, "内容中文标题", { exact: true }).fill("markdo 使用教程");
+  await field(admin, "内容英文标题", { exact: true }).fill("markdo tutorial");
+  await field(admin, "内容公开地址", { exact: true }).fill("markdo-tutorial");
+  await field(admin, "内容中文摘要", { exact: true }).fill(
+    "了解 markdo 的常用功能与操作步骤。",
+  );
   await admin
     .getByRole("textbox", { name: "内容中文正文", exact: true })
     .fill("最初发布的教程正文");
@@ -862,15 +849,13 @@ test("compact horizontal forms, server sorting, license replacement and refund r
     expect(result.status()).toBe(200);
   }
   await admin.goto("/admin/workspace?view=applications");
-  await admin.getByLabel("名称或关键字", { exact: true }).fill(titlePrefix);
+  await field(admin, "名称或关键字", { exact: true }).fill(titlePrefix);
   await admin.getByRole("button", { name: "查询", exact: true }).click();
   await expect(admin.locator(".el-pagination")).toContainText("23");
-  const box = await admin
-    .getByLabel("名称或关键字", { exact: true })
-    .boundingBox();
+  const box = await field(admin, "名称或关键字", { exact: true }).boundingBox();
   const label = await admin
     .locator(".el-form-item")
-    .filter({ has: admin.getByLabel("名称或关键字", { exact: true }) })
+    .filter({ has: field(admin, "名称或关键字", { exact: true }) })
     .locator(".el-form-item__label")
     .boundingBox();
   expect(box!.width).toBeLessThanOrEqual(320);
@@ -900,7 +885,7 @@ test("compact horizontal forms, server sorting, license replacement and refund r
     fullPage: true,
   });
   // 未保存草稿的介绍填充可撤销，不更改现有商品价格/文件，不自动发布。
-  await admin.getByLabel("名称或关键字", { exact: true }).fill("markdo");
+  await field(admin, "名称或关键字", { exact: true }).fill("markdo");
   await admin.getByRole("button", { name: "查询", exact: true }).click();
   await admin
     .locator(".el-table__body-wrapper")
@@ -910,11 +895,11 @@ test("compact horizontal forms, server sorting, license replacement and refund r
     .getByRole("button", { name: "填入MarkDo介绍", exact: true })
     .click();
   await admin.getByRole("button", { name: "填入介绍", exact: true }).click();
-  await expect(admin.getByLabel("应用名称", { exact: true })).toHaveValue(
+  await expect(field(admin, "应用名称", { exact: true })).toHaveValue(
     "MarkDo · 本地待办与局域网同步",
   );
   expect(
-    (await admin.getByLabel("版本", { exact: true }).boundingBox())!.width,
+    (await field(admin, "版本", { exact: true }).boundingBox())!.width,
   ).toBeLessThanOrEqual(180);
   await admin.screenshot({
     path: "test-results/compact-markdo-editor.png",
@@ -952,10 +937,10 @@ test("compact horizontal forms, server sorting, license replacement and refund r
     ).status(),
   ).toBe(200);
   await member.goto("/account-access");
-  await member.getByLabel("邮箱", { exact: true }).fill("member@example.com");
-  await member
-    .getByLabel("密码", { exact: true })
-    .fill("updated-member-password-123");
+  await field(member, "邮箱", { exact: true }).fill("member@example.com");
+  await field(member, "密码", { exact: true }).fill(
+    "updated-member-password-123",
+  );
   await member.getByRole("button", { name: "确认", exact: true }).click();
   await expect(member).toHaveURL(/\/account$/);
   await member.goto("/checkout?slug=" + licenseSlug);
@@ -965,8 +950,8 @@ test("compact horizontal forms, server sorting, license replacement and refund r
   const row = member.getByRole("row").filter({ hasText: licenseName });
   await row.getByRole("button", { name: "激活授权", exact: true }).click();
   const dialog = member.getByRole("dialog");
-  await expect(dialog.getByLabel("激活密钥", { exact: true })).toBeVisible();
-  const key = await dialog.getByLabel("激活密钥", { exact: true }).inputValue();
+  await expect(field(dialog, "激活密钥", { exact: true })).toBeVisible();
+  const key = await field(dialog, "激活密钥", { exact: true }).inputValue();
   const device = "browser-device-1111111111111111111111111111";
   const activeResult = await member.request.post("/api/license/activate", {
     headers,
@@ -985,9 +970,7 @@ test("compact horizontal forms, server sorting, license replacement and refund r
     .click();
   await row.getByRole("button", { name: "激活授权", exact: true }).click();
   await dialog.getByRole("button", { name: "申请解绑", exact: true }).click();
-  await dialog
-    .getByLabel("换机原因", { exact: true })
-    .fill("旧电脑故障需要换机");
+  await field(dialog, "换机原因", { exact: true }).fill("旧电脑故障需要换机");
   await dialog.getByRole("button", { name: "提交申请", exact: true }).click();
   await expect(dialog.getByText("待审核", { exact: false })).toBeVisible();
   await dialog
@@ -1087,7 +1070,7 @@ test("nickname, role menu union and administrator MFA emergency policy", async (
   await admin.goto("/admin/workspace?view=roles");
   await admin.getByRole("button", { name: "新增角色", exact: true }).click();
   const editor = workspace(admin);
-  await editor.getByLabel("角色名称", { exact: true }).fill("目录查看员");
+  await field(editor, "角色名称", { exact: true }).fill("目录查看员");
   await editor
     .locator(".el-tree-node__content")
     .filter({ hasText: /^应用管理$/ })
@@ -1117,12 +1100,8 @@ test("nickname, role menu union and administrator MFA emergency policy", async (
       { name: "aiwyw_language", value: "zh", url: "http://127.0.0.1:3000" },
     ]);
   await member.goto("/login");
-  await member
-    .getByLabel("邮箱", { exact: true })
-    .fill("multi-role@example.com");
-  await member
-    .getByLabel("密码", { exact: true })
-    .fill("multi-role-password-123");
+  await field(member, "邮箱", { exact: true }).fill("multi-role@example.com");
+  await field(member, "密码", { exact: true }).fill("multi-role-password-123");
   await member.getByRole("button", { name: /登录后台/ }).click();
   await expect(member).toHaveURL(/admin\/security/);
   expect(
@@ -1174,7 +1153,7 @@ test("profile nickname and password, asymmetric menu tree and light authenticati
     child = editor
       .locator(".el-tree-node__content")
       .filter({ hasText: /^应用管理$/ });
-  await editor.getByLabel("角色名称", { exact: true }).fill("树形授权验收");
+  await field(editor, "角色名称", { exact: true }).fill("树形授权验收");
   await parent.locator(".el-checkbox").click();
   await expect(child.getByRole("checkbox")).not.toBeChecked();
   await parent.locator(".el-checkbox").click();
@@ -1224,16 +1203,16 @@ test("profile nickname and password, asymmetric menu tree and light authenticati
     fullPage: true,
   });
   await member.goto("/account-access");
-  await member.getByLabel("邮箱", { exact: true }).fill("member@example.com");
-  await member
-    .getByLabel("密码", { exact: true })
-    .fill("updated-member-password-123");
+  await field(member, "邮箱", { exact: true }).fill("member@example.com");
+  await field(member, "密码", { exact: true }).fill(
+    "updated-member-password-123",
+  );
   await member.getByRole("button", { name: "确认", exact: true }).click();
   await expect(member).toHaveURL(/\/account$/);
   await member
     .getByRole("tab", { name: "个人资料与安全", exact: true })
     .click();
-  await member.getByLabel("个人昵称", { exact: true }).fill("我的新昵称");
+  await field(member, "个人昵称", { exact: true }).fill("我的新昵称");
   await member.getByRole("button", { name: "保存昵称", exact: true }).click();
   await expect(member.getByText("昵称已更新", { exact: true })).toBeVisible();
   expect(
@@ -1253,29 +1232,27 @@ test("profile nickname and password, asymmetric menu tree and light authenticati
       })
     ).status(),
   ).toBe(200);
-  await member
-    .getByLabel("当前密码", { exact: true })
-    .fill("wrong-password-123");
-  await member
-    .getByLabel("新密码", { exact: true })
-    .fill("brand-new-member-password-456");
-  await member
-    .getByLabel("确认新密码", { exact: true })
-    .fill("different-new-password-123");
+  await field(member, "当前密码", { exact: true }).fill("wrong-password-123");
+  await field(member, "新密码", { exact: true }).fill(
+    "brand-new-member-password-456",
+  );
+  await field(member, "确认新密码", { exact: true }).fill(
+    "different-new-password-123",
+  );
   await member.getByRole("button", { name: "修改密码", exact: true }).click();
   await expect(
     member.getByText("两次输入的新密码不一致", { exact: true }),
   ).toBeVisible();
-  await member
-    .getByLabel("确认新密码", { exact: true })
-    .fill("brand-new-member-password-456");
+  await field(member, "确认新密码", { exact: true }).fill(
+    "brand-new-member-password-456",
+  );
   await member.getByRole("button", { name: "修改密码", exact: true }).click();
   await expect(
     member.getByText("当前密码不正确", { exact: true }),
   ).toBeVisible();
-  await member
-    .getByLabel("当前密码", { exact: true })
-    .fill("updated-member-password-123");
+  await field(member, "当前密码", { exact: true }).fill(
+    "updated-member-password-123",
+  );
   await member.getByRole("button", { name: "修改密码", exact: true }).click();
   await expect(member).toHaveURL(/account-access\?changed=1/);
   expect(
@@ -1284,16 +1261,16 @@ test("profile nickname and password, asymmetric menu tree and light authenticati
     ).status(),
   ).toBe(401);
   await other.close();
-  await member.getByLabel("邮箱", { exact: true }).fill("member@example.com");
-  await member
-    .getByLabel("密码", { exact: true })
-    .fill("brand-new-member-password-456");
+  await field(member, "邮箱", { exact: true }).fill("member@example.com");
+  await field(member, "密码", { exact: true }).fill(
+    "brand-new-member-password-456",
+  );
   await member.getByRole("button", { name: "确认", exact: true }).click();
   await expect(member).toHaveURL(/\/account$/);
   await member
     .getByRole("tab", { name: "个人资料与安全", exact: true })
     .click();
-  await expect(member.getByLabel("个人昵称", { exact: true })).toHaveValue(
+  await expect(field(member, "个人昵称", { exact: true })).toHaveValue(
     "我的新昵称",
   );
   await member.close();
@@ -1318,16 +1295,14 @@ test("API configuration, one-time keys, billable debugger and subscription refun
   await apiList.getByRole("button", { name: "新增API", exact: true }).click();
   const apiPanel = admin.locator('[data-workspace^="api-editor-"]:visible');
   await expect(apiPanel.getByRole("table")).toHaveCount(0);
-  await apiPanel
-    .getByLabel("API配置名称", { exact: true })
-    .fill("浏览器文本API");
-  await apiPanel
-    .getByLabel("API调用地址", { exact: true })
-    .fill("browser-text-api");
-  await apiPanel
-    .getByLabel("API中文说明", { exact: true })
-    .fill("输入text字符串，返回字符、词和行数。");
-  await apiPanel.getByLabel("API积分价格", { exact: true }).fill("1.25");
+  await field(apiPanel, "API配置名称", { exact: true }).fill("浏览器文本API");
+  await field(apiPanel, "API调用地址", { exact: true }).fill(
+    "browser-text-api",
+  );
+  await field(apiPanel, "API中文说明", { exact: true }).fill(
+    "输入text字符串，返回字符、词和行数。",
+  );
+  await field(apiPanel, "API积分价格", { exact: true }).fill("1.25");
   await apiPanel.getByRole("button", { name: "保存", exact: true }).click();
   await expect(
     apiPanel.getByText("已保存，已有购买和调用条款不被覆盖", { exact: true }),
@@ -1340,10 +1315,8 @@ test("API configuration, one-time keys, billable debugger and subscription refun
   await planList.getByRole("button", { name: "新增套餐", exact: true }).click();
   const planPanel = workspace(admin);
   await expect(planPanel.getByRole("table")).toHaveCount(0);
-  await planPanel
-    .getByLabel("API配置名称", { exact: true })
-    .fill("浏览器月度套餐");
-  await planPanel.getByLabel("API积分价格", { exact: true }).fill("2.00");
+  await field(planPanel, "API配置名称", { exact: true }).fill("浏览器月度套餐");
+  await field(planPanel, "API积分价格", { exact: true }).fill("2.00");
   await select(admin, "套餐所属API", "浏览器文本API");
   await planPanel.getByRole("button", { name: "保存", exact: true }).click();
   await expect(
@@ -1359,10 +1332,10 @@ test("API configuration, one-time keys, billable debugger and subscription refun
       { name: "aiwyw_language", value: "zh", url: "http://127.0.0.1:3000" },
     ]);
   await member.goto("/account-access");
-  await member.getByLabel("邮箱", { exact: true }).fill("member@example.com");
-  await member
-    .getByLabel("密码", { exact: true })
-    .fill("brand-new-member-password-456");
+  await field(member, "邮箱", { exact: true }).fill("member@example.com");
+  await field(member, "密码", { exact: true }).fill(
+    "brand-new-member-password-456",
+  );
   await member.getByRole("button", { name: "确认", exact: true }).click();
   await expect(member).toHaveURL(/\/account$/);
   const before = BigInt(
@@ -1385,12 +1358,12 @@ test("API configuration, one-time keys, billable debugger and subscription refun
   await member.getByRole("tab", { name: "我的Key", exact: true }).click();
   await member.getByRole("button", { name: "新增Key", exact: true }).click();
   const dialog = member.getByRole("dialog");
-  await dialog.getByLabel("Key名称", { exact: true }).fill("浏览器调用Key");
+  await field(dialog, "Key名称", { exact: true }).fill("浏览器调用Key");
   await select(member, "Key API权限", "浏览器文本API");
   await dialog.getByRole("button", { name: "保存Key", exact: true }).click();
-  const token = await dialog
-    .getByLabel("新建API密钥", { exact: true })
-    .inputValue();
+  const token = await field(dialog, "新建API密钥", {
+    exact: true,
+  }).inputValue();
   expect(token).toMatch(/^aiwyw_/);
   await dialog
     .getByRole("button", { name: "已保存，关闭", exact: true })
@@ -1401,9 +1374,9 @@ test("API configuration, one-time keys, billable debugger and subscription refun
   await member.getByRole("tab", { name: "在线调试", exact: true }).click();
   await select(member, "调试Key", "浏览器调用Key");
   await select(member, "调试API", "浏览器文本API");
-  await member
-    .getByLabel("调试JSON输入", { exact: true })
-    .fill('{"text":"Hello world"}');
+  await field(member, "调试JSON输入", { exact: true }).fill(
+    '{"text":"Hello world"}',
+  );
   await member
     .getByRole("button", { name: "执行（正常计费）", exact: true })
     .click();
@@ -1550,10 +1523,9 @@ test("guest support, private image, claim and transfer, moderated feedback and o
     p.on("pageerror", (e) => errors.push(e.message));
   await guest.goto("/support");
   await guest.getByRole("button", { name: "新建咨询", exact: true }).click();
-  await guest
-    .getByRole("dialog")
-    .getByLabel("咨询主题", { exact: true })
-    .fill("浏览器游客咨询");
+  await field(guest.getByRole("dialog"), "咨询主题", { exact: true }).fill(
+    "浏览器游客咨询",
+  );
   await guest
     .getByRole("dialog")
     .getByRole("button", { name: "开始咨询", exact: true })
@@ -1668,9 +1640,9 @@ test("guest support, private image, claim and transfer, moderated feedback and o
     admin.getByRole("textbox", { name: "客服消息输入", exact: true }),
   ).toHaveCount(0);
   await guest.getByRole("tab", { name: "留言与意见", exact: true }).click();
-  await guest
-    .getByLabel("意见反馈内容", { exact: true })
-    .fill("公开留言：希望补充更多工具。");
+  await field(guest, "意见反馈内容", { exact: true }).fill(
+    "公开留言：希望补充更多工具。",
+  );
   await guest.getByRole("button", { name: "提交反馈", exact: true }).click();
   await expect(
     guest.getByText("已提交，公开留言审核后展示；私密反馈仅本人和客服可见。", {
@@ -1791,22 +1763,23 @@ test("consistent typography, managed article navigation, API editor tabs and acc
   await list.getByRole("button", { name: "新增API", exact: true }).click();
   const first = admin.locator('[data-workspace^="api-editor-"]:visible');
   const firstId = await first.getAttribute("data-workspace");
-  await first.getByLabel("API配置名称", { exact: true }).fill("草稿一独立保留");
+  await field(first, "API配置名称", { exact: true }).fill("草稿一独立保留");
   await menu(admin, "API 管理");
   await list.getByRole("button", { name: "新增API", exact: true }).click();
-  await admin
-    .locator('[data-workspace^="api-editor-"]:visible')
-    .getByLabel("API配置名称", { exact: true })
-    .fill("草稿二独立保留");
+  await field(
+    admin.locator('[data-workspace^="api-editor-"]:visible'),
+    "API配置名称",
+    { exact: true },
+  ).fill("草稿二独立保留");
   await expect(admin.locator('[data-workspace^="api-editor-"]')).toHaveCount(2);
   await admin
     .getByRole("tab", { name: "新增API", exact: true })
     .first()
     .click();
   await expect(
-    admin
-      .locator('[data-workspace="' + firstId + '"]')
-      .getByLabel("API配置名称", { exact: true }),
+    field(admin.locator('[data-workspace="' + firstId + '"]'), "API配置名称", {
+      exact: true,
+    }),
   ).toHaveValue("草稿一独立保留");
   await first.getByRole("button", { name: "关闭页签", exact: true }).click();
   const close = admin.getByRole("dialog", {
@@ -1860,15 +1833,15 @@ test("consistent typography, managed article navigation, API editor tabs and acc
     .getByRole("button", { name: "编辑", exact: true })
     .click();
   const sections = workspace(admin);
-  await sections.getByLabel("栏目名称", { exact: true }).fill("使用指南");
-  await sections.getByLabel("栏目顺序", { exact: true }).fill("0");
+  await field(sections, "栏目名称", { exact: true }).fill("使用指南");
+  await field(sections, "栏目顺序", { exact: true }).fill("0");
   await sections.getByRole("button", { name: "保存修改", exact: true }).click();
   await expect(sections.getByRole("status")).toHaveText("栏目已保存并生效");
   await menu(admin, "首页栏目");
   await sectionList
     .getByRole("button", { name: "新增栏目", exact: true })
     .click();
-  await sections.getByLabel("栏目名称", { exact: true }).fill("快捷工具");
+  await field(sections, "栏目名称", { exact: true }).fill("快捷工具");
   await sections.getByRole("button", { name: "保存修改", exact: true }).click();
   await expect(sections.getByRole("status")).toHaveText("栏目已保存并生效");
   const guest = await browser.newPage({
@@ -1920,15 +1893,15 @@ test("consistent typography, managed article navigation, API editor tabs and acc
     ),
   ).toBeLessThan(3);
   await guest.screenshot({ path: "test-results/ui-auth.png", fullPage: true });
-  await guest.getByLabel("邮箱", { exact: true }).fill("member@example.com");
-  await guest
-    .getByLabel("密码", { exact: true })
-    .fill("brand-new-member-password-456");
+  await field(guest, "邮箱", { exact: true }).fill("member@example.com");
+  await field(guest, "密码", { exact: true }).fill(
+    "brand-new-member-password-456",
+  );
   await guest.getByRole("button", { name: "确认", exact: true }).click();
   await expect(guest).toHaveURL(/\/account$/);
-  await expect(guest.getByLabel("个人昵称", { exact: true })).toBeHidden();
+  await expect(field(guest, "个人昵称", { exact: true })).toBeHidden();
   await guest.getByRole("tab", { name: "个人资料与安全", exact: true }).click();
-  await expect(guest.getByLabel("个人昵称", { exact: true })).toBeVisible();
+  await expect(field(guest, "个人昵称", { exact: true })).toBeVisible();
   await expect(
     guest.getByRole("button", { name: "创建充值订单", exact: true }),
   ).toHaveCount(0);
@@ -2020,9 +1993,9 @@ test("merged applications, object provenance, independent creation, pending acco
     .getByRole("button", { name: "新增优惠包", exact: true })
     .click();
   await expect(workspace(admin).getByRole("table")).toHaveCount(0);
-  await workspace(admin)
-    .getByLabel("积分包名称", { exact: true })
-    .fill("浏览器验收积分包");
+  await field(workspace(admin), "积分包名称", { exact: true }).fill(
+    "浏览器验收积分包",
+  );
   await admin.screenshot({
     path: "test-results/management-package-editor.png",
     fullPage: true,
@@ -2043,15 +2016,15 @@ test("merged applications, object provenance, independent creation, pending acco
       .click();
     await expect(workspace(admin).getByRole("table")).toHaveCount(0);
     const editor = workspace(admin);
-    await editor
-      .getByLabel("内容中文标题", { exact: true })
-      .fill("浏览器独立" + kind + "验收");
-    await editor
-      .getByLabel("内容英文标题", { exact: true })
-      .fill("Independent " + kind + " review");
-    await editor
-      .getByLabel("内容公开地址", { exact: true })
-      .fill(kind === "FAQ" ? "browser-faq-review" : "browser-case-review");
+    await field(editor, "内容中文标题", { exact: true }).fill(
+      "浏览器独立" + kind + "验收",
+    );
+    await field(editor, "内容英文标题", { exact: true }).fill(
+      "Independent " + kind + " review",
+    );
+    await field(editor, "内容公开地址", { exact: true }).fill(
+      kind === "FAQ" ? "browser-faq-review" : "browser-case-review",
+    );
     await select(admin, "内容类型", kind);
     await editor
       .getByRole("textbox", { name: "内容中文正文", exact: true })
@@ -2081,7 +2054,7 @@ test("merged applications, object provenance, independent creation, pending acco
   const activation = await inboxLink(pendingEmail, "verify");
   await menu(admin, "用户与权限");
   await menu(admin, "用户管理");
-  await workspace(admin).getByLabel("邮箱", { exact: true }).fill(pendingEmail);
+  await field(workspace(admin), "邮箱", { exact: true }).fill(pendingEmail);
   await select(admin, "用户状态筛选", "未激活");
   await workspace(admin)
     .getByRole("button", { name: "查询", exact: true })
