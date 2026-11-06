@@ -77,9 +77,10 @@ public class SupportController {
       @RequestParam(defaultValue = "") String state,
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int pageSize,
+      @RequestParam Map<String, String> filters,
       HttpServletRequest r,
       HttpServletResponse response) {
-    return service.conversations(principal(r, response), null, q, state, page, pageSize);
+    return service.conversations(principal(r, response), null, q, state, page, pageSize, filters);
   }
 
   @PostMapping("/api/support/conversations")
@@ -191,8 +192,11 @@ public class SupportController {
 
   @GetMapping("/api/public/messages")
   Map<String, Object> publicMessages(
-      @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int pageSize) {
-    return service.feedbackList(null, "public", null, page, pageSize);
+      @RequestParam(defaultValue = "1") int page,
+      @RequestParam(defaultValue = "20") int pageSize,
+      @RequestParam(defaultValue = "") String q,
+      @RequestParam Map<String, String> filters) {
+    return service.feedbackList(null, "public", null, page, pageSize, q, "", filters);
   }
 
   @PostMapping("/api/support/feedback")
@@ -207,9 +211,13 @@ public class SupportController {
   Map<String, Object> mine(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int pageSize,
+      @RequestParam(defaultValue = "") String q,
+      @RequestParam(defaultValue = "") String state,
+      @RequestParam Map<String, String> filters,
       HttpServletRequest r,
       HttpServletResponse response) {
-    return service.feedbackList(principal(r, response), "mine", null, page, pageSize);
+    return service.feedbackList(
+        principal(r, response), "mine", null, page, pageSize, q, state, filters);
   }
 
   @GetMapping("/api/admin/support/conversations")

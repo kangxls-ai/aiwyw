@@ -11,7 +11,7 @@ public final class CommerceSchema {
     if (!CatalogQuerySchema.column(source, "app_user", "email_verified_at"))
       db.execute(
           "ALTER TABLE app_user ADD COLUMN email_verified_at BIGINT COMMENT"
-              + " '邮箱验证成功UTC毫秒；未验证不能进行积分交易'");
+              + " '邮箱验证成功UTC毫秒；未验证不能进行鼓励值交易'");
     if (!CatalogQuerySchema.column(source, "app_user", "disabled"))
       db.execute(
           "ALTER TABLE app_user ADD COLUMN disabled BOOLEAN NOT NULL DEFAULT FALSE COMMENT"
@@ -61,45 +61,45 @@ CREATE TABLE IF NOT EXISTS mail_outbox (
 CREATE TABLE IF NOT EXISTS wallet_account (
  user_id VARCHAR(36) NOT NULL COMMENT '所属账户',
  mode VARCHAR(12) NOT NULL COMMENT 'SIMULATED，与真实模式隔离',
- balance_units BIGINT NOT NULL COMMENT '可用积分的百分之一整数单位',
+ balance_units BIGINT NOT NULL COMMENT '可用鼓励值的百分之一整数单位',
  PRIMARY KEY(user_id,mode)
 ) COMMENT='按用户及账本模式加锁，模拟与未来真实账户不可混用'
 """);
     db.execute(
         """
 CREATE TABLE IF NOT EXISTS points_package (
- id VARCHAR(36) PRIMARY KEY COMMENT '优惠包UUID',
+ id VARCHAR(36) PRIMARY KEY COMMENT '捐赠档位UUID',
  name VARCHAR(100) NOT NULL COMMENT '展示名称',
  name_en VARCHAR(100) NOT NULL COMMENT '英文名称',
  price_fen BIGINT NOT NULL COMMENT '售价人民币分',
- points_units BIGINT NOT NULL COMMENT '积分百分之一单位',
+ points_units BIGINT NOT NULL COMMENT '鼓励值百分之一单位',
  valid_days INTEGER NOT NULL COMMENT '到账起有效天数',
  enabled BOOLEAN NOT NULL COMMENT '是否前台展示',
  position INTEGER NOT NULL COMMENT '展示顺序',
  revision BIGINT NOT NULL COMMENT '乐观锁版本'
-) COMMENT='优惠包当前配置，订单另存快照'
+) COMMENT='捐赠档位当前配置，订单另存快照'
 """);
     db.execute(
         """
 CREATE TABLE IF NOT EXISTS finance_guard (
  id INTEGER PRIMARY KEY COMMENT '固定1，不可删除',
  revision BIGINT NOT NULL COMMENT '变更版本'
-) COMMENT='优惠包数量变更的数据库互斥锁'
+) COMMENT='捐赠档位数量变更的数据库互斥锁'
 """);
     db.execute(
         """
 CREATE TABLE IF NOT EXISTS recharge_order (
- id VARCHAR(36) PRIMARY KEY COMMENT '充值订单UUID',
+ id VARCHAR(36) PRIMARY KEY COMMENT '捐赠订单UUID',
  user_id VARCHAR(36) NOT NULL COMMENT '所属账户',
  mode VARCHAR(12) NOT NULL COMMENT '账本模式SIMULATED',
  request_key VARCHAR(80) NOT NULL COMMENT '用户作用域幂等键',
  request_hash VARCHAR(64) NOT NULL COMMENT '原请求摘要，拒绝同键不同参数',
- package_id VARCHAR(36) COMMENT '优惠包来源，可空',
+ package_id VARCHAR(36) COMMENT '捐赠档位来源，可空',
  package_name VARCHAR(100) NOT NULL COMMENT '下单时套餐名',
  channel VARCHAR(16) NOT NULL COMMENT 'MOCK模拟渠道',
  price_fen BIGINT NOT NULL COMMENT '下单应付人民币分',
- points_units BIGINT NOT NULL COMMENT '应付全额对应积分百分之一',
- valid_days INTEGER NOT NULL COMMENT '普通永久0，优惠包有效天数',
+ points_units BIGINT NOT NULL COMMENT '应付全额对应鼓励值百分之一',
+ valid_days INTEGER NOT NULL COMMENT '普通永久0，捐赠档位有效天数',
  rate INTEGER NOT NULL COMMENT '下单时普通兑换倍率',
  threshold_fen BIGINT NOT NULL COMMENT '下单时管理员审核门槛分',
  state VARCHAR(16) NOT NULL COMMENT 'PENDING/DECLARED/CLOSED/REJECTED/POSTED',
@@ -111,9 +111,9 @@ CREATE TABLE IF NOT EXISTS recharge_order (
  created_at BIGINT NOT NULL COMMENT 'UTC毫秒',
  expires_at BIGINT NOT NULL COMMENT '未声明自动关闭时刻',
  declared_at BIGINT COMMENT '声明付款UTC毫秒',
- posted_at BIGINT COMMENT '积分实际到账UTC毫秒',
+ posted_at BIGINT COMMENT '鼓励值实际到账UTC毫秒',
  UNIQUE(user_id,mode,request_key)
-) COMMENT='模拟充值及核销快照，重试不重复入账'
+) COMMENT='模拟捐赠及核销快照，重试不重复入账'
 """);
     db.execute(
         """
@@ -123,14 +123,14 @@ CREATE TABLE IF NOT EXISTS wallet_batch (
  mode VARCHAR(12) NOT NULL COMMENT '模拟或真实账本隔离',
  source_type VARCHAR(16) NOT NULL COMMENT 'RECHARGE或REFUND',
  source_id VARCHAR(80) NOT NULL COMMENT '来源唯一业务标识',
- total_units BIGINT NOT NULL COMMENT '初始积分百分之一',
- remaining_units BIGINT NOT NULL COMMENT '剩余积分百分之一',
+ total_units BIGINT NOT NULL COMMENT '初始鼓励值百分之一',
+ remaining_units BIGINT NOT NULL COMMENT '剩余鼓励值百分之一',
  cost_fen BIGINT NOT NULL COMMENT '初始实付成本分',
  remaining_cost_fen BIGINT NOT NULL COMMENT '剩余未分摊成本分',
  expires_at BIGINT COMMENT 'NULL永久；UTC毫秒边界不含该时刻',
  created_at BIGINT NOT NULL COMMENT '到账UTC毫秒',
  UNIQUE(user_id,mode,source_type,source_id)
-) COMMENT='积分批次事实，最早到期先扣，禁止人工直接改余额'
+) COMMENT='鼓励值批次事实，最早到期先扣，禁止人工直接改余额'
 """);
     db.execute(
         """
@@ -140,12 +140,12 @@ CREATE TABLE IF NOT EXISTS wallet_ledger (
  mode VARCHAR(12) NOT NULL COMMENT '账本模式',
  kind VARCHAR(16) NOT NULL COMMENT 'RECHARGE/PURCHASE/REFUND/EXPIRE',
  source_id VARCHAR(80) NOT NULL COMMENT '对应业务幂等来源',
- delta_units BIGINT NOT NULL COMMENT '变动积分百分之一，有符号',
- balance_after BIGINT NOT NULL COMMENT '本笔完成后可用积分百分之一',
- cost_fen BIGINT NOT NULL COMMENT '对应充值或成本分摊，有符号，不等于商品收入',
+ delta_units BIGINT NOT NULL COMMENT '变动鼓励值百分之一，有符号',
+ balance_after BIGINT NOT NULL COMMENT '本笔完成后可用鼓励值百分之一',
+ cost_fen BIGINT NOT NULL COMMENT '对应捐赠或成本分摊，有符号，不等于商品收入',
  created_at BIGINT NOT NULL COMMENT 'UTC毫秒',
  UNIQUE(user_id,mode,kind,source_id)
-) COMMENT='只追加积分流水，余额变更必须与批次和业务同事务'
+) COMMENT='只追加鼓励值流水，余额变更必须与批次和业务同事务'
 """);
     db.execute(
         """
@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS purchase_order (
  major_version VARCHAR(60) NOT NULL COMMENT '已购大版本，跨大版本可另购',
  publication_id VARCHAR(36) NOT NULL COMMENT '购买时不可变发布UUID',
  snapshot_json LONGTEXT NOT NULL COMMENT '购买时公开商品快照',
- price_units BIGINT NOT NULL COMMENT '实扣积分百分之一',
+ price_units BIGINT NOT NULL COMMENT '实扣鼓励值百分之一',
  cost_fen BIGINT NOT NULL COMMENT '各批次成本的实扣分摊',
  state VARCHAR(16) NOT NULL COMMENT 'ACTIVE或REFUNDED',
  created_at BIGINT NOT NULL COMMENT '兑换UTC毫秒',
@@ -171,8 +171,8 @@ CREATE TABLE IF NOT EXISTS purchase_order (
 CREATE TABLE IF NOT EXISTS wallet_allocation (
  id VARCHAR(36) PRIMARY KEY COMMENT '分摊UUID',
  purchase_id VARCHAR(36) NOT NULL COMMENT '对应兑换订单',
- batch_id VARCHAR(36) NOT NULL COMMENT '原积分批次',
- units BIGINT NOT NULL COMMENT '本次扣减百分之一积分',
+ batch_id VARCHAR(36) NOT NULL COMMENT '原鼓励值批次',
+ units BIGINT NOT NULL COMMENT '本次扣减百分之一鼓励值',
  cost_fen BIGINT NOT NULL COMMENT '本次实际成本分摊',
  expires_at BIGINT COMMENT '扣减时的原到期时间快照'
 ) COMMENT='扣减分摊，退款严格关联原批次及成本'
@@ -189,7 +189,7 @@ CREATE TABLE IF NOT EXISTS refund_request (
  revision BIGINT NOT NULL COMMENT '审核和重提乐观锁',
  created_at BIGINT NOT NULL COMMENT '最近申请UTC毫秒',
  reviewed_at BIGINT COMMENT '最近审核UTC毫秒'
-) COMMENT='整单退积分申请；驳回可重提，历次动作留财务审计'
+) COMMENT='整单退鼓励值申请；驳回可重提，历次动作留财务审计'
 """);
     db.execute(
         """

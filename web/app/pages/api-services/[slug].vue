@@ -44,7 +44,7 @@ useHead(() => ({
         {{ t("成功调用单价", "Price per successful call") }}：{{
           decimalUnits(api.price_units)
         }}
-        {{ t("积分", "points") }}
+        {{ t("鼓励值", "encouragement") }}
       </p>
       <h2>{{ t("平台调用地址", "Platform endpoint") }}</h2>
       <pre>
@@ -79,7 +79,7 @@ Content-Type: application/json</pre
       <div v-for="plan in plans" :key="plan.id">
         <h3>{{ plan.name }}</h3>
         <p>
-          {{ decimalUnits(plan.price_units) }} {{ t("积分", "points") }} ·
+          {{ decimalUnits(plan.price_units) }} {{ t("鼓励值", "encouragement") }} ·
           {{ plan.quota }} {{ t("次", "calls") }} · {{ plan.days }}
           {{ t("天", "days") }}
         </p>

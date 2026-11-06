@@ -20,7 +20,7 @@ export function useCatalog() {
       error.value = message(e);
     }
   }
-  /** 只在服务端确认交付成功后跳转；按钮点击本身不累加下载次数，也不本机扣积分。 */
+  /** 只在服务端确认交付成功后跳转；按钮点击本身不累加下载次数，也不本机扣鼓励值。 */
   async function download(product: CatalogProduct) {
     if (
       product.content.type === "API" ||

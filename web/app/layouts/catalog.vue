@@ -65,9 +65,6 @@ onMounted(() => {
       </header>
       <slot />
       <footer class="directory-footer directory-width">
-        <NuxtLink to="/support">{{
-          t("联系客服与反馈", "Support and feedback")
-        }}</NuxtLink>
         <p class="site-filing">
           {{ site["site.filing"]?.trim() || "模拟ICP备00000000号（占位）" }}
         </p>

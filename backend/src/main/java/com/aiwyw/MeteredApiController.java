@@ -59,8 +59,16 @@ public class MeteredApiController {
   }
 
   @GetMapping("/api/member/api")
-  Map<String, Object> member(HttpServletRequest r) {
-    return service.member(memberIdentity(r).id());
+  Map<String, Object> member(
+      @RequestParam(defaultValue = "false") boolean summary, HttpServletRequest r) {
+    String user = memberIdentity(r).id();
+    if (summary)
+      return Map.of(
+          "accountMinuteLimit",
+          service.settings.integer("api.account_minute_limit"),
+          "mode",
+          Commerce.MODE);
+    return service.member(user);
   }
 
   @PostMapping("/api/member/api/keys")

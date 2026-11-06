@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { businessTime } from "~/utils/commerce";
 definePageMeta({ layout: "catalog" });
 import "~/assets/element-admin.css";
 const { t, zh } = useLanguage(),
@@ -125,12 +126,7 @@ useHead(() => ({
         ><el-card shadow="hover"
           ><h2>{{ zh ? item.title_zh : item.title_en || item.title_zh }}</h2>
           <p>{{ zh ? item.summary_zh : item.summary_en || item.summary_zh }}</p>
-          <time>{{
-            new Date(Number(item.created_at)).toLocaleDateString(
-              zh ? "zh-CN" : "en",
-              { timeZone: "Asia/Shanghai" },
-            )
-          }}</time></el-card
+          <time>{{ businessTime(item.created_at) }}</time></el-card
         ></a
       >
     </div>

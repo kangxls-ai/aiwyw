@@ -426,7 +426,7 @@ class OperationsTest {
         db.queryForObject("SELECT revision FROM api_subscription WHERE id=?", Long.class, sub);
     assertThrows(
         Api.Failure.class, () -> api.reviewRefund(actor(user, "ADMIN"), sub, true, "自审", rev));
-    api.reviewRefund(actor(admin, "ADMIN"), sub, true, "未使用，整单退积分", rev);
+    api.reviewRefund(actor(admin, "ADMIN"), sub, true, "未使用，整单退鼓励值", rev);
     api.reviewRefund(actor(admin, "ADMIN"), sub, true, "重复同意不重复退款", rev);
     assertEquals(10000, balance(user));
     assertEquals(
@@ -545,7 +545,7 @@ class OperationsTest {
                 Api.Failure.class,
                 () ->
                     support.create(
-                        g, new SupportService.NewConversation("充值", "RECHARGE", "", false)))
+                        g, new SupportService.NewConversation("捐赠", "RECHARGE", "", false)))
             .status);
     String user = user("USER", true);
     support.bind(user, g.visitor());
@@ -1066,7 +1066,7 @@ class OperationsTest {
     String debit =
         wallet.adjust(
             actor(admin, "ADMIN"),
-            new Commerce.Adjustment(u, new BigDecimal("-2.00"), 0, "纠正异常积分", id()));
+            new Commerce.Adjustment(u, new BigDecimal("-2.00"), 0, "纠正异常鼓励值", id()));
     assertEquals(9923, balance(u));
     assertEquals(
         7, db.queryForObject("SELECT cost_fen FROM wallet_hold WHERE id=?", Long.class, debit));

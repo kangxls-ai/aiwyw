@@ -67,7 +67,7 @@ watch(
 const titles: Record<string, string> = {
   网站信息: "让用户更好地认识你的商店。",
   首发商品: "维护 markdo 的展示资料，准备好后再发布。",
-  充值收款: "当前仅使用模拟充值，真实付款码可预先上传保存。",
+  捐赠收款: "当前仅使用模拟捐赠，真实付款码可预先上传保存。",
   邮件服务:
     "SMTP负责注册验证和密码找回邮件；POP3/IMAP只用于收信连接诊断，不能替代发信。",
   文件存储: "本地与对象存储配置在保存后用于新上传，历史资源仍保留原连接。",
@@ -326,7 +326,7 @@ onBeforeUnmount(() => unregister?.());
       <aside class="settings-groups">
         <NuxtLink to="/admin/workspace?view=sections">首页栏目 →</NuxtLink
         ><NuxtLink to="/admin/workspace?view=storage">存储管理 →</NuxtLink
-        ><NuxtLink to="/admin/workspace?view=packages">优惠积分包 →</NuxtLink
+        ><NuxtLink to="/admin/workspace?view=packages">捐赠档位 →</NuxtLink
         ><NuxtLink to="/admin/workspace?view=licenses"
           >软件授权与换机 →</NuxtLink
         ><el-input

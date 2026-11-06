@@ -13,9 +13,11 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
   private final Auth auth;
   private final Database database;
+  private final Commerce wallet;
 
-  public AuthController(Auth auth, Database database) {
+  public AuthController(Auth auth, Database database, Commerce wallet) {
     this.auth = auth;
+    this.wallet = wallet;
     this.database = database;
   }
 
@@ -45,6 +47,7 @@ public class AuthController {
   public ResponseEntity<?> login(@RequestBody Login input, HttpServletRequest r) {
     if (!database.installed()) throw new Api.Failure(409, "请先完成安装");
     String token = auth.login(input.email(), input.password(), input.code(), r.getRemoteAddr());
+    reward(auth.userToken(token, false));
     return ResponseEntity.ok()
         .header(HttpHeaders.SET_COOKIE, cookie(token, r, false))
         .body(Map.of("success", true));
@@ -53,7 +56,15 @@ public class AuthController {
   @GetMapping("/session")
   /** 返回已验证的服务端用户摘要，角色由数据库决定。 */
   public Auth.User session(HttpServletRequest r) {
-    return auth.user(r, false);
+    var user = auth.user(r, false);
+    reward(user);
+    return user;
+  }
+
+  /** 有效持久会话跨日恢复同样算当天登录；待完成强制MFA的会话不发奖。 */
+  private void reward(Auth.User user) {
+    if (!user.mfaRequired() || user.mfaVerified())
+      wallet.dailyLogin(user.id(), java.time.Instant.now());
   }
 
   @PostMapping("/logout")
@@ -85,6 +96,7 @@ public class AuthController {
   /** 确认动态验证码后更新当前会话MFA状态，不能仅更新浏览器状态。 */
   public Map<String, Boolean> confirm(@RequestBody Code code, HttpServletRequest r) {
     auth.confirm(auth.user(r, false), code.code(), r);
+    reward(auth.user(r, false));
     return Map.of("success", true);
   }
 }

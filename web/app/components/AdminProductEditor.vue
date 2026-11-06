@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {businessTime} from "~/utils/commerce";
 /** 每个页签独立持有商品ID、草稿、上传与编辑器；保存后更新当前页签，不另开重复编辑页。 */
 import { markdoIntroduction } from "~/data/markdoIntroduction";
 import { ElMessageBox } from "element-plus";
@@ -287,15 +288,15 @@ watch(changed, async () => {
             :label="label"
             :value="value" /></el-select
       ></el-form-item>
-      <el-form-item label="积分价格"
+      <el-form-item label="鼓励值价格"
         ><el-input-number
           v-model="form.pricePoints"
-          aria-label="积分价格"
+          aria-label="鼓励值价格"
           :min="0"
           :precision="2"
           :step="1"
           controls-position="right"
-        /><small>0积分免费。</small></el-form-item
+        /><small>0鼓励值免费。</small></el-form-item
       >
       <el-form-item label="交付方式"
         ><el-select v-model="form.deliveryMode" aria-label="交付方式"
@@ -419,9 +420,7 @@ watch(changed, async () => {
             }}
           </p>
           <time>{{
-            new Date(item.created_at).toLocaleString("zh-CN", {
-              timeZone: "Asia/Shanghai",
-            })
+            businessTime(item.created_at)
           }}</time>
           <div>{{ item.id }}</div>
           <small>SHA-256：{{ item.sha256 }}</small>

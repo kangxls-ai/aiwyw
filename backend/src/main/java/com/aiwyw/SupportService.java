@@ -138,7 +138,7 @@ public class SupportService {
         topic = MeteredApi.text(b.topic(), 16, true),
         email = MeteredApi.text(b.email(), 254, false);
     if (!Set.of("GENERAL", "RECHARGE").contains(topic)) throw new Api.Failure(400, "咨询类型不正确");
-    if (topic.equals("RECHARGE") && p.user() == null) throw new Api.Failure(401, "充值咨询请先登录");
+    if (topic.equals("RECHARGE") && p.user() == null) throw new Api.Failure(401, "捐赠咨询请先登录");
     if (!email.isBlank()) email = accounts.email(email);
     final String mail = email;
     return tx.execute(
@@ -642,6 +642,25 @@ public class SupportService {
 
   public Map<String, Object> feedbackList(
       Principal p, String scope, Auth.User staff, int page, int size) {
+    return feedbackList(p, scope, staff, page, size, "", "");
+  }
+
+  public Map<String, Object> feedbackList(
+      Principal p, String scope, Auth.User staff, int page, int size, String q, String state) {
+    return feedbackList(p, scope, staff, page, size, q, state, Map.of());
+  }
+
+  public Map<String, Object> feedbackList(
+      Principal p,
+      String scope,
+      Auth.User staff,
+      int page,
+      int size,
+      String q,
+      String state,
+      Map<String, String> filters) {
+    if (q == null || q.length() > 100 || state == null || state.length() > 30)
+      throw new Api.Failure(400, "查询参数不正确");
     if (page < 1 || page > 1_000_000 || size < 1 || size > 100) throw new Api.Failure(400, "查询不正确");
     String where;
     List<Object> args = new ArrayList<>();
@@ -657,25 +676,44 @@ public class SupportService {
       where = " WHERE user_id IS NULL AND visitor_id=?";
       args.add(p.visitor());
     }
-    long total =
-        db.queryForObject(
-            "SELECT COUNT(*) FROM support_feedback" + where, Long.class, args.toArray());
-    int actual = (int) Math.min(page, Math.max(1, (total + size - 1) / size));
-    args.add(size);
-    args.add((actual - 1) * size);
-    return Map.of(
-        "items",
-        Commerce.safeRows(
-            db.queryForList(
-                "SELECT id,nickname,kind,body,state,reply,revision,created_at,updated_at FROM"
-                    + " support_feedback"
-                    + where
-                    + " ORDER BY created_at DESC,id LIMIT ? OFFSET ?",
-                args.toArray())),
-        "total",
-        total,
-        "page",
-        actual);
+    if (!q.isBlank()) {
+      where +=
+          " AND (body LIKE ? ESCAPE '!' OR reply LIKE ? ESCAPE '!' OR nickname LIKE ? ESCAPE '!')";
+      String term = "%" + q.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+      args.add(term);
+      args.add(term);
+      args.add(term);
+    }
+    if (!state.isBlank()) {
+      where += " AND state=?";
+      args.add(state);
+    }
+    var parameters = new HashMap<String, String>(filters);
+    parameters.put("page", String.valueOf(page));
+    parameters.put("pageSize", String.valueOf(size));
+    parameters.put("q", "");
+    return OperationalPage.query(
+        db,
+        "SELECT id,nickname,kind,body,state,reply,revision,created_at,updated_at FROM"
+            + " support_feedback"
+            + where,
+        "1=1",
+        args,
+        Map.of(
+            "id",
+            "id",
+            "created_at",
+            "created_at",
+            "updated_at",
+            "updated_at",
+            "nickname",
+            "nickname",
+            "state",
+            "state",
+            "kind",
+            "kind"),
+        "body",
+        parameters);
   }
 
   public void reviewFeedback(

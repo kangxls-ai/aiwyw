@@ -305,7 +305,7 @@ public final class LocalValidationSeeder {
               id(), new RoleController.Input(name, menuCases.get(i), 0), adminRequest);
       }
       for (int i = 1; i <= 10; i++) {
-        String name = "验收" + batch + "积分包" + i + " · " + (i % 2 == 0 ? "短期促销" : "常规优惠");
+        String name = "验收" + batch + "鼓励值包" + i + " · " + (i % 2 == 0 ? "短期促销" : "常规优惠");
         if (db.queryForObject(
                 "SELECT COUNT(*) FROM points_package WHERE name=?", Integer.class, name)
             == 0)
@@ -496,7 +496,7 @@ public final class LocalValidationSeeder {
         String purchase = purchases.get(i), user = owner.get(i % 3);
         if (db.queryForObject(
                 "SELECT COUNT(*) FROM refund_request WHERE purchase_id=?", Integer.class, purchase)
-            == 0) commerce.requestRefund(user, purchase, "本地验收：整单退积分样例" + (i + 1));
+            == 0) commerce.requestRefund(user, purchase, "本地验收：整单退鼓励值样例" + (i + 1));
         var row =
             db.queryForMap(
                 "SELECT state,revision FROM refund_request WHERE purchase_id=?", purchase);
@@ -807,7 +807,7 @@ public final class LocalValidationSeeder {
             .append('\n');
       access.append(
           "\n"
-              + "普通用户验证充值、购买、API请使用u1、u7或u9。u2和u8用于未激活筛选及删除。u0已绑定生成器验证器，仅供离线生成；继续使用原管理员管理站点。\n"
+              + "普通用户验证捐赠、购买、API请使用u1、u7或u9。u2和u8用于未激活筛选及删除。u0已绑定生成器验证器，仅供离线生成；继续使用原管理员管理站点。\n"
               + "所有样本名称含‘验收’及本批次，可按名称筛选。下载ZIP是说明样本，不是正式软件。\n");
       Path accessFile = root.resolve("validation-accounts.txt");
       Files.writeString(accessFile, access);

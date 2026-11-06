@@ -10,7 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-/** 系统管理HTTP接口。每个私有入口独立调用auth.admin；付款码上传与启用真实充值分离，上传不代表真实收款已开放。 */
+/** 系统管理HTTP接口。每个私有入口独立调用auth.admin；付款码上传与启用真实捐赠分离，上传不代表真实收款已开放。 */
 @RestController
 public class AdminController {
   private final Auth auth;

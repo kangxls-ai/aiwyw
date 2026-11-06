@@ -2,6 +2,7 @@
 import { ElMessage, ElMessageBox } from "element-plus";
 /** 审核表单不直接改余额，服务器在核销/退款事务里写批次、流水与审计。 */
 import {
+  humanText,
   decimalUnits,
   businessTime,
   commerceStates,
@@ -14,8 +15,8 @@ const user = useState<any>("admin-user", () => null),
   title = computed(
     () =>
       ({
-        recharge: "充值核销",
-        points: "积分流水",
+        recharge: "捐赠核销",
+        points: "鼓励值流水",
         refunds: "退款管理",
         orders: "兑换订单",
       })[props.view] || "交易管理",
@@ -75,7 +76,7 @@ async function adjustPoints() {
       },
     });
     adjustmentDialog.value = false;
-    notice.value = "人工积分调整已完成并记录审计";
+    notice.value = "人工鼓励值调整已完成并记录审计";
     await load();
   } catch (e) {
     error.value = message(e);
@@ -174,7 +175,7 @@ function productName(row: any) {
   try {
     return JSON.parse(row.snapshot_json).content.nameZh;
   } catch {
-    return row.package_name || row.id || row.purchase_id;
+    return humanText(row.package_name || row.id || row.purchase_id);
   }
 }
 onMounted(load);
@@ -194,7 +195,7 @@ onMounted(load);
         "
         type="primary"
         @click="openAdjustment"
-        >人工积分调整</el-button
+        >人工鼓励值调整</el-button
       >
     </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
@@ -230,6 +231,7 @@ onMounted(load);
             :shortcuts="adminDateShortcuts()"
             unlink-panels
             clearable
+            format="YYYY-MM-DD HH:mm:ss"
         /></el-form-item>
         <div>
           <el-button type="primary" :loading="busy" @click="search"
@@ -276,14 +278,14 @@ onMounted(load);
           prop="amount"
           sortable="custom"
           :sort-orders="['descending', 'ascending']"
-          label="金额 / 积分"
+          label="金额 / 鼓励值"
           min-width="160"
           ><template #default="{ row }"
             ><template v-if="row.price_fen"
               >应付 ¥{{ decimalUnits(row.price_fen) }}<br /><strong
                 v-if="view === 'recharge'"
                 >备注码：{{ row.payment_memo || "未生成" }}</strong
-              ><br />积分 {{ decimalUnits(row.points_units) }}<br /><span
+              ><br />鼓励值 {{ decimalUnits(row.points_units) }}<br /><span
                 v-if="row.actual_fen"
                 >实到 ¥{{ decimalUnits(row.actual_fen) }}</span
               ></template
@@ -292,7 +294,7 @@ onMounted(load);
               }}<br />余额 {{ decimalUnits(row.balance_after) }}<br />成本分摊
               ¥{{ decimalUnits(row.cost_fen) }}</template
             ><template v-else-if="row.price_units"
-              >{{ decimalUnits(row.price_units) }} 积分<br />成本 ¥{{
+              >{{ decimalUnits(row.price_units) }} 鼓励值<br />成本 ¥{{
                 decimalUnits(row.cost_fen)
               }}</template
             ><span v-else>{{ row.reason }}</span></template
@@ -343,7 +345,7 @@ onMounted(load);
     /></el-card>
     <el-dialog
       v-model="dialog"
-      :title="view === 'refunds' ? '审核整单退积分' : '核销模拟充值'"
+      :title="view === 'refunds' ? '审核整单退鼓励值' : '核销模拟捐赠'"
       width="min(560px,94vw)"
       :close-on-click-modal="false"
       ><el-alert
@@ -367,10 +369,10 @@ onMounted(load);
           selected.id || selected.purchase_id
         }}</el-descriptions-item
         ><el-descriptions-item
-          :label="view === 'refunds' ? '拟退积分' : '应付金额'"
+          :label="view === 'refunds' ? '拟退鼓励值' : '应付金额'"
           >{{
             view === "refunds"
-              ? decimalUnits(selected.price_units) + " 积分"
+              ? decimalUnits(selected.price_units) + " 鼓励值"
               : "¥" + decimalUnits(selected.price_fen)
           }}</el-descriptions-item
         ></el-descriptions
@@ -413,7 +415,7 @@ onMounted(load);
     />
     <el-dialog
       v-model="adjustmentDialog"
-      title="人工积分调整"
+      title="人工鼓励值调整"
       width="min(620px,94vw)"
       ><el-alert
         type="info"
@@ -430,7 +432,7 @@ onMounted(load);
             remote
             :remote-method="loadAdjustUsers"
             placeholder="搜索昵称或输入完整账户ID"
-            aria-label="调整积分目标账户"
+            aria-label="调整鼓励值目标账户"
             ><el-option
               v-for="u in adjustUsers"
               :key="u.id"
@@ -438,7 +440,7 @@ onMounted(load);
               :label="
                 u.nickname + ' (' + u.id.slice(0, 8) + ')'
               " /></el-select></el-form-item
-        ><el-form-item label="调整积分"
+        ><el-form-item label="调整鼓励值"
           ><el-input-number
             v-model="adjustment.points"
             :precision="2"
@@ -458,7 +460,7 @@ onMounted(load);
             :rows="4"
             maxlength="1000"
             placeholder="填写业务原因，不填密码或完整Key"
-            aria-label="人工积分调整原因" /></el-form-item></el-form
+            aria-label="人工鼓励值调整原因" /></el-form-item></el-form
       ><template #footer
         ><el-button @click="adjustmentDialog = false">取消</el-button
         ><el-button type="primary" :loading="adjusting" @click="adjustPoints"

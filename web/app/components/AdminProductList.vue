@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { businessTime } from "~/utils/commerce";
 /** 组合条件发送到服务端后再分页；页签切换保留当前筛选，不在客户端截取全部应用。 */
 import { adminDateShortcuts } from "~/utils/commerce";
 import type { AdminSection } from "~/types/catalog";
@@ -125,17 +126,7 @@ async function action(row: Row, verb: "publish" | "unlist") {
     busy.value = false;
   }
 }
-const time = (n: number | null) =>
-  n
-    ? new Intl.DateTimeFormat("zh-CN", {
-        timeZone: "Asia/Shanghai",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(n)
-    : "未发布";
+const time = (n: number | null) => (n ? businessTime(n) : "未发布");
 const route = useRoute();
 watch(
   () => route.query.tag,
@@ -215,7 +206,7 @@ watch(changed, () => load());
             start-placeholder="开始日期"
             end-placeholder="结束日期"
             value-format="YYYY-MM-DD"
-            format="YYYY-MM-DD"
+            format="YYYY-MM-DD HH:mm:ss"
             :shortcuts="dateShortcuts"
             clearable
             unlink-panels
@@ -283,7 +274,7 @@ watch(changed, () => load());
         />
         <el-table-column
           prop="pricePoints"
-          label="积分"
+          label="鼓励值"
           sortable="custom"
           :sort-orders="['descending', 'ascending']"
           min-width="90"

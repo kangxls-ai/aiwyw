@@ -1,4 +1,4 @@
-/** 服务端金额/积分最小单位为字符串；展示用BigInt，避免大额账目浮点误差。 */
+/** 服务端金额/鼓励值最小单位为字符串；展示用BigInt，避免大额账目浮点误差。 */
 export function decimalUnits(value: unknown) {
   try {
     const n = BigInt(String(value ?? 0)),
@@ -9,13 +9,33 @@ export function decimalUnits(value: unknown) {
     return "—";
   }
 }
+/** 统一人可读时间为北京时间yyyy-MM-dd HH:mm:ss；不改动接口毫秒、ISO结构化数据。 */
 export function businessTime(value: unknown) {
-  return value
-    ? new Date(Number(value)).toLocaleString("zh-CN", {
-        timeZone: "Asia/Shanghai",
-      })
-    : "—";
+  if (value === null || value === undefined || value === "") return "—";
+  const date = new Date(
+    typeof value === "number" || /^\d+$/.test(String(value))
+      ? Number(value)
+      : String(value),
+  );
+  if (!Number.isFinite(date.getTime())) return "—";
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value || "";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
 }
+/** 历史通知保留原始存储，展示时采用现行术语。 */
+export const humanText = (value: unknown) =>
+  String(value ?? "")
+    .replaceAll("积分", "鼓励值")
+    .replaceAll("充值", "捐赠");
 export const commerceStates: Record<string, string> = {
   PENDING: "待处理",
   DECLARED: "待核查",
@@ -25,16 +45,17 @@ export const commerceStates: Record<string, string> = {
   ACTIVE: "有效",
   REFUNDED: "已退款",
   APPROVED: "已退款",
-  RECHARGE: "充值",
+  RECHARGE: "捐赠",
+  DAILY_LOGIN: "每日登录奖励",
   PURCHASE: "兑换",
   REFUND: "退款",
   EXPIRE: "到期失效",
-  API_HOLD: "API积分预留",
+  API_HOLD: "API鼓励值预留",
   API_SETTLE: "API预留结算",
   API_RELEASE: "API失败释放",
-  API_REFUND: "API套餐退积分",
-  ADJUST_CREDIT: "人工增加积分",
-  ADJUST_DEBIT: "人工扣减积分",
+  API_REFUND: "API套餐退鼓励值",
+  ADJUST_CREDIT: "人工增加鼓励值",
+  ADJUST_DEBIT: "人工扣减鼓励值",
   ADJUST_DONE: "人工调整结算",
 };
 

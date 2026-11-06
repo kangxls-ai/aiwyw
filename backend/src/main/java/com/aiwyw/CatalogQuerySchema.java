@@ -30,7 +30,7 @@ public final class CatalogQuerySchema {
           {"created_at", "BIGINT NOT NULL DEFAULT 0 COMMENT '创建UTC毫秒；旧资料无审计时取升级前最后已知时间'"},
           {"sort_name", "VARCHAR(200) NOT NULL DEFAULT '' COMMENT '草稿中文名称排序索引'"},
           {"sort_version", "VARCHAR(80) NOT NULL DEFAULT '' COMMENT '草稿版本文本排序索引'"},
-          {"sort_price", "DECIMAL(18,2) NOT NULL DEFAULT 0 COMMENT '草稿积分价格排序索引'"},
+          {"sort_price", "DECIMAL(18,2) NOT NULL DEFAULT 0 COMMENT '草稿鼓励值价格排序索引'"},
           {"sort_tags", "VARCHAR(1800) NOT NULL DEFAULT '' COMMENT '草稿标签显示文本排序索引'"},
           {"last_published_at", "BIGINT COMMENT '最近一次成功发布UTC毫秒；首次上架排序仍用first_published_at'"},
           {"search_text", "VARCHAR(1600) NOT NULL DEFAULT '' COMMENT '草稿名称和摘要的小写查询索引，不用于公开正文'"}

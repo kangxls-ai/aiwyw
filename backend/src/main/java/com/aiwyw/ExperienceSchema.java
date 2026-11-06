@@ -3,7 +3,7 @@ package com.aiwyw;
 import javax.sql.DataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-/** 仅增加展示/转发字段，不重写旧订单、不改变历史积分条款；旧充值未生成备注码时保持空值。 */
+/** 仅增加展示/转发字段，不重写旧订单、不改变历史鼓励值条款；旧捐赠未生成备注码时保持空值。 */
 final class ExperienceSchema {
   static void migrate(DataSource source, JdbcTemplate db) {
     String[][] fields = {

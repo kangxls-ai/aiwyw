@@ -82,7 +82,7 @@ main{max-width:1160px;margin:36px auto;padding:0 20px}.back{display:block;margin
 </style></head><body><header><a class="brand" href="/"><span>万</span>%s</a><button id="language" aria-label="切换语言">中文 / English</button></header>
 <main><a class="back" href="/apps"><span class="zh">← 所有应用</span><span class="en">← All applications</span></a>
 <section class="hero"><div class="app-icon">%s</div><div class="info"><h1><span class="zh">%s</span><span class="en">%s</span></h1><p class="zh">%s</p><p class="en">%s</p><div class="tags">%s</div><p class="version">%s · %s</p><div class="notice"><span class="zh">此应用已下架，已购资源请在我的资源访问。</span><span class="en">Unlisted. Existing customers can access their resources in their account.</span></div></div>
-<div class="action"><div class="price">%s <span class="zh">积分</span><span class="en">points</span></div><button id="download"><span class="zh">%s</span><span class="en">%s</span></button><span id="delivery-status" role="status"></span></div></section>
+<div class="action"><div class="price">%s <span class="zh">鼓励值</span><span class="en">encouragement</span></div><button id="download"><span class="zh">%s</span><span class="en">%s</span></button><span id="delivery-status" role="status"></span></div></section>
 %s<section class="body"><h2><span class="zh">应用介绍</span><span class="en">About this application</span></h2><div class="zh">%s</div><div class="en">%s</div></section></main><footer>%s · %s</footer><script>%s</script></body></html>
 """
         .formatted(

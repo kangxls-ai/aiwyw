@@ -33,7 +33,8 @@ onMounted(load);
       <div>
         <h1>活跃用户</h1>
         <p>
-          {{ from }} — {{ until }} · 北京时间 ·
+          {{ businessTime(from + "T00:00:00+08:00") }} —
+          {{ businessTime(until + "T23:59:59+08:00") }} · 北京时间 ·
           与报表活跃账户采用同一统计窗口和去重口径
         </p>
       </div>

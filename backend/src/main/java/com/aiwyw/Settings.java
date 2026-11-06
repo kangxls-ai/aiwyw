@@ -73,48 +73,49 @@ public class Settings {
     option(
         "site.fallback_language", "网站信息", "默认回退语言", "en", true, "未匹配的浏览器语言", List.of("en", "zh"));
     // 首发商品旧展示键保留在数据库历史中；真实商品资料统一从应用管理维护，避免双写。
-    number("wallet.points_per_yuan", "积分与交易", "每元普通积分", 10, 1, 100000, "普通充值永久有效；更改不影响历史订单快照");
-    number("wallet.min_recharge_yuan", "积分与交易", "普通充值最低金额 元", 1, 1, 1000000, "普通充值仅支持整数元");
+    number("wallet.points_per_yuan", "鼓励值与交易", "每元捐赠获得鼓励值", 10, 10, 10, "固定1元获得10鼓励值；旧订单、旧余额保持原数值");
+    number("wallet.min_recharge_yuan", "鼓励值与交易", "普通捐赠最低金额 元", 1, 1, 1000000, "普通捐赠仅支持整数元");
     number(
-        "wallet.max_recharge_yuan", "积分与交易", "普通充值最高金额 元", 10000, 1, 1000000, "交易模块按最小值与最大值共同验证");
-    number("wallet.large_payment_yuan", "积分与交易", "大额充值审核门槛", 200, 1, 1000000, "达到门槛由管理员审核，通过后系统入账");
+        "wallet.max_recharge_yuan", "鼓励值与交易", "普通捐赠最高金额 元", 10000, 1, 1000000, "交易模块按最小值与最大值共同验证");
+    number(
+        "wallet.large_payment_yuan", "鼓励值与交易", "大额捐赠审核门槛", 200, 1, 1000000, "达到门槛由管理员审核，通过后系统入账");
     number(
         "wallet.order_timeout_minutes",
-        "积分与交易",
+        "鼓励值与交易",
         "未声明付款订单关闭时间 分钟",
         120,
         1,
         10080,
         "已声明付款转待核查，不自动关闭");
-    number("wallet.refund_expired_days", "积分与交易", "已过期积分退款有效天数", 30, 1, 3650, "从退款到账时起算");
-    number("wallet.visible_packages", "积分与交易", "前台最多展示优惠包档数", 5, 1, 5, "后台可保存多个档次");
+    number("wallet.refund_expired_days", "鼓励值与交易", "已过期鼓励值退款有效天数", 30, 1, 3650, "从退款到账时起算");
+    number("wallet.visible_packages", "鼓励值与交易", "前台最多展示捐赠档位档数", 5, 1, 5, "后台可保存多个档次");
     option(
         "wallet.deduction_order",
-        "积分与交易",
-        "积分扣减顺序",
+        "鼓励值与交易",
+        "鼓励值扣减顺序",
         "EARLIEST_EXPIRY_FIRST",
         false,
-        "已确认先最早到期，最后永久积分",
+        "已确认先最早到期，最后永久鼓励值",
         List.of("EARLIEST_EXPIRY_FIRST"));
     option(
         "payment.mode",
-        "充值收款",
+        "捐赠收款",
         "收款模式",
         "SIMULATED",
         true,
-        "当前只支持模拟充值，真实渠道接入验收后另行开放",
+        "当前只支持模拟捐赠，真实渠道接入验收后另行开放",
         List.of("SIMULATED"));
     image(
         "payment.mock_image",
-        "充值收款",
+        "捐赠收款",
         "模拟收款二维码",
         "/images/mock-payment.svg",
         true,
         "仅测试流程，不可用于真实转账");
-    image("payment.alipay_image", "充值收款", "支付宝付款码", "", false, "可预先上传，上传不代表启用真实收款");
-    image("payment.wechat_image", "充值收款", "微信付款码", "", false, "可预先上传，上传不代表启用真实收款");
+    image("payment.alipay_image", "捐赠收款", "支付宝付款码", "", false, "可预先上传，上传不代表启用真实收款");
+    image("payment.wechat_image", "捐赠收款", "微信付款码", "", false, "可预先上传，上传不代表启用真实收款");
     number("api.expiry_reminder_days", "API服务", "订阅到期提前提醒 天", 3, 1, 30, "此值为可编辑初始值，业务模块接入后生效");
-    bool("api.overage_default", "API服务", "默认允许超额扣积分", false, "用户必须主动开启，当前初始值为关闭");
+    bool("api.overage_default", "API服务", "默认允许超额扣鼓励值", false, "用户必须主动开启，当前初始值为关闭");
     bool("api.debug_billable", "API服务", "在线调试正常计费", true, "使用用户本人Key，成功调用正常计费");
     number("api.max_keys", "API服务", "每账户Key数量上限", 20, 1, 200, "停用Key仍计数，可修改或删除未使用Key");
     number("api.account_minute_limit", "API服务", "账户每分钟调用上限", 120, 1, 10000, "多个Key及调试共用；失败尝试也计限速");
@@ -294,7 +295,7 @@ public class Settings {
     return rows.isEmpty() ? d.initial() : (d.secret() ? crypto.decrypt(rows.get(0)) : rows.get(0));
   }
 
-  /** 仅用于注册为整数的配置；小数金额和积分不得通过此方法截断。 */
+  /** 仅用于注册为整数的配置；小数金额和鼓励值不得通过此方法截断。 */
   public int integer(String key) {
     return Integer.parseInt(value(key));
   }
@@ -376,7 +377,7 @@ public class Settings {
                 RequestIp.current());
           }
           if (bounds && integer("wallet.min_recharge_yuan") > integer("wallet.max_recharge_yuan"))
-            throw new Api.Failure(400, "最低充值金额不能超过最高充值金额");
+            throw new Api.Failure(400, "最低捐赠金额不能超过最高捐赠金额");
         });
   }
 
@@ -420,7 +421,7 @@ public class Settings {
             .contains(d.key())
         && !v.equals("true")) throw new Api.Failure(400, "此项为已确认的安全要求，不能关闭");
     if (d.key().equals("api.overage_default") && v.equals("true"))
-      throw new Api.Failure(400, "超额扣积分必须由用户主动开启，不能默认开启");
+      throw new Api.Failure(400, "超额扣鼓励值必须由用户主动开启，不能默认开启");
     if (d.key().equals("api.debug_billable") && !v.equals("true"))
       throw new Api.Failure(400, "在线调试按已确认规则正常计费");
     if (d.key().equals("storage.local_directory")

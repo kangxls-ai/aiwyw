@@ -33,8 +33,10 @@ public class CommerceController {
   }
 
   @GetMapping("/api/member/wallet")
-  Map<String, Object> wallet(HttpServletRequest r) {
-    return service.summary(auth.user(r, false).id());
+  Map<String, Object> wallet(
+      @RequestParam(defaultValue = "false") boolean summary, HttpServletRequest r) {
+    String user = auth.user(r, false).id();
+    return summary ? service.balanceSummary(user) : service.summary(user);
   }
 
   @GetMapping("/api/member/packages")
@@ -67,6 +69,7 @@ public class CommerceController {
   Map<String, Object> memberList(
       @PathVariable String kind,
       @RequestParam(defaultValue = "") String state,
+      @RequestParam(defaultValue = "") String q,
       @RequestParam(defaultValue = "") String from,
       @RequestParam(defaultValue = "") String until,
       @RequestParam(defaultValue = "created_at") String sort,
@@ -75,7 +78,7 @@ public class CommerceController {
       @RequestParam(defaultValue = "20") int pageSize,
       HttpServletRequest r) {
     return service.page(
-        kind, auth.user(r, false).id(), state, "", from, until, page, pageSize, sort, direction);
+        kind, auth.user(r, false).id(), state, q, from, until, page, pageSize, sort, direction);
   }
 
   @GetMapping("/api/member/quote/{slug}")

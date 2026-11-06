@@ -228,7 +228,8 @@ onBeforeUnmount(() => {
             value-format="YYYY-MM-DD"
             start-placeholder="开始日期"
             end-placeholder="结束日期"
-            :shortcuts="adminDateShortcuts()" /></el-form-item
+            :shortcuts="adminDateShortcuts()"
+            format="YYYY-MM-DD HH:mm:ss" /></el-form-item
         ><el-form-item label="状态"
           ><el-select v-model="state" clearable placeholder="全部"
             ><el-option

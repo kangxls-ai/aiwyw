@@ -10,7 +10,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * 积分事实以百分之一整数保存；金额以人民币分保存。所有余额写入先锁(user,mode)，再锁业务行。 核销、批次、余额、流水、通知与审计同事务提交。模拟账本命名空间不能直接切成真实经营余额。
+ * 鼓励值事实以百分之一整数保存；金额以人民币分保存。所有余额写入先锁(user,mode)，再锁业务行。 核销、批次、余额、流水、通知与审计同事务提交。模拟账本命名空间不能直接切成真实经营余额。
  */
 @Service
 public class Commerce {
@@ -48,7 +48,7 @@ public class Commerce {
       if (value == null || value.signum() < 0 || value.scale() > 2) throw new ArithmeticException();
       return value.movePointRight(2).longValueExact();
     } catch (ArithmeticException invalid) {
-      throw new Api.Failure(400, "金额或积分必须为非负数，最多两位小数且不超出范围");
+      throw new Api.Failure(400, "金额或鼓励值必须为非负数，最多两位小数且不超出范围");
     }
   }
 
@@ -94,7 +94,7 @@ public class Commerce {
     return rows.get(0);
   }
 
-  /** 唯一锁顺序是账户→充值/购买→批次；同一账户并发消费不能读到相同可扣余额。 */
+  /** 唯一锁顺序是账户→捐赠/购买→批次；同一账户并发消费不能读到相同可扣余额。 */
   /** 先锁真实账户行再取钱包行，避免MySQL重复INSERT的共享锁升级死锁。锁定读始终读取最新提交值。 */
   void lock(String user) {
     db.queryForMap("SELECT id FROM app_user WHERE id=? FOR UPDATE", user);
@@ -118,7 +118,7 @@ public class Commerce {
 
   private void ledger(String user, String kind, String source, long delta, long cost) {
     long next = Math.addExact(balance(user), delta);
-    if (next < 0) throw new Api.Failure(409, "积分不足");
+    if (next < 0) throw new Api.Failure(409, "鼓励值不足");
     db.update(
         "UPDATE wallet_account SET balance_units=? WHERE user_id=? AND mode=?", next, user, MODE);
     String ledgerId = UUID.randomUUID().toString();
@@ -136,6 +136,39 @@ public class Commerce {
         cost,
         System.currentTimeMillis());
     Origins.created(db, "wallet_ledger", ledgerId, "SYSTEM");
+  }
+
+  /** 已认证账户按北京时间首次登录领取；统一账户锁串行化跨设备并发，主键为最终幂等边界。 */
+  public boolean dailyLogin(String user, java.time.Instant instant) {
+    String day = instant.atZone(java.time.ZoneId.of("Asia/Shanghai")).toLocalDate().toString();
+    return tx.execute(
+        status -> {
+          lock(user);
+          if (db.queryForObject(
+                  "SELECT COUNT(*) FROM daily_login_reward WHERE user_id=? AND mode=? AND"
+                      + " day_key=?",
+                  Integer.class,
+                  user,
+                  MODE,
+                  day)
+              > 0) return false;
+          String batch = UUID.randomUUID().toString();
+          long now = instant.toEpochMilli();
+          db.update(
+              "INSERT INTO daily_login_reward VALUES(?,?,?,?,100,?)", user, MODE, day, batch, now);
+          db.update(
+              "INSERT INTO"
+                  + " wallet_batch(id,user_id,mode,source_type,source_id,total_units,remaining_units,cost_fen,remaining_cost_fen,expires_at,created_at)"
+                  + " VALUES(?,?,?,'DAILY_LOGIN',?,100,100,0,0,NULL,?)",
+              batch,
+              user,
+              MODE,
+              user + ":" + day,
+              now);
+          ledger(user, "DAILY_LOGIN", batch, 100, 0);
+          Origins.created(db, "wallet_batch", batch, "SYSTEM");
+          return true;
+        });
   }
 
   private void audit(String actor, String entity, String action, String detail) {
@@ -216,6 +249,14 @@ public class Commerce {
       }
   }
 
+  public Map<String, Object> balanceSummary(String user) {
+    return tx.execute(
+        status -> {
+          lock(user);
+          return Map.of("mode", MODE, "balance", decimal(balance(user)));
+        });
+  }
+
   public Map<String, Object> summary(String user) {
     return tx.execute(
         s -> {
@@ -245,7 +286,7 @@ public class Commerce {
     if (!org.springframework.transaction.support.TransactionSynchronizationManager
         .isActualTransactionActive())
       throw new IllegalStateException("Wallet hold requires transaction");
-    if (units < 0 || balance(user) < units) throw new Api.Failure(402, "可用积分不足");
+    if (units < 0 || balance(user) < units) throw new Api.Failure(402, "可用鼓励值不足");
     long rest = units, cost = 0;
     for (var b :
         db.queryForList(
@@ -306,7 +347,7 @@ public class Commerce {
     ledger(user, kind, id, 0, 0);
   }
 
-  /** 失败释放不延长积分原期限；正式审核退款才对已过期部分延长既定30天。 */
+  /** 失败释放不延长鼓励值原期限；正式审核退款才对已过期部分延长既定30天。 */
   void releaseHold(String user, String id, boolean refund) {
     var h = one("SELECT * FROM wallet_hold WHERE id=? AND user_id=? FOR UPDATE", id, user);
     String target = refund ? "REFUNDED" : "RELEASED", expected = refund ? "SETTLED" : "HELD";
@@ -355,15 +396,15 @@ public class Commerce {
   public record Adjustment(
       String userId, BigDecimal points, int validDays, String reason, String requestKey) {}
 
-  /** 管理员例外处理必须独立留痕；赠分成本0，扣分按原批次顺序，不能凭此伪造充值或已用套餐退款。 */
+  /** 管理员例外处理必须独立留痕；赠分成本0，扣分按原批次顺序，不能凭此伪造捐赠或已用套餐退款。 */
   public String adjust(Auth.User actor, Adjustment b) {
     if (!actor.hasRole("ADMIN") || !actor.mfaVerified())
-      throw new Api.Failure(403, "仅完成当前安全策略的管理员可调整积分");
+      throw new Api.Failure(403, "仅完成当前安全策略的管理员可调整鼓励值");
     if (actor.id().equals(b.userId())) throw new Api.Failure(403, "不能调整本人账户");
     String reason = MeteredApi.text(b.reason(), 1000, true),
         request = MeteredApi.requestKey(b.requestKey());
     if (b.points() == null || b.points().signum() == 0 || b.validDays() < 0 || b.validDays() > 3650)
-      throw new Api.Failure(400, "请输入非零积分及正确有效期");
+      throw new Api.Failure(400, "请输入非零鼓励值及正确有效期");
     long amount = units(b.points().abs()), delta = b.points().signum() < 0 ? -amount : amount;
     String hash = crypto.digest(b.userId() + ":" + delta + ":" + b.validDays() + ":" + reason);
     try {
@@ -417,7 +458,7 @@ public class Commerce {
                 now);
             Origins.created(db, "wallet_adjustment", key, actor.id());
             audit(actor.id(), key, "ADJUST_POINTS", reason);
-            notify(b.userId(), "积分人工调整", decimal(delta) + " 积分。原因：" + reason);
+            notify(b.userId(), "鼓励值人工调整", decimal(delta) + " 鼓励值。原因：" + reason);
             return key;
           });
     } catch (org.springframework.dao.DuplicateKeyException conflict) {
@@ -446,26 +487,26 @@ public class Commerce {
                   key);
           if (!prior.isEmpty()) {
             if (!prior.get(0).get("request_hash").equals(hash))
-              throw new Api.Failure(409, "同一请求标识不能用于不同充值");
+              throw new Api.Failure(409, "同一请求标识不能用于不同捐赠");
             return safeRow(prior.get(0));
           }
           long price, points;
           int days = 0;
-          String packageName = "普通充值", packageId = b.packageId();
+          String packageName = "普通捐赠", packageId = b.packageId();
           int rate = settings.integer("wallet.points_per_yuan");
           if (packageId != null && !packageId.isBlank()) {
             var pack = one("SELECT * FROM points_package WHERE id=? AND enabled=TRUE", packageId);
             price = number(pack, "price_fen");
-            points = number(pack, "points_units");
+            points = Math.multiplyExact(price, rate);
             days = ((Number) pack.get("valid_days")).intValue();
             packageName = (String) pack.get("name");
           } else {
             if (b.amount() == null || b.amount().stripTrailingZeros().scale() > 0)
-              throw new Api.Failure(400, "普通充值请输入整数元");
+              throw new Api.Failure(400, "普通捐赠请输入整数元");
             price = units(b.amount());
             if (price < settings.integer("wallet.min_recharge_yuan") * 100L
                 || price > settings.integer("wallet.max_recharge_yuan") * 100L)
-              throw new Api.Failure(400, "充值金额超出后台配置范围");
+              throw new Api.Failure(400, "捐赠金额超出后台配置范围");
             points = Math.multiplyExact(price, rate);
           }
           String id = UUID.randomUUID().toString();
@@ -548,7 +589,7 @@ public class Commerce {
         });
   }
 
-  /** 实到不同于应付时转普通永久积分；门槛取应付、实到的较大值，禁止拆低审核金额绕过管理员。 */
+  /** 实到不同于应付时转普通永久鼓励值；门槛取应付、实到的较大值，禁止拆低审核金额绕过管理员。 */
   public void reviewRecharge(
       Auth.User actor, String id, BigDecimal actual, boolean approve, String reason) {
     String explanation = note(reason);
@@ -579,7 +620,7 @@ public class Commerce {
                 explanation,
                 id);
             audit(actor.id(), id, "REJECT_RECHARGE", explanation);
-            notify(user, "充值审核未通过", explanation);
+            notify(user, "捐赠审核未通过", explanation);
             return;
           }
           boolean equal = amount == number(order, "price_fen");
@@ -623,7 +664,7 @@ public class Commerce {
                   id);
           Origins.created(db, "wallet_batch", batchId, actor.id());
           audit(actor.id(), id, "POST_RECHARGE", explanation);
-          notify(user, "模拟充值积分已到账", decimal(points) + " 积分已到账。此记录属于模拟账本，不代表真实收款。");
+          notify(user, "模拟捐赠鼓励值已到账", decimal(points) + " 鼓励值已到账。此记录属于模拟账本，不代表真实收款。");
         });
   }
 
@@ -646,10 +687,10 @@ public class Commerce {
         || p.validDays() < 1
         || p.validDays() > 36500
         || p.position() < 0
-        || p.position() > 10000) throw new Api.Failure(400, "优惠包名称、有效期或顺序不正确");
-    long price = units(p.price()), points = units(p.points());
+        || p.position() > 10000) throw new Api.Failure(400, "捐赠档位名称、有效期或顺序不正确");
+    long price = units(p.price()), points = Math.multiplyExact(price, 10L);
     if (price < 1 || price > 100000000 || points < 1 || points > 100000000000L)
-      throw new Api.Failure(400, "优惠包价格或积分超出范围");
+      throw new Api.Failure(400, "捐赠档位价格或鼓励值超出范围");
     return tx.execute(
         s -> {
           db.queryForObject("SELECT revision FROM finance_guard WHERE id=1 FOR UPDATE", Long.class);
@@ -660,7 +701,7 @@ public class Commerce {
                   Integer.class,
                   key);
           if (p.enabled() && active >= settings.integer("wallet.visible_packages"))
-            throw new Api.Failure(409, "前台展示优惠包已达配置上限");
+            throw new Api.Failure(409, "前台展示捐赠档位已达配置上限");
           if (id == null)
             db.update(
                 "INSERT INTO"
@@ -688,7 +729,7 @@ public class Commerce {
                   p.position(),
                   id,
                   p.revision())
-              != 1) throw new Api.Failure(409, "优惠包已变化，请重新读取");
+              != 1) throw new Api.Failure(409, "捐赠档位已变化，请重新读取");
           if (id == null) Origins.created(db, "points_package", key, actor);
           audit(actor, key, "SAVE_PACKAGE", "package configuration");
           return key;
@@ -698,7 +739,10 @@ public class Commerce {
   public List<Map<String, Object>> packages(boolean admin) {
     return safeRows(
         db.queryForList(
-            "SELECT * FROM points_package"
+            "SELECT id,REPLACE(REPLACE(name,'积分','鼓励值'),'充值','捐赠') AS"
+                + " name,name_en,price_fen,(price_fen*10) AS"
+                + " points_units,valid_days,enabled,position,revision,created_at FROM"
+                + " points_package"
                 + (admin ? "" : " WHERE enabled=TRUE")
                 + " ORDER BY position,id"
                 + (admin ? "" : " LIMIT " + settings.integer("wallet.visible_packages"))));
@@ -800,8 +844,8 @@ public class Commerce {
               || privateData.downloadUrl().isBlank()) throw new Api.Failure(409, "此商品交付能力尚未开放");
           long price = units(product.content().pricePoints());
           if (price <= 0 && !privateData.deliveryMode().equals("LICENSE"))
-            throw new Api.Failure(400, "免费应用无需积分兑换");
-          if (balance(user) < price) throw new Api.Failure(409, "可用积分不足，请先充值");
+            throw new Api.Failure(400, "免费应用无需鼓励值兑换");
+          if (balance(user) < price) throw new Api.Failure(409, "可用鼓励值不足，请先捐赠");
           String id = UUID.randomUUID().toString();
           long rest = price, cost = 0;
           for (var batch :
@@ -1030,7 +1074,7 @@ public class Commerce {
               System.currentTimeMillis(),
               id);
           audit(actor.id(), id, approve ? "APPROVE_REFUND" : "REJECT_REFUND", explanation);
-          notify(user, approve ? "退积分已完成" : "退款申请未通过", explanation);
+          notify(user, approve ? "退鼓励值已完成" : "退款申请未通过", explanation);
         });
   }
 
@@ -1138,16 +1182,28 @@ public class Commerce {
       args.add(state);
     }
     if (!q.isBlank()) {
-      if (user != null) throw new Api.Failure(400, "此列表不支持账户筛选");
-      String term = "%" + q.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
-      where +=
-          " AND (user_id IN (SELECT id FROM app_user WHERE email LIKE ? ESCAPE '!' OR nickname LIKE"
-              + " ? ESCAPE '!')"
-              + (kind.equals("recharge") ? " OR payment_memo LIKE ? ESCAPE '!'" : "")
-              + ")";
-      args.add(term);
-      args.add(term);
-      if (kind.equals("recharge")) args.add(term);
+      if (user != null) {
+        String search =
+            kind.equals("resources")
+                ? "sort_title"
+                : kind.equals("refunds")
+                    ? "reason"
+                    : kind.equals("recharge")
+                        ? "CONCAT(id,' ',package_name,' ',COALESCE(payment_memo,''))"
+                        : kind.equals("points") ? "CONCAT(id,' ',kind)" : "id";
+        where += " AND " + search + " LIKE ? ESCAPE '!'";
+        args.add("%" + q.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%");
+      } else {
+        String term = "%" + q.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+        where +=
+            " AND (user_id IN (SELECT id FROM app_user WHERE email LIKE ? ESCAPE '!' OR nickname"
+                + " LIKE ? ESCAPE '!')"
+                + (kind.equals("recharge") ? " OR payment_memo LIKE ? ESCAPE '!'" : "")
+                + ")";
+        args.add(term);
+        args.add(term);
+        if (kind.equals("recharge")) args.add(term);
+      }
     }
     try {
       if (!from.isBlank()) {

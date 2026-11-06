@@ -11,29 +11,29 @@ CREATE TABLE IF NOT EXISTS wallet_adjustment (
  user_id VARCHAR(36) NOT NULL COMMENT '被调整账户，禁止操作者本人',
  actor_id VARCHAR(36) NOT NULL COMMENT '管理员操作者',
  mode VARCHAR(12) NOT NULL COMMENT '账本模式，当前仅SIMULATED',
- delta_units BIGINT NOT NULL COMMENT '有符号积分百分之一',
+ delta_units BIGINT NOT NULL COMMENT '有符号鼓励值百分之一',
  valid_days INTEGER NOT NULL COMMENT '赠分期限，0永久；扣减不改变原批次期限',
  reason VARCHAR(1000) NOT NULL COMMENT '必须填写的业务原因，不含密码或完整Key',
  request_key VARCHAR(80) NOT NULL COMMENT '操作者作用域幂等键',
  request_hash VARCHAR(64) NOT NULL COMMENT '原参数摘要，拒绝同键换参',
  created_at BIGINT NOT NULL COMMENT '调整时间',
  UNIQUE(actor_id,request_key)
-) COMMENT='异常人工积分调整，赠分成本0，不伪装标准退款或人民币收入';
+) COMMENT='异常人工鼓励值调整，赠分成本0，不伪装标准退款或人民币收入';
 CREATE TABLE IF NOT EXISTS wallet_hold (
  id VARCHAR(36) PRIMARY KEY COMMENT '预留UUID，关联调用或套餐',
  user_id VARCHAR(36) NOT NULL COMMENT '所属账户',
  mode VARCHAR(12) NOT NULL COMMENT '账本模式，当前SIMULATED',
- units BIGINT NOT NULL COMMENT '预留积分百分之一',
- cost_fen BIGINT NOT NULL COMMENT '预留实际充值成本分',
+ units BIGINT NOT NULL COMMENT '预留鼓励值百分之一',
+ cost_fen BIGINT NOT NULL COMMENT '预留实际捐赠成本分',
  state VARCHAR(12) NOT NULL COMMENT 'HELD/SETTLED/RELEASED/REFUNDED',
  created_at BIGINT NOT NULL COMMENT '预留时间'
 ) COMMENT='调用前预留，成功结算，失败释放；不将预留认作收入';
 CREATE TABLE IF NOT EXISTS wallet_hold_part (
  id VARCHAR(36) PRIMARY KEY COMMENT '分摊UUID',
  hold_id VARCHAR(36) NOT NULL COMMENT '预留UUID',
- batch_id VARCHAR(36) NOT NULL COMMENT '原积分批次',
- units BIGINT NOT NULL COMMENT '积分百分之一',
- cost_fen BIGINT NOT NULL COMMENT '充值成本分',
+ batch_id VARCHAR(36) NOT NULL COMMENT '原鼓励值批次',
+ units BIGINT NOT NULL COMMENT '鼓励值百分之一',
+ cost_fen BIGINT NOT NULL COMMENT '捐赠成本分',
  expires_at BIGINT COMMENT '原批次有效期，NULL永久'
 ) COMMENT='API预留的原始批次分摊，不覆盖软件兑换分摊';
 CREATE TABLE IF NOT EXISTS api_definition (
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS api_definition (
  secret_enc LONGTEXT COMMENT '上游Bearer凭据AES-GCM密文，不回显',
  success_pointer VARCHAR(200) NOT NULL COMMENT 'HTTPS_JSON成功字段JSON Pointer',
  success_value VARCHAR(200) NOT NULL COMMENT '成功值的JSON编码，不只按HTTP200判成功',
- price_units BIGINT NOT NULL COMMENT '成功按次单价百分之一积分',
+ price_units BIGINT NOT NULL COMMENT '成功按次单价百分之一鼓励值',
  enabled BOOLEAN NOT NULL COMMENT '允许新调用及购买',
  revision BIGINT NOT NULL COMMENT '编辑版本',
  created_at BIGINT NOT NULL COMMENT '创建时间'
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS api_plan (
  id VARCHAR(36) PRIMARY KEY COMMENT '套餐UUID',
  api_id VARCHAR(36) NOT NULL COMMENT '所属API',
  name VARCHAR(120) NOT NULL COMMENT '套餐名称',
- price_units BIGINT NOT NULL COMMENT '购买积分百分之一',
+ price_units BIGINT NOT NULL COMMENT '购买鼓励值百分之一',
  quota BIGINT NOT NULL COMMENT '固定周期成功调用额度',
  days INTEGER NOT NULL COMMENT '固定天数',
  enabled BOOLEAN NOT NULL COMMENT '允许新购续费',
@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS api_subscription (
  request_key VARCHAR(80) NOT NULL COMMENT '用户幂等标识',
  request_hash VARCHAR(64) NOT NULL COMMENT '购买参数摘要',
  plan_name VARCHAR(120) NOT NULL COMMENT '购买时名称',
- price_units BIGINT NOT NULL COMMENT '购买时积分百分之一',
+ price_units BIGINT NOT NULL COMMENT '购买时鼓励值百分之一',
  quota BIGINT NOT NULL COMMENT '购买时周期额度',
  days INTEGER NOT NULL COMMENT '购买时固定天数',
  used_count BIGINT NOT NULL COMMENT '已成功占用周期额度',
@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS api_subscription (
  revision BIGINT NOT NULL COMMENT '乐观锁版本',
  created_at BIGINT NOT NULL COMMENT '购买时间',
  UNIQUE(user_id,request_key)
-) COMMENT='每次购买独立周期及原条款；未成功使用才可整单退积分';
+) COMMENT='每次购买独立周期及原条款；未成功使用才可整单退鼓励值';
 CREATE TABLE IF NOT EXISTS api_call (
  id VARCHAR(36) PRIMARY KEY COMMENT '调用UUID及钱包预留UUID',
  user_id VARCHAR(36) NOT NULL COMMENT '所属账户',
@@ -155,7 +155,7 @@ CREATE TABLE IF NOT EXISTS support_conversation (
  user_id VARCHAR(36) COMMENT '登录后归属用户，原浏览器登录可关联',
  visitor_id VARCHAR(36) NOT NULL COMMENT '创建时游客凭据归属',
  subject VARCHAR(120) NOT NULL COMMENT '咨询主题',
- topic VARCHAR(16) NOT NULL COMMENT 'GENERAL/RECHARGE，充值必须登录',
+ topic VARCHAR(16) NOT NULL COMMENT 'GENERAL/RECHARGE，捐赠必须登录',
  assigned_to VARCHAR(36) COMMENT '当前负责人，离线保留',
  state VARCHAR(12) NOT NULL COMMENT 'OPEN/CLOSED',
  last_seq BIGINT NOT NULL COMMENT '当前消息序号，同会话锁内递增',

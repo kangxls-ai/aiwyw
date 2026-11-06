@@ -294,7 +294,7 @@ public class Catalog {
         || p.pricePoints().signum() < 0
         || p.pricePoints().scale() > 2
         || p.pricePoints().compareTo(new BigDecimal("9999999999.99")) > 0)
-      throw new Api.Failure(400, "积分价格必须是非负数，最多两位小数");
+      throw new Api.Failure(400, "鼓励值价格必须是非负数，最多两位小数");
     String slug = text(p.slug(), 80, true);
     if (!slug.matches("[a-z0-9]+(?:-[a-z0-9]+)*")) throw new Api.Failure(400, "应用地址仅支持小写字母、数字和连字符");
     if (p.type() == null
@@ -829,7 +829,7 @@ public class Catalog {
         != 1) throw new Api.Failure(409, "发布信息已更新，请刷新页面后重试");
     if (!p.status().equals("PUBLISHED")) throw new Api.Failure(409, "此应用已下架，不接受新的下载申请");
     if (p.content().pricePoints().signum() > 0 || p.content().deliveryMode().equals("LICENSE"))
-      throw new Api.Failure(409, "请登录后从账户完成积分兑换");
+      throw new Api.Failure(409, "请登录后从账户完成鼓励值兑换");
     String privateJson =
         db.queryForObject(
             "SELECT private_json FROM catalog_publication WHERE id=?",

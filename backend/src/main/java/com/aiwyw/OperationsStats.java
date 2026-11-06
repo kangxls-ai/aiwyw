@@ -353,7 +353,7 @@ UNION ALL SELECT c.api_id,c.api_name,'API_CALL',h.mode,c.price_units,h.cost_fen,
   public byte[] csv(String from, String until, String mode) {
     var report = report(from, until, mode);
     StringBuilder csv =
-        new StringBuilder("\uFEFF类别,应用或套餐,净消费积分,实际充值成本分摊元,购买或成功调用数,退款数,账本模式,时区\r\n");
+        new StringBuilder("\uFEFF类别,应用或套餐,净消费鼓励值,实际捐赠成本分摊元,购买或成功调用数,退款数,账本模式,时区\r\n");
     for (var row : (List<Map<String, Object>>) report.get("income")) {
       csv.append(cell(row.get("category")))
           .append(',')

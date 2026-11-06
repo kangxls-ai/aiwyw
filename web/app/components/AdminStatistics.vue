@@ -1,6 +1,10 @@
 <script setup lang="ts">
-/** 报表请求和CSV共享日期/账本参数；金额展示实际批次充值成本分摊，明确不等于财务确认收入。 */
-import { adminDateShortcuts, decimalUnits } from "~/utils/commerce";
+/** 报表请求和CSV共享日期/账本参数；金额展示实际批次捐赠成本分摊，明确不等于财务确认收入。 */
+import {
+  adminDateShortcuts,
+  decimalUnits,
+  businessTime,
+} from "~/utils/commerce";
 const { request, message } = useApi(),
   data = ref<any>(null),
   range = ref<string[]>([]),
@@ -72,7 +76,8 @@ onMounted(load);
             value-format="YYYY-MM-DD"
             :shortcuts="adminDateShortcuts()"
             start-placeholder="开始日期"
-            end-placeholder="结束日期" /></el-form-item
+            end-placeholder="结束日期"
+            format="YYYY-MM-DD HH:mm:ss" /></el-form-item
         ><el-form-item label="账务模式"
           ><el-select v-model="mode" aria-label="统计账本模式"
             ><el-option value="REAL" label="真实账本（排除模拟）" /><el-option
@@ -88,12 +93,13 @@ onMounted(load);
     >
     <template v-if="data"
       ><p class="report-scope">
-        {{ data.from }} — {{ data.until }} · 北京时间 ·
+        {{ businessTime(data.from + "T00:00:00+08:00") }} —
+        {{ businessTime(data.until + "T23:59:59+08:00") }} · 北京时间 ·
         {{
           data.mode === "SIMULATED"
             ? "当前显示模拟账本，不代表真实收款"
             : "当前显示真实账本，排除全部模拟交易"
-        }}。充值与商品消费分开展示，成本分摊不作为税务财务确认口径。
+        }}。捐赠与商品消费分开展示，成本分摊不作为税务财务确认口径。
       </p>
       <div class="report-metrics">
         <article>
@@ -112,7 +118,7 @@ onMounted(load);
           >
         </article>
         <article>
-          <span>充值核销金额（元）</span
+          <span>捐赠核销金额（元）</span
           ><strong>{{ decimalUnits(data.cash.recharge_fen) }}</strong>
         </article>
         <article>
@@ -191,7 +197,10 @@ onMounted(load);
               label="注册日"
               sortable
               :sort-orders="['descending', 'ascending']"
-            /><el-table-column
+              ><template #default="{ row }">{{
+                businessTime(row.day + "T00:00:00+08:00")
+              }}</template></el-table-column
+            ><el-table-column
               prop="registered"
               label="注册账户"
             /><el-table-column v-for="d in [1, 7, 30]" :key="d" :label="'D' + d"
@@ -209,7 +218,7 @@ onMounted(load);
               label="商品 / 套餐"
               min-width="220" /><el-table-column
               prop="net_units"
-              label="净消费积分"
+              label="净消费鼓励值"
               sortable
               :sort-orders="['descending', 'ascending']"
               ><template #default="{ row }">{{

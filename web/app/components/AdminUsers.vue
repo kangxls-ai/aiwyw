@@ -143,7 +143,7 @@ onBeforeUnmount(() => unregister?.());
         <span>ACCOUNT MANAGEMENT</span>
         <h1>用户与权限</h1>
         <p>
-          启用双因素策略时，任一管理员或财务角色须验证。客服核销普通充值；财务只对账，不能核销。角色变更后须重新登录。
+          启用双因素策略时，任一管理员或财务角色须验证。客服核销普通捐赠；财务只对账，不能核销。角色变更后须重新登录。
         </p>
       </div>
       <el-button type="primary" @click="edit()">新增账户</el-button>

@@ -125,9 +125,7 @@ final class UiPresentation {
     String filing = site.getOrDefault("site.filing", "").trim();
     if (filing.isBlank()) filing = "模拟ICP备00000000号（占位）";
     String footer =
-        "<footer class=\"directory-footer public-site-width\"><a href=\"/support\">"
-            + dual("联系客服与反馈", "Support and feedback")
-            + "</a><p class=\"site-filing\">"
+        "<footer class=\"directory-footer public-site-width\"><p class=\"site-filing\">"
             + escape(filing)
             + "</p><span>"
             + escape(site.getOrDefault("site.domain", "www.aiwyw.com"))
@@ -137,6 +135,37 @@ final class UiPresentation {
           html.replaceFirst(
               "(?s)<footer>.*?</footer>", java.util.regex.Matcher.quoteReplacement(footer));
     else html = html.replace("</body>", footer + "</body>");
+    // 旧静态文件保持不可变；只更新产品交易区域文案及文章发布时间，不改作者正文或CSP脚本。
+    if (product) {
+      int cut = html.indexOf("<section class=\"body\">");
+      if (cut < 0) cut = html.indexOf("<script>");
+      if (cut < 0) cut = html.length();
+      html =
+          html.substring(0, cut)
+                  .replace("积分", "鼓励值")
+                  .replace("充值", "捐赠")
+                  .replace(">points</span>", ">encouragement</span>")
+              + html.substring(cut);
+    } else {
+      var time = Pattern.compile("<time datetime='([^']+)'>[^<]+</time>").matcher(html);
+      if (time.find())
+        try {
+          String text =
+              java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                  .withZone(java.time.ZoneId.of("Asia/Shanghai"))
+                  .format(java.time.Instant.parse(time.group(1)));
+          html =
+              html.substring(0, time.start())
+                  + "<time datetime='"
+                  + time.group(1)
+                  + "'>"
+                  + text
+                  + "</time>"
+                  + html.substring(time.end());
+        } catch (java.time.DateTimeException ignored) {
+          /* 旧内容异常不覆盖正文。 */
+        }
+    }
     return html;
   }
 

@@ -75,24 +75,24 @@ export const adminMenuGroups: AdminMenuGroup[] = [
     items: [
       item(
         "packages",
-        "优惠积分包",
+        "捐赠档位",
         "wallet",
-        "维护优惠包价格、积分和有效期。",
+        "维护捐赠档位价格、鼓励值和有效期。",
       ),
       item("orders", "兑换订单", "clipboard", "查询兑换和权益状态。"),
       item(
         "recharge",
-        "充值核销",
+        "捐赠核销",
         "wallet",
-        "审核充值与异常到账，保持账目可追溯。",
+        "审核捐赠与异常到账，保持账目可追溯。",
       ),
       item(
         "points",
-        "积分流水",
+        "鼓励值流水",
         "convert",
-        "查询充值、兑换、退款和过期批次记录。",
+        "查询捐赠、兑换、退款和过期批次记录。",
       ),
-      item("refunds", "退款管理", "back", "审核退款申请，处理权益及积分退回。"),
+      item("refunds", "退款管理", "back", "审核退款申请，处理权益及鼓励值退回。"),
     ],
   },
   {

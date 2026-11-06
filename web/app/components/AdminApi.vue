@@ -216,7 +216,7 @@ async function review(row: any, approve: boolean) {
   try {
     const r = await ElMessageBox.prompt(
       approve
-        ? "整单退积分并撤销该周期，已发生成功调用不能批准。"
+        ? "整单退鼓励值并撤销该周期，已发生成功调用不能批准。"
         : "填写驳回理由，驳回后该周期恢复调用。",
       "API套餐退款审核",
       { inputValidator: (v: string) => !!v?.trim() || "请填写审核理由" },
@@ -331,7 +331,7 @@ onBeforeUnmount(() => unregister?.());
             :min="0"
             :max="1000000"
             :precision="2"
-            aria-label="API积分价格"
+            aria-label="API鼓励值价格"
         /></el-form-item>
         <template v-if="view === 'apis'"
           ><el-form-item label="接口标识（固定）"
@@ -488,7 +488,8 @@ onBeforeUnmount(() => unregister?.());
             type="daterange"
             value-format="YYYY-MM-DD"
             start-placeholder="开始日期"
-            end-placeholder="结束日期" /></el-form-item
+            end-placeholder="结束日期"
+            format="YYYY-MM-DD HH:mm:ss" /></el-form-item
         ><el-form-item label="状态"
           ><el-select v-model="state" clearable placeholder="全部"
             ><el-option
@@ -544,7 +545,7 @@ onBeforeUnmount(() => unregister?.());
         <el-table-column
           v-if="kind !== 'keys'"
           prop="price_units"
-          label="积分"
+          label="鼓励值"
           sortable="custom"
           :sort-orders="['descending', 'ascending']"
           ><template #default="{ row }">{{

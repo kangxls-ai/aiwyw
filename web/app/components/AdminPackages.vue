@@ -55,6 +55,7 @@ async function save() {
   busy.value = true;
   try {
     const { id, ...body } = form;
+    body.points = Number((form.price * 10).toFixed(2));
     const result = await request<any>(
       "/api/admin/commerce-packages" + (id ? "/" + id : ""),
       {
@@ -108,13 +109,13 @@ onBeforeUnmount(() => unregister?.());
     <div v-if="!editor" class="management-panel-heading">
       <div>
         <span>POINT PACKAGES</span>
-        <h1>优惠积分包</h1>
+        <h1>捐赠档位</h1>
         <p>
           订单保留下单时价格与有效期，后续修改不覆盖历史订单。前台最多展示5档。
         </p>
       </div>
       <el-button v-if="isAdmin" type="primary" @click="edit()"
-        >新增优惠包</el-button
+        >新增捐赠档位</el-button
       >
     </div>
     <el-alert
@@ -139,10 +140,10 @@ onBeforeUnmount(() => unregister?.());
           "
           sortable
           :sort-orders="['descending', 'ascending']"
-          label="售价 / 积分"
+          label="售价 / 鼓励值"
           ><template #default="{ row }"
             >¥{{ decimalUnits(row.price_fen) }} /
-            {{ decimalUnits(row.points_units) }} 积分</template
+            {{ decimalUnits(row.points_units) }} 鼓励值</template
           ></el-table-column
         ><el-table-column
           prop="valid_days"
@@ -173,7 +174,7 @@ onBeforeUnmount(() => unregister?.());
       :editor="editor"
       v-if="dialog"
       v-model="dialog"
-      :title="form.id ? '编辑优惠包' : '新增优惠包'"
+      :title="form.id ? '编辑捐赠档位' : '新增捐赠档位'"
       width="min(600px,94vw)"
       :close-on-click-modal="false"
       ><el-form
@@ -183,7 +184,7 @@ onBeforeUnmount(() => unregister?.());
         ><el-form-item label="名称" required
           ><el-input
             v-model="form.name"
-            aria-label="积分包名称"
+            aria-label="鼓励值包名称"
             maxlength="100" /></el-form-item
         ><el-form-item label="英文名称"
           ><el-input v-model="form.nameEn" maxlength="100" /></el-form-item
@@ -193,9 +194,10 @@ onBeforeUnmount(() => unregister?.());
             :min="0.01"
             :precision="2"
             controls-position="right" /></el-form-item
-        ><el-form-item label="积分"
+        ><el-form-item label="鼓励值"
           ><el-input-number
-            v-model="form.points"
+            :model-value="Number((form.price * 10).toFixed(2))"
+            disabled
             :min="0.01"
             :precision="2"
             controls-position="right" /></el-form-item
@@ -221,7 +223,7 @@ onBeforeUnmount(() => unregister?.());
           "
           >取消</el-button
         ><el-button type="primary" :loading="busy" @click="save"
-          >保存优惠包</el-button
+          >保存捐赠档位</el-button
         ></template
       ></ManagementForm
     >

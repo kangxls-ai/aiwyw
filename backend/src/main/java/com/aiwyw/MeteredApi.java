@@ -260,8 +260,8 @@ public class MeteredApi {
         "id,slug,name,name_en,description,description_en,adapter,price_units,enabled,revision,created_at"
             + (admin
                 ? ",endpoint,request_method,CASE WHEN headers_enc IS NULL THEN FALSE ELSE TRUE END"
-                      + " AS headers_set,success_pointer,success_value,CASE WHEN secret_enc IS NULL"
-                      + " THEN FALSE ELSE TRUE END AS secret_set"
+                    + " AS headers_set,success_pointer,success_value,CASE WHEN secret_enc IS NULL"
+                    + " THEN FALSE ELSE TRUE END AS secret_set"
                 : "");
     var result =
         Commerce.safeRows(
@@ -611,7 +611,7 @@ public class MeteredApi {
               actor.id(),
               System.currentTimeMillis(),
               subscription);
-          wallet.notify(user, approve ? "API套餐退积分完成" : "API套餐退款未通过", note);
+          wallet.notify(user, approve ? "API套餐退鼓励值完成" : "API套餐退款未通过", note);
           audit(actor.id(), subscription, "REVIEW_API_REFUND");
         });
   }

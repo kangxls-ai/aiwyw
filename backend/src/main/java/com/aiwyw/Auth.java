@@ -108,7 +108,10 @@ public class Auth {
 
   /** 从服务端会话联查账户，每次验证有效期与可选MFA要求；不信任客户端角色。 */
   public User user(HttpServletRequest request, boolean requireMfa) {
-    String token = cookie(request);
+    return userToken(cookie(request), requireMfa);
+  }
+
+  User userToken(String token, boolean requireMfa) {
     if (token == null) throw new Api.Failure(401, "请先登录");
     var rows =
         jdbc.queryForList(
@@ -220,7 +223,7 @@ public class Auth {
     return u;
   }
 
-  /** 用户充值、兑换及API要求实际邮箱验证；管理员身份不绕过交易邮箱要求。 */
+  /** 用户捐赠、兑换及API要求实际邮箱验证；管理员身份不绕过交易邮箱要求。 */
   public User verified(HttpServletRequest r) {
     User u = user(r, false);
     if (!jdbc.queryForObject(

@@ -229,7 +229,7 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   const png = await QRCode.toBuffer("AIWYW ISOLATED FILE FIXTURE");
   await page
     .locator(".settings-groups")
-    .getByRole("button", { name: "充值收款", exact: true })
+    .getByRole("button", { name: "捐赠收款", exact: true })
     .click();
   await upload(page, "选择支付宝付款码", {
     name: "alipay-test.png",
@@ -354,7 +354,14 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   await page.getByPlaceholder("开始日期", { exact: true }).click();
   await page.getByRole("button", { name: "最近7天", exact: true }).click();
   await select(page, "上下架状态", "上架");
+  const dateFiltered = page.waitForResponse(
+    (r) =>
+      r.url().includes("/api/admin/catalog/products/page?") &&
+      r.url().includes("from=") &&
+      r.status() === 200,
+  );
   await page.getByRole("button", { name: "查询", exact: true }).click();
+  await dateFiltered;
   await expect(
     page.getByRole("row").filter({ hasText: "浏览器工具" }),
   ).toBeVisible();
@@ -580,11 +587,12 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
   await field(member, "密码", { exact: true }).fill("member-password-123456");
   await member.getByRole("button", { name: "确认", exact: true }).click();
   await expect(member).toHaveURL(/\/account$/);
+  await member.getByRole("button", { name: "新增捐赠", exact: true }).click();
   await member
-    .getByRole("button", { name: "创建充值订单", exact: true })
+    .getByRole("button", { name: "创建捐赠订单", exact: true })
     .click();
   await expect(
-    member.getByRole("dialog", { name: "模拟充值订单" }),
+    member.getByRole("dialog", { name: "模拟捐赠订单" }),
   ).toBeVisible();
   const paymentMemo = (await member
     .locator(".payment-memo strong")
@@ -608,7 +616,7 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
     .getByRole("button", { name: "审核", exact: true })
     .click();
   await expect(admin.locator(".payment-memo-code")).toHaveText(paymentMemo);
-  await field(admin, "逐单处理原因", { exact: true }).fill("模拟充值核实通过");
+  await field(admin, "逐单处理原因", { exact: true }).fill("模拟捐赠核实通过");
   await admin.getByRole("button", { name: "确认处理", exact: true }).click();
   await expect(
     admin
@@ -659,7 +667,7 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
   await member
     .getByRole("dialog")
     .getByRole("textbox")
-    .fill("软件无法使用，请整单退积分");
+    .fill("软件无法使用，请整单退鼓励值");
   await member
     .getByRole("dialog")
     .getByRole("button", { name: "提交", exact: true })
@@ -677,7 +685,7 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
     .getByRole("button", { name: "审核", exact: true })
     .click();
   await field(admin, "逐单处理原因", { exact: true }).fill(
-    "交付问题核实，整单退积分并撤销权益",
+    "交付问题核实，整单退鼓励值并撤销权益",
   );
   await admin.getByRole("button", { name: "确认处理", exact: true }).click();
   await expect(
@@ -693,7 +701,7 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
   ).toContainText("已退款");
   expect(
     (await (await member.request.get("/api/member/wallet")).json()).balance,
-  ).toBe("100.00");
+  ).toBe("101.00");
   await admin.screenshot({
     path: "test-results/element-refunds.png",
     fullPage: true,
@@ -1065,7 +1073,7 @@ test("compact horizontal forms, server sorting, license replacement and refund r
   const next = await replacement.json();
   await member.request.post("/api/member/resources/" + order + "/refund", {
     headers,
-    data: { reason: "软件无法使用申请整单退积分" },
+    data: { reason: "软件无法使用申请整单退鼓励值" },
   });
   expect(
     (
@@ -1075,7 +1083,7 @@ test("compact horizontal forms, server sorting, license replacement and refund r
           headers,
           data: {
             approve: true,
-            reason: "核实整单退积分并撤销激活",
+            reason: "核实整单退鼓励值并撤销激活",
             revision: 1,
           },
         },
@@ -1256,6 +1264,9 @@ test("profile nickname and password, asymmetric menu tree and light authenticati
   await member
     .getByRole("tab", { name: "个人资料与安全", exact: true })
     .click();
+  await member
+    .getByRole("button", { name: "修改资料与密码", exact: true })
+    .click();
   await field(member, "个人昵称", { exact: true }).fill("我的新昵称");
   await member.getByRole("button", { name: "保存昵称", exact: true }).click();
   await expect(member.getByText("昵称已更新", { exact: true })).toBeVisible();
@@ -1314,6 +1325,9 @@ test("profile nickname and password, asymmetric menu tree and light authenticati
   await member
     .getByRole("tab", { name: "个人资料与安全", exact: true })
     .click();
+  await member
+    .getByRole("button", { name: "修改资料与密码", exact: true })
+    .click();
   await expect(field(member, "个人昵称", { exact: true })).toHaveValue(
     "我的新昵称",
   );
@@ -1347,7 +1361,7 @@ test("API configuration, one-time keys, billable debugger and subscription refun
     "输入text字符串，返回字符、词和行数。",
   );
   await select(admin, "API适配器", "文本统计（真实本地计算）");
-  await field(apiPanel, "API积分价格", { exact: true }).fill("1.25");
+  await field(apiPanel, "API鼓励值价格", { exact: true }).fill("1.25");
   await apiPanel.getByRole("button", { name: "保存", exact: true }).click();
   await expect(
     apiPanel.getByText("已保存，已有购买和调用条款不被覆盖", { exact: true }),
@@ -1361,7 +1375,7 @@ test("API configuration, one-time keys, billable debugger and subscription refun
   const planPanel = workspace(admin);
   await expect(planPanel.getByRole("table")).toHaveCount(0);
   await field(planPanel, "API配置名称", { exact: true }).fill("浏览器月度套餐");
-  await field(planPanel, "API积分价格", { exact: true }).fill("2.00");
+  await field(planPanel, "API鼓励值价格", { exact: true }).fill("2.00");
   await select(admin, "套餐所属API", "浏览器文本API");
   await planPanel.getByRole("button", { name: "保存", exact: true }).click();
   await expect(
@@ -1389,14 +1403,16 @@ test("API configuration, one-time keys, billable debugger and subscription refun
     ).balance.replace(".", ""),
   );
   await member.goto("/api-services");
-  const card = member.locator(".api-card").filter({
-    has: member.getByRole("heading", { name: "浏览器文本API", exact: true }),
-  });
-  await card
+  const card = member.getByRole("row").filter({ hasText: "浏览器文本API" });
+  await card.getByRole("button", { name: "计费设置", exact: true }).click();
+  const billing = member.getByRole("dialog", { name: "计费设置", exact: true });
+  await billing
     .locator(".el-checkbox")
-    .filter({ hasText: "无有效套餐时允许按次扣分" })
+    .filter({ hasText: "无有效套餐时允许按次扣鼓励值" })
     .click();
-  await card.getByRole("button", { name: "保存计费选择", exact: true }).click();
+  await billing
+    .getByRole("button", { name: "保存计费选择", exact: true })
+    .click();
   await expect(
     member.getByText("计费选择已保存", { exact: true }),
   ).toBeVisible();
@@ -1417,6 +1433,11 @@ test("API configuration, one-time keys, billable debugger and subscription refun
     JSON.stringify(await (await member.request.get("/api/member/api")).json()),
   ).not.toContain(token);
   await member.getByRole("tab", { name: "在线调试", exact: true }).click();
+  await member
+    .getByRole("row")
+    .filter({ hasText: "浏览器文本API" })
+    .getByRole("button", { name: "开始调试", exact: true })
+    .click();
   await select(member, "调试Key", "浏览器调用Key");
   await select(member, "调试API", "浏览器文本API");
   await field(member, "调试JSON输入", { exact: true }).fill(
@@ -1456,10 +1477,20 @@ test("API configuration, one-time keys, billable debugger and subscription refun
   });
   expect(call.status()).toBe(200);
   expect((await call.json()).status).toBe("SUCCESS");
-  await member.getByRole("tab", { name: "接口与套餐", exact: true }).click();
-  await card.getByRole("button", { name: "购买 / 续费", exact: true }).click();
   await member
-    .getByRole("dialog")
+    .getByRole("dialog", { name: "在线调试", exact: true })
+    .locator(".el-dialog__headerbtn")
+    .click();
+  await member.getByRole("tab", { name: "接口与套餐", exact: true }).click();
+  await card.getByRole("button", { name: "套餐 / 续费", exact: true }).click();
+  await member
+    .getByRole("dialog", { name: "接口套餐", exact: true })
+    .getByRole("row")
+    .filter({ hasText: "浏览器月度套餐" })
+    .getByRole("button", { name: "购买 / 续费", exact: true })
+    .click();
+  await member
+    .getByRole("dialog", { name: "确认购买或续费", exact: true })
     .getByRole("button", { name: /确定|确认/ })
     .click();
   await expect(
@@ -1472,12 +1503,12 @@ test("API configuration, one-time keys, billable debugger and subscription refun
   await member
     .getByRole("row")
     .filter({ hasText: "浏览器月度套餐" })
-    .getByRole("button", { name: "申请退积分", exact: true })
+    .getByRole("button", { name: "申请退鼓励值", exact: true })
     .click();
   await member
     .getByRole("dialog")
     .locator("input")
-    .fill("尚未使用，申请退积分");
+    .fill("尚未使用，申请退鼓励值");
   await member
     .getByRole("dialog")
     .getByRole("button", { name: /确定|确认/ })
@@ -1499,7 +1530,7 @@ test("API configuration, one-time keys, billable debugger and subscription refun
     .getByRole("dialog")
     .locator("input,textarea")
     .first()
-    .fill("核实无成功调用，整单退积分");
+    .fill("核实无成功调用，整单退鼓励值");
   await admin
     .getByRole("dialog")
     .getByRole("button", { name: /确定|确认/ })
@@ -1585,6 +1616,14 @@ test("guest support, private image, claim and transfer, moderated feedback and o
   await guest
     .getByRole("button", { name: "上传图片 / 截图", exact: true })
     .click();
+  const imageUploaded = guest.waitForResponse(
+    (r) =>
+      r.request().method() === "POST" &&
+      /\/api\/support\/conversations\/[^/]+\/image$/.test(
+        new URL(r.url()).pathname,
+      ) &&
+      r.status() === 200,
+  );
   await (
     await chooser
   ).setFiles({
@@ -1592,7 +1631,10 @@ test("guest support, private image, claim and transfer, moderated feedback and o
     mimeType: "image/webp",
     buffer: readFileSync("backend/src/test/resources/tiny.webp"),
   });
-  await expect(guest.locator(".pending-image img")).toBeVisible();
+  await imageUploaded;
+  await expect(guest.locator(".pending-image img")).toBeVisible({
+    timeout: 15000,
+  });
   await guest.getByRole("button", { name: "发送", exact: true }).click();
   await expect(guest.locator(".chat-feed")).toContainText(
     "请问如何使用这个工具？",
@@ -1693,7 +1735,14 @@ test("guest support, private image, claim and transfer, moderated feedback and o
   await expect(
     admin.getByRole("textbox", { name: "客服消息输入", exact: true }),
   ).toHaveCount(0);
+  await guest
+    .getByRole("dialog", { name: "在线咨询", exact: true })
+    .locator(".el-dialog__headerbtn")
+    .click();
   await guest.getByRole("tab", { name: "留言与意见", exact: true }).click();
+  await guest
+    .getByRole("button", { name: "新增留言与意见", exact: true })
+    .click();
   await field(guest, "意见反馈内容", { exact: true }).fill(
     "公开留言：希望补充更多工具。",
   );
@@ -1953,17 +2002,27 @@ test("consistent typography, managed article navigation, API editor tabs and acc
   await expect(guest).toHaveURL(/\/account$/);
   await expect(field(guest, "个人昵称", { exact: true })).toBeHidden();
   await guest.getByRole("tab", { name: "个人资料与安全", exact: true }).click();
+  await guest
+    .getByRole("button", { name: "修改资料与密码", exact: true })
+    .click();
   await expect(field(guest, "个人昵称", { exact: true })).toBeVisible();
   await expect(
-    guest.getByRole("button", { name: "创建充值订单", exact: true }),
+    guest.getByRole("button", { name: "创建捐赠订单", exact: true }),
   ).toHaveCount(0);
   await guest.screenshot({
     path: "test-results/ui-account.png",
     fullPage: true,
   });
+  await guest
+    .getByRole("dialog", { name: "个人资料与安全", exact: true })
+    .locator(".el-dialog__headerbtn")
+    .click();
   await guest.getByRole("tab", { name: "API与客服", exact: true }).click();
   await expect(
-    guest.getByRole("link", { name: "API、Key与订阅", exact: true }),
+    guest
+      .getByRole("row")
+      .filter({ hasText: "API、Key与订阅" })
+      .getByRole("link", { name: "进入", exact: true }),
   ).toBeVisible();
   await guest.setViewportSize({ width: 390, height: 844 });
   await guest.screenshot({
@@ -2040,13 +2099,13 @@ test("merged applications, object provenance, independent creation, pending acco
   expect(audit).toBeTruthy();
   expect(audit.source_ip).toMatch(/^(127\.0\.0\.1|::1|0:0:0:0:0:0:0:1)$/);
   await menu(admin, "交易管理");
-  await menu(admin, "优惠积分包");
+  await menu(admin, "捐赠档位");
   await workspace(admin)
-    .getByRole("button", { name: "新增优惠包", exact: true })
+    .getByRole("button", { name: "新增捐赠档位", exact: true })
     .click();
   await expect(workspace(admin).getByRole("table")).toHaveCount(0);
-  await field(workspace(admin), "积分包名称", { exact: true }).fill(
-    "浏览器验收积分包",
+  await field(workspace(admin), "鼓励值包名称", { exact: true }).fill(
+    "浏览器验收鼓励值包",
   );
   await admin.screenshot({
     path: "test-results/management-package-editor.png",
@@ -2054,11 +2113,11 @@ test("merged applications, object provenance, independent creation, pending acco
     animations: "disabled",
   });
   await workspace(admin)
-    .getByRole("button", { name: "保存优惠包", exact: true })
+    .getByRole("button", { name: "保存捐赠档位", exact: true })
     .click();
   await expect(admin).toHaveURL(/view=packages/);
   await expect(
-    workspace(admin).getByRole("row").filter({ hasText: "浏览器验收积分包" }),
+    workspace(admin).getByRole("row").filter({ hasText: "浏览器验收鼓励值包" }),
   ).toBeVisible();
   await menu(admin, "内容运营");
   await menu(admin, "FAQ 与案例");
@@ -2257,7 +2316,7 @@ test("new-window details share navigation, managed API visibility and encrypted 
   const footer = detail.locator(".directory-footer");
   await expect(footer).toContainText("模拟ICP备00000000号");
   await expect(
-    footer.locator('a[href="/account"],a[href="/articles"]'),
+    footer.locator('a[href="/account"],a[href="/articles"],a[href="/support"]'),
   ).toHaveCount(0);
   expect(await footer.evaluate((el) => getComputedStyle(el).textAlign)).toBe(
     "center",
@@ -2453,4 +2512,187 @@ test("manual section picker retains cross-page selection and homepage opens firs
     metadata.sections[0].titleZh,
   ]);
   await context.close();
+});
+
+test("encouragement daily reward, donation ratio and paged account portals", async ({
+  browser,
+}) => {
+  test.setTimeout(180000);
+  const adminContext = await browser.newContext({
+      storageState: join(directory(), "admin-state.json"),
+    }),
+    admin = await adminContext.newPage();
+  const context = await browser.newContext({ locale: "zh-CN" });
+  await context.addCookies([
+    { name: "aiwyw_language", value: "zh", url: "http://127.0.0.1:3000" },
+  ]);
+  const member = await context.newPage();
+  await member.goto("/account-access");
+  await field(member, "邮箱", { exact: true }).fill("member@example.com");
+  await field(member, "密码", { exact: true }).fill(
+    "brand-new-member-password-456",
+  );
+  await member.getByRole("button", { name: "确认", exact: true }).click();
+  await expect(member).toHaveURL(/\/account$/);
+  const profile = await (
+    await member.request.get("/api/member/profile")
+  ).json();
+  const before = await (
+    await member.request.get("/api/member/wallet?summary=true")
+  ).json();
+  for (let i = 0; i < 5; i++)
+    expect((await member.request.get("/api/auth/session")).status()).toBe(200);
+  const after = await (
+    await member.request.get("/api/member/wallet?summary=true")
+  ).json();
+  expect(after.balance).toBe(before.balance);
+  const daily = await (
+    await member.request.get("/api/member/list/points?state=DAILY_LOGIN")
+  ).json();
+  expect(daily.total).toBe(1);
+  expect(daily.items[0].delta_units).toBe("100");
+  const nonce = Date.now();
+  for (let i = 0; i < 23; i++) {
+    const response = await admin.request.post("/api/admin/commerce/adjust", {
+      headers: { "X-AIWYW-Request": "1" },
+      data: {
+        userId: profile.user.id,
+        points: 1,
+        validDays: 0,
+        reason: "账户分页验证" + i,
+        requestKey: "account-paged-" + nonce + "-" + i,
+      },
+    });
+    expect(response.status()).toBe(200);
+  }
+  for (const name of [
+    "捐赠订单",
+    "鼓励值流水",
+    "我的资源",
+    "退款申请",
+    "站内通知",
+    "个人资料与安全",
+    "API与客服",
+  ]) {
+    await member.getByRole("tab", { name, exact: true }).click();
+    const table = member.locator(".member-area .el-table").first();
+    await expect(table.getByRole("columnheader").last()).toHaveText("操作");
+    await expect(member.locator(".member-area .record-query")).toBeVisible();
+    await expect(member.locator(".member-area .el-pagination")).toBeVisible();
+  }
+  await member.getByRole("tab", { name: "站内通知", exact: true }).click();
+  await member.getByRole("tab", { name: "我的资源", exact: true }).click();
+  await member
+    .locator(".member-area .el-table")
+    .getByRole("columnheader", { name: /^状态/ })
+    .click();
+  const notificationReset = member.waitForResponse(
+    (r) =>
+      r.url().includes("/api/member/records/notifications?") &&
+      r.url().includes("sort=created_at") &&
+      r.status() === 200,
+  );
+  await member.getByRole("tab", { name: "站内通知", exact: true }).click();
+  await notificationReset;
+  await field(member, "列表关键词", { exact: true }).fill("账户分页验证");
+  await member.getByRole("button", { name: "查询", exact: true }).click();
+  await expect(member.locator(".el-pagination__total")).toContainText("23");
+  await expect(member.locator(".el-table__body-wrapper tbody tr")).toHaveCount(
+    10,
+  );
+  await member.locator(".el-pagination .btn-next").click();
+  await expect(
+    member.locator(".el-pagination .el-pager .is-active"),
+  ).toHaveText("2");
+  const time = await member
+    .locator(".el-table__body-wrapper tbody tr")
+    .first()
+    .locator("td")
+    .nth(1)
+    .innerText();
+  expect(time).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+  await member.getByRole("tab", { name: "捐赠订单", exact: true }).click();
+  await member.getByRole("button", { name: "新增捐赠", exact: true }).click();
+  const donate = member.getByRole("dialog", { name: "新增捐赠", exact: true });
+  await field(donate, "捐赠金额", { exact: true }).fill("1");
+  await donate
+    .getByRole("button", { name: "创建捐赠订单", exact: true })
+    .click();
+  const order = member.getByRole("dialog", {
+    name: "模拟捐赠订单",
+    exact: true,
+  });
+  await expect(order).toBeVisible();
+  await expect(
+    order.getByRole("heading", { name: "¥1.00", exact: true }),
+  ).toBeVisible();
+  await order.locator(".el-dialog__headerbtn").click();
+  const donations = await (
+    await member.request.get("/api/member/list/recharge")
+  ).json();
+  expect(donations.items[0].price_fen).toBe("100");
+  expect(donations.items[0].points_units).toBe("1000");
+  await member.goto("/api-services");
+  for (const name of [
+    "接口与套餐",
+    "我的Key",
+    "我的订阅",
+    "在线调试",
+    "调用记录",
+  ]) {
+    await member.getByRole("tab", { name, exact: true }).click();
+    await expect(
+      member.locator(".api-center>.el-table").getByRole("columnheader").last(),
+    ).toHaveText("操作");
+    await expect(member.locator(".api-center>.record-query")).toBeVisible();
+    await expect(member.locator(".api-center>.el-pagination")).toBeVisible();
+  }
+  await member.goto("/support");
+  await expect(
+    member.locator(".el-table").first().getByRole("columnheader").last(),
+  ).toHaveText("操作");
+  await member.getByRole("tab", { name: "留言与意见", exact: true }).click();
+  for (const table of await member
+    .locator(".el-tab-pane:visible .el-table")
+    .all())
+    await expect(table.getByRole("columnheader").last()).toHaveText("操作");
+  const article = await admin.request.post("/api/admin/content", {
+    headers: { "X-AIWYW-Request": "1" },
+    data: {
+      slug: "free-encouragement-article",
+      kind: "ARTICLE",
+      titleZh: "免费阅读验收文章",
+      titleEn: "",
+      summaryZh: "文章没有鼓励值兑换",
+      summaryEn: "",
+      bodyZh: "<p>正文始终可免费阅读。</p>",
+      bodyEn: "",
+      revision: 0,
+    },
+  });
+  expect(article.status()).toBe(200);
+  const id = (await article.json()).id;
+  expect(
+    (
+      await admin.request.post(`/api/admin/content/${id}/publish`, {
+        headers: { "X-AIWYW-Request": "1" },
+        data: { revision: 1 },
+      })
+    ).status(),
+  ).toBe(200);
+  const guest = await browser.newPage();
+  await guest.goto("/articles/free-encouragement-article");
+  await expect(
+    guest.getByRole("heading", { name: "免费阅读验收文章", exact: true }),
+  ).toBeVisible();
+  await expect(guest.locator("#download,.price")).toHaveCount(0);
+  expect(await guest.locator("time").first().innerText()).toMatch(
+    /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/,
+  );
+  await expect(
+    guest.locator('.directory-footer a[href="/support"]'),
+  ).toHaveCount(0);
+  await context.close();
+  await guest.close();
+  await adminContext.close();
 });

@@ -264,7 +264,7 @@ class CommerceTest {
         Api.Failure.class,
         () -> service.createRecharge(user, new Commerce.Recharge(new BigDecimal("11"), null, key)));
     service.declare(user, id, null, "");
-    service.reviewRecharge(support, id, new BigDecimal("8.25"), true, "少付，按实到普通积分");
+    service.reviewRecharge(support, id, new BigDecimal("8.25"), true, "少付，按实到普通鼓励值");
     service.reviewRecharge(support, id, new BigDecimal("8.25"), true, "重复请求");
     assertEquals("82.50", service.summary(user).get("balance"));
     assertEquals(
@@ -395,6 +395,8 @@ class CommerceTest {
     db.update("UPDATE points_package SET enabled=TRUE WHERE id=?", pack);
     String id =
         (String) service.createRecharge(user, new Commerce.Recharge(null, pack, key())).get("id");
+    // 升级前已创建的额外奖励订单，核销必须保留原100鼓励值快照。
+    db.update("UPDATE recharge_order SET points_units=10000 WHERE id=?", id);
     service.declare(user, id, null, "");
     service.reviewRecharge(support, id, new BigDecimal("5"), true, "promo checked");
     var product = product("150.00");
@@ -628,7 +630,7 @@ class CommerceTest {
         db.queryForObject(
             "SELECT revision FROM refund_request WHERE purchase_id=?", Long.class, order);
     assertThrows(Api.Failure.class, () -> service.reviewRefund(support, order, true, "过期审核", 1));
-    service.reviewRefund(support, order, true, "核实后整单退积分", revision);
+    service.reviewRefund(support, order, true, "核实后整单退鼓励值", revision);
     mvc.perform(get(url)).andExpect(status().isForbidden());
     assertThrows(Api.Failure.class, () -> service.delivery(user, order, true));
     consistent(user);
@@ -642,7 +644,7 @@ class CommerceTest {
         service.savePackage(
             null,
             new Commerce.PackageInput(
-                "快照优惠包", "Snapshot", new BigDecimal("5"), new BigDecimal("100"), 1, true, 1, 0),
+                "快照捐赠档位", "Snapshot", new BigDecimal("5"), new BigDecimal("100"), 1, true, 1, 0),
             admin.id());
     String order =
         (String) service.createRecharge(user, new Commerce.Recharge(null, pack, key())).get("id");
@@ -653,7 +655,7 @@ class CommerceTest {
         admin.id());
     service.declare(user, order, null, "");
     service.reviewRecharge(support, order, new BigDecimal("5"), true, "按下单快照核销");
-    assertEquals("100.00", service.summary(user).get("balance"));
+    assertEquals("50.00", service.summary(user).get("balance"));
     ExecutorService pool = Executors.newFixedThreadPool(5);
     int success = 0;
     try {
@@ -836,7 +838,7 @@ class CommerceTest {
     assertThrows(Api.Failure.class, () -> licenses.verify(verification(active, device, p)));
     db.update("UPDATE app_user SET disabled=FALSE WHERE id=?", user);
     service.requestRefund(user, order, "软件无法满足需求");
-    service.reviewRefund(support, order, true, "核实整单退积分", 1);
+    service.reviewRefund(support, order, true, "核实整单退鼓励值", 1);
     assertThrows(Api.Failure.class, () -> licenses.verify(verification(active, device, p)));
     assertThrows(Api.Failure.class, () -> licenses.activate(activation(secret, crypto.token(), p)));
     assertEquals(

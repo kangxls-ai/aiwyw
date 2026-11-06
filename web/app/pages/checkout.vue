@@ -50,7 +50,7 @@ onMounted(load);
 </script>
 <template>
   <el-card class="account-access" shadow="never"
-    ><h1>{{ t("确认积分兑换", "Confirm redemption") }}</h1>
+    ><h1>{{ t("确认鼓励值兑换", "Confirm redemption") }}</h1>
     <el-alert
       v-if="error"
       :title="error"
@@ -65,16 +65,16 @@ onMounted(load);
         }}</el-descriptions-item
         ><el-descriptions-item :label="t('价格', 'Price')"
           >{{ quote.product.content.pricePoints }}
-          {{ t("积分", "points") }}</el-descriptions-item
-        ><el-descriptions-item :label="t('可用积分', 'Available points')">{{
+          {{ t("鼓励值", "encouragement") }}</el-descriptions-item
+        ><el-descriptions-item :label="t('可用鼓励值', 'Available encouragement')">{{
           quote.balance
         }}</el-descriptions-item></el-descriptions
       >
       <p>
         {{
           t(
-            "使用模拟账本积分兑换。已拥有同一大版本不会重复扣分。",
-            "Uses simulated ledger points. Owned major versions are not charged twice.",
+            "使用模拟账本鼓励值兑换。已拥有同一大版本不会重复扣分。",
+            "Uses simulated ledger encouragement. Owned major versions are not charged twice.",
           )
         }}
       </p>
@@ -84,7 +84,7 @@ onMounted(load);
           : t("确认兑换", "Confirm redemption")
       }}</el-button></template
     ><NuxtLink to="/account">{{
-      t("我的账户 / 充值", "My account / Top up")
+      t("我的账户 / 捐赠", "My account / Donation")
     }}</NuxtLink></el-card
   >
 </template>

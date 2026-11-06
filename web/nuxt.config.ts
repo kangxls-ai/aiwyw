@@ -3,7 +3,11 @@ export default defineNuxtConfig({
   compatibilityDate: "2026-11-03",
   devtools: { enabled: false },
   modules: ["@element-plus/nuxt"],
-  elementPlus: { defaultLocale: "zh-cn" },
+  // 服务式确认框使用同一应用上下文，和对话框共享层级计数及语言；避免被套餐/客服窗口遮挡。
+  elementPlus: {
+    defaultLocale: "zh-cn",
+    installMethods: ["ElMessageBox", "ElMessage"],
+  },
   css: ["~/assets/main.css"],
   routeRules: {
     "/apps": { ssr: true },

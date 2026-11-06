@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { businessTime } from "~/utils/commerce";
 /** 审计页只读；展示操作者与字段键，不应加入敏感配置值。 */
 defineOptions({ name: "AdminAudit" });
 definePageMeta({ layout: "admin" });
@@ -38,15 +39,7 @@ const actions: Record<string, string> = {
   SAVE_SECTION: "保存栏目",
   DELETE_SECTION: "删除栏目",
 };
-const time = (value: number) =>
-  new Intl.DateTimeFormat("zh-CN", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(value);
+const time = businessTime;
 </script>
 <template>
   <div>

@@ -1,12 +1,12 @@
 <script setup lang="ts">
+import {businessTime} from "~/utils/commerce";
 import type { CatalogProduct } from "~/types/catalog";
 defineProps<{ product: CatalogProduct; list?: boolean }>();
 const { t } = useLanguage(),
   { download, busy } = useCatalog();
 const count = (n: number) =>
   n >= 10000 ? `${(n / 10000).toFixed(1)}万` : n.toLocaleString("en-US");
-const date = (n: number) =>
-  new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai" }).format(n);
+const date = businessTime;
 </script>
 <template>
   <article v-if="!list" class="home-application-tile">
@@ -90,7 +90,7 @@ const date = (n: number) =>
           >{{
             Number(product.content.pricePoints) === 0
               ? t("免费", "Free")
-              : `${product.content.pricePoints} ${t("积分", "points")}`
+              : `${product.content.pricePoints} ${t("鼓励值", "encouragement")}`
           }}</span
         ><a
           class="catalog-details-link"

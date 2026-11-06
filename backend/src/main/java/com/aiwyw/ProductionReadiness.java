@@ -86,7 +86,7 @@ class ProductionReadiness {
             "备案信息",
             filing.isBlank() || filing.contains("模拟") || filing.contains("占位") ? "REVIEW" : "PASS",
             "请按部署地区及实际备案结果维护，不以占位号作为正式备案"));
-    checks.add(new Check("真实收款", "REVIEW", "真实收款仍未开放。当前仅模拟积分交易，不可对外提供真实转账充值"));
+    checks.add(new Check("真实收款", "REVIEW", "真实收款仍未开放。当前仅模拟鼓励值交易，不可对外提供真实转账捐赠"));
     checks.add(
         new Check(
             "反向代理来源IP",
