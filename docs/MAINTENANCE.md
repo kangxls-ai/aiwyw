@@ -1,3 +1,7 @@
+# 最新维护补充：对象来源与真实 MySQL
+
+本地已迁移真实MySQL，64表校验、备份位置、样本账户、来源IP可信代理配置、未激活删除边界及人工恢复注意事项见[MANAGEMENT-AND-MYSQL.md](MANAGEMENT-AND-MYSQL.md)。结构增量见[MANAGEMENT-SCHEMA.sql](database/MANAGEMENT-SCHEMA.sql)。旧记录未知来源不可伪造回填；数据库、主密钥、加密引导连接与存储静态文件必须成套恢复。
+
 # 第二阶段维护补充
 
 新增账户、钱包、核销、整单退款与通知维护规则见[PHASE-2.md](PHASE-2.md)，结构见[COMMERCE-SCHEMA.sql](database/COMMERCE-SCHEMA.sql)。金额与积分最小单位不同，模拟命名空间不可改成真实数据；严禁直接改余额和删除分摊修复账目。MySQL锁顺序与持久发信箱也在该手册说明。

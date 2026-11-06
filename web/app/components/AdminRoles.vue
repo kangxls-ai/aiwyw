@@ -3,8 +3,14 @@
 import { adminMenuGroups } from "~/data/adminNavigation";
 import type { TreeInstance } from "element-plus";
 import { ElMessageBox, ElMessage } from "element-plus";
+const props = defineProps<{
+  editor?: boolean;
+  tabId?: string;
+  initialId?: string | null;
+}>();
 const { request, message } = useApi(),
-  { dirty, registerSave } = useManagementTabs();
+  tabState = useEntityEditing(props, "roles", load),
+  { dirty, registerSave } = tabState;
 const rows = ref<any[]>([]),
   menus = ref<Record<string, string>>({}),
   dialog = ref(false),
@@ -57,6 +63,10 @@ function beforeClose(done: () => void) {
   done();
 }
 function edit(row?: any) {
+  if (!props.editor && !row) {
+    tabState.openEntityEditor("roles");
+    return;
+  }
   Object.assign(form, {
     id: row?.id || crypto.randomUUID(),
     name: row?.name || "",
@@ -71,7 +81,8 @@ async function save() {
   try {
     await request("/api/admin/roles/" + form.id, { method: "PUT", body: form });
     dialog.value = false;
-    dirty.value.roles = false;
+    await tabState.saved(form.id, form.name, true);
+    dirty.value[tabState.key.value] = false;
     await load();
     return true;
   } catch (e) {
@@ -99,21 +110,30 @@ async function remove(row: any) {
 }
 watch(
   () => JSON.stringify(form),
-  (value) => (dirty.value.roles = dialog.value && value !== baseline.value),
+  (value) =>
+    (dirty.value[tabState.key.value] =
+      dialog.value && value !== baseline.value),
 );
 watch(dialog, (value) => {
-  if (!value) dirty.value.roles = false;
+  if (!value) dirty.value[tabState.key.value] = false;
 });
 let unregister: (() => void) | undefined;
 onMounted(() => {
-  unregister = registerSave("roles", save);
-  load();
+  unregister = registerSave(tabState.key.value, save);
+  load().then(() => {
+    if (props.editor)
+      edit(
+        props.initialId
+          ? rows.value.find((r) => r.id === props.initialId)
+          : undefined,
+      );
+  });
 });
 onBeforeUnmount(() => unregister?.());
 </script>
 <template>
   <section>
-    <div class="management-panel-heading">
+    <div v-if="!editor" class="management-panel-heading">
       <div>
         <h1>角色管理</h1>
         <p>用户可拥有多个角色，菜单权限取并集，服务端实时校验。</p>
@@ -125,21 +145,11 @@ onBeforeUnmount(() => unregister?.());
       :title="error"
       type="error"
       :closable="false"
-    /><el-card shadow="never"
+    /><el-card v-if="!editor" shadow="never"
       ><el-table
         :data="rows"
         :default-sort="{ prop: 'created_at', order: 'descending' }"
-        ><el-table-column
-          prop="created_at"
-          label="创建时间"
-          sortable
-          :sort-orders="['descending', 'ascending']"
-          ><template #default="{ row }">{{
-            new Date(Number(row.created_at)).toLocaleString("zh-CN", {
-              timeZone: "Asia/Shanghai",
-            })
-          }}</template></el-table-column
-        ><el-table-column
+        ><ObjectColumns /><el-table-column
           prop="name"
           label="角色名称"
           sortable
@@ -157,7 +167,9 @@ onBeforeUnmount(() => unregister?.());
           ></el-table-column
         ></el-table
       ></el-card
-    ><el-dialog
+    ><ManagementForm
+      :editor="editor"
+      v-if="dialog"
       v-model="dialog"
       title="维护角色"
       @opened="syncTree"
@@ -184,11 +196,15 @@ onBeforeUnmount(() => unregister?.());
           </p></el-form-item
         ></el-form
       ><template #footer
-        ><el-button @click="dialog = false">取消</el-button
+        ><el-button
+          @click="
+            editor ? tabState.close(tabState.key.value) : (dialog = false)
+          "
+          >取消</el-button
         ><el-button type="primary" :loading="busy" @click="save"
           >保存角色</el-button
         ></template
-      ></el-dialog
+      ></ManagementForm
     >
   </section>
 </template>

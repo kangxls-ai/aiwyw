@@ -4,10 +4,15 @@
  */
 import { adminMenuItem, type AdminMenuItem } from "~/data/adminNavigation";
 export interface ManagementTab extends AdminMenuItem {
-  kind?: "product-editor" | "api-editor";
+  kind?: "product-editor" | "api-editor" | "entity-editor" | "active-users";
   editorId?: string;
   productId?: string | null;
   apiId?: string | null;
+  entityType?: string;
+  entityId?: string | null;
+  preset?: string;
+  from?: string;
+  until?: string;
 }
 const saves = new Map<string, () => Promise<boolean>>();
 let resolveClosing: ((value: boolean) => void) | null = null;
@@ -28,6 +33,56 @@ export function useManagementTabs() {
     closeError = useState("management-close-error", () => "");
   const route = useRoute();
   function descriptor(): ManagementTab {
+    if (
+      route.path === "/admin/workspace" &&
+      route.query.view === "entity-edit"
+    ) {
+      const type = String(route.query.type || ""),
+        editor = String(route.query.editor || "");
+      if (
+        ![
+          "articles",
+          "faq",
+          "plans",
+          "packages",
+          "roles",
+          "users",
+          "tags",
+          "sections",
+        ].includes(type) ||
+        !/^[a-f0-9-]{36}$/.test(editor)
+      )
+        return adminMenuItem("dashboard");
+      return {
+        id: `entity-editor-${editor}`,
+        kind: "entity-editor",
+        entityType: type,
+        entityId: route.query.object ? String(route.query.object) : null,
+        preset: route.query.preset ? String(route.query.preset) : undefined,
+        editorId: editor,
+        label: `${route.query.object ? "编辑" : "新增"}：${adminMenuItem(type).label}`,
+        icon: adminMenuItem(type).icon,
+        route: route.fullPath,
+        description: "独立编辑，切换页签保留草稿",
+      };
+    }
+    if (
+      route.path === "/admin/workspace" &&
+      route.query.view === "active-users"
+    ) {
+      const from = String(route.query.from || ""),
+        until = String(route.query.until || "");
+      return {
+        id: `active-users-${from}-${until}`,
+        kind: "active-users",
+        from,
+        until,
+        label: "活跃用户",
+        icon: "chart",
+        route: route.fullPath,
+        description: "与所选统计窗口一致的活跃账户",
+      };
+    }
     if (route.path === "/admin/workspace" && route.query.view === "api-edit") {
       const editor = String(route.query.editor || "");
       if (!/^[a-f0-9-]{36}$/.test(editor)) return adminMenuItem("apis");
@@ -146,6 +201,74 @@ export function useManagementTabs() {
     return () => {
       if (saves.get(id) === handler) saves.delete(id);
     };
+  }
+  async function openEntityEditor(
+    type: string,
+    object?: { id: string; name?: string },
+    preset?: string,
+  ) {
+    const old =
+      object &&
+      tabs.value.find(
+        (t) =>
+          t.kind === "entity-editor" &&
+          t.entityType === type &&
+          t.entityId === object.id,
+      );
+    if (old) return navigateTo(old.route);
+    const editor = crypto.randomUUID();
+    const target = {
+      path: "/admin/workspace",
+      query: {
+        view: "entity-edit",
+        type,
+        editor,
+        ...(object ? { object: object.id } : {}),
+        ...(preset ? { preset } : {}),
+      },
+    };
+    const menu = adminMenuItem(type);
+    tabs.value.push({
+      id: `entity-editor-${editor}`,
+      kind: "entity-editor",
+      entityType: type,
+      entityId: object?.id || null,
+      editorId: editor,
+      preset,
+      label: object
+        ? `编辑：${object.name || menu.label}`
+        : `新增：${menu.label}`,
+      icon: menu.icon,
+      route: useRouter().resolve(target).fullPath,
+      description: "独立编辑，切换页签保留草稿",
+    });
+    await navigateTo(target);
+  }
+  async function updateEntityEditor(
+    id: string,
+    objectId: string,
+    name: string,
+  ) {
+    const tab = tabs.value.find((t) => t.id === id);
+    if (!tab) return;
+    tab.entityId = objectId;
+    tab.label = `编辑：${name}`;
+    tab.route = useRouter().resolve({
+      path: "/admin/workspace",
+      query: {
+        view: "entity-edit",
+        type: tab.entityType,
+        editor: tab.editorId,
+        object: objectId,
+      },
+    }).fullPath;
+    if (activeId.value === id) await navigateTo(tab.route, { replace: true });
+  }
+  async function openActiveUsers(from: string, until: string) {
+    await navigateTo({
+      path: "/admin/workspace",
+      query: { view: "active-users", from, until },
+    });
   }
   /** API编辑沿用统一页签生命周期；不同服务各自保留草稿，关闭时走相同保存提示。 */
   async function openApiEditor(api?: { id: string; name: string }) {
@@ -282,6 +405,9 @@ export function useManagementTabs() {
     updateEditor,
     openApiEditor,
     updateApiEditor,
+    openEntityEditor,
+    updateEntityEditor,
+    openActiveUsers,
     close,
     closeGroup,
     requestClose,

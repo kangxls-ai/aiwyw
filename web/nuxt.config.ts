@@ -6,7 +6,6 @@ export default defineNuxtConfig({
   elementPlus: { defaultLocale: "zh-cn" },
   css: ["~/assets/main.css"],
   routeRules: {
-    "/api/**": { proxy: "http://127.0.0.1:18080/api/**" },
     "/apps": { ssr: true },
     "/preview/**": { redirect: { to: "/", statusCode: 301 } },
     "/preview/admin": { redirect: { to: "/admin", statusCode: 301 } },

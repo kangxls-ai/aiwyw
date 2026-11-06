@@ -57,15 +57,7 @@ public class SupportService {
   }
 
   void audit(String actor, String entity, String action) {
-    db.update(
-        "INSERT INTO catalog_audit(id,actor_id,entity_id,action_name,detail,created_at)"
-            + " VALUES(?,?,?,?,?,?)",
-        id(),
-        actor,
-        entity,
-        action,
-        "客服操作，不记录聊天正文、邮箱或找回令牌",
-        System.currentTimeMillis());
+    AuditLog.write(db, "catalog_audit", actor, entity, action, "客服操作");
   }
 
   void mail(String to, String title, String body) {
@@ -176,6 +168,11 @@ public class SupportService {
               topic,
               now,
               now);
+          Origins.created(
+              db,
+              "support_conversation",
+              key,
+              p.user() != null ? p.user() : "GUEST:" + p.visitor());
           audit(p.actor(), key, "CREATE_CONVERSATION");
           return key;
         });
@@ -623,19 +620,24 @@ public class SupportService {
   public String feedback(Principal p, Feedback b) {
     String kind = MeteredApi.text(b.kind(), 12, true), body = MeteredApi.text(b.body(), 4000, true);
     if (!Set.of("PUBLIC", "PRIVATE").contains(kind)) throw new Api.Failure(400, "请选择公开留言或私密反馈");
-    String key = id();
-    long now = System.currentTimeMillis();
-    db.update(
-        "INSERT INTO support_feedback VALUES(?,?,?,?,?,?,'PENDING','',NULL,1,?,?)",
-        key,
-        p.user(),
-        p.visitor(),
-        p.nickname(),
-        kind,
-        body,
-        now,
-        now);
-    return key;
+    return tx.execute(
+        status -> {
+          String key = id();
+          long now = System.currentTimeMillis();
+          db.update(
+              "INSERT INTO support_feedback VALUES(?,?,?,?,?,?,'PENDING','',NULL,1,?,?)",
+              key,
+              p.user(),
+              p.visitor(),
+              p.nickname(),
+              kind,
+              body,
+              now,
+              now);
+          Origins.created(
+              db, "support_feedback", key, p.user() != null ? p.user() : "GUEST:" + p.visitor());
+          return key;
+        });
   }
 
   public Map<String, Object> feedbackList(

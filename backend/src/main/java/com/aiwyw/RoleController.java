@@ -72,6 +72,7 @@ public class RoleController {
     db.update("DELETE FROM access_role_menu WHERE role_id=?", id);
     for (String menu : Identity.normalizeMenus(b.menus()))
       db.update("INSERT INTO access_role_menu VALUES(?,?)", id, menu);
+    if (b.revision() == 0) Origins.created(db, "access_role", id, actor.id());
     audit(actor.id(), id, "SAVE_ROLE");
     return Map.of("id", id);
   }
@@ -106,14 +107,6 @@ public class RoleController {
   }
 
   private void audit(String actor, String id, String action) {
-    db.update(
-        "INSERT INTO finance_audit(id,actor_id,entity_id,action_name,detail,created_at)"
-            + " VALUES(?,?,?,?,?,?)",
-        UUID.randomUUID().toString(),
-        actor,
-        id,
-        action,
-        "角色菜单变更，不含凭据",
-        System.currentTimeMillis());
+    AuditLog.write(db, "finance_audit", actor, id, action, "角色菜单变更，不含凭据");
   }
 }

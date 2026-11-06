@@ -17,8 +17,14 @@ const view = (tab: { route: string }) =>
     :key="tab.id"
     :data-workspace="tab.id"
   >
+    <ManagementEntityEditor v-if="tab.kind === 'entity-editor'" :tab="tab" />
+    <AdminActiveUsers
+      v-else-if="tab.kind === 'active-users'"
+      :from="tab.from!"
+      :until="tab.until!"
+    />
     <AdminApi
-      v-if="tab.kind === 'api-editor'"
+      v-else-if="tab.kind === 'api-editor'"
       view="apis"
       editor
       :tab-id="tab.id"

@@ -430,6 +430,13 @@ class CommerceTest {
             user);
     assertTrue(
         expiry >= now + 30 * 86400000L && expiry <= System.currentTimeMillis() + 30 * 86400000L);
+    assertEquals(
+        support.id(),
+        db.queryForObject(
+            "SELECT o.created_by FROM object_origin o JOIN wallet_batch b ON b.id=o.object_id"
+                + " WHERE o.object_type='wallet_batch' AND b.user_id=? AND b.source_type='REFUND'",
+            String.class,
+            user));
     assertThrows(Api.Failure.class, () -> service.delivery(user, purchase, false));
     assertEquals(
         1,

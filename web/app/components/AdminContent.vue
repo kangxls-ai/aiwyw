@@ -1,9 +1,15 @@
 <script setup lang="ts">
 /** 当前菜单独立保留筛选与编辑草稿，发布使用实际版本号；富文本和图片复用既有编辑/存储组件。 */
 import { businessTime } from "~/utils/commerce";
-const props = defineProps<{ view: string }>(),
+const props = defineProps<{
+    view: string;
+    editor?: boolean;
+    tabId?: string;
+    initialId?: string | null;
+  }>(),
   { request, message } = useApi(),
-  { dirty, registerSave } = useManagementTabs();
+  editingState = useEntityEditing(props, props.view, load),
+  { dirty, registerSave } = editingState;
 const stateLabels: Record<string, string> = {
   DRAFT: "草稿",
   PUBLISHED: "已发布",
@@ -48,18 +54,25 @@ const uploading = computed(() => uploads.zh || uploads.en);
 watch(
   () => JSON.stringify(form) + uploading.value,
   (value) =>
-    (dirty.value[props.view] =
+    (dirty.value[editingState.key.value] =
       editing.value &&
       (uploading.value || JSON.stringify(form) !== baseline.value)),
 );
 function closeEditor() {
+  if (props.editor) {
+    editingState.close(editingState.key.value);
+    return;
+  }
   if (uploading.value) {
     error.value = "请等待图片上传完成";
     return;
   }
-  if (!dirty.value[props.view] || window.confirm("放弃未保存内容？")) {
+  if (
+    !dirty.value[editingState.key.value] ||
+    window.confirm("放弃未保存内容？")
+  ) {
     editing.value = false;
-    dirty.value[props.view] = false;
+    dirty.value[editingState.key.value] = false;
   }
 }
 async function load() {
@@ -81,13 +94,17 @@ async function load() {
   }
 }
 async function edit(id?: string, force = false) {
+  if (!props.editor && !force) {
+    await editingState.openEntityEditor(props.view, id ? { id } : undefined);
+    return;
+  }
   if (uploading.value) {
     error.value = "请等待图片上传完成";
     return;
   }
   if (
     !force &&
-    dirty.value[props.view] &&
+    dirty.value[editingState.key.value] &&
     !window.confirm("放弃当前未保存内容？")
   )
     return;
@@ -101,7 +118,7 @@ async function edit(id?: string, force = false) {
     } else Object.assign(form, empty());
     editing.value = true;
     baseline.value = JSON.stringify(form);
-    dirty.value[props.view] = false;
+    dirty.value[editingState.key.value] = false;
   } catch (e) {
     error.value = message(e);
   }
@@ -120,7 +137,8 @@ async function save() {
       { method: form.id ? "PUT" : "POST", body: form },
     );
     await edit(result.id, true);
-    await load();
+    await editingState.saved(result.id, form.titleZh);
+    if (!props.editor) await load();
     notice.value = "草稿已保存";
     return true;
   } catch (e) {
@@ -135,7 +153,7 @@ async function publish() {
   await action({ id: form.id, revision: form.revision }, "publish");
 }
 async function action(row: any, verb: string) {
-  if (verb !== "publish" && dirty.value[props.view]) {
+  if (verb !== "publish" && dirty.value[editingState.key.value]) {
     error.value = "请先保存或放弃当前编辑";
     return;
   }
@@ -147,6 +165,7 @@ async function action(row: any, verb: string) {
         ? { method: "DELETE", query: { revision: row.revision } }
         : { method: "POST", body: { revision: Number(row.revision) } },
     );
+    editingState.changed();
     await load();
     if (editing.value && form.id === row.id && verb !== "delete")
       await edit(row.id, true);
@@ -164,14 +183,15 @@ async function action(row: any, verb: string) {
 }
 let unregister: (() => void) | undefined;
 onMounted(() => {
-  unregister = registerSave(props.view, save);
-  load();
+  unregister = registerSave(editingState.key.value, save);
+  if (props.editor) edit(props.initialId || undefined, true);
+  else load();
 });
 onBeforeUnmount(() => unregister?.());
 </script>
 <template>
   <section>
-    <div class="management-panel-heading">
+    <div v-if="!editor" class="management-panel-heading">
       <div>
         <h1>{{ view === "faq" ? "FAQ 与案例" : "文章与教程" }}</h1>
         <p>草稿独立保存，发布后生成双语静态正文及SEO资料。</p>
@@ -201,7 +221,9 @@ onBeforeUnmount(() => unregister?.());
             >保存草稿</el-button
           ><el-button :disabled="busy || uploading" @click="publish"
             >保存并发布</el-button
-          ><el-button @click="closeEditor">收起编辑</el-button>
+          ><el-button @click="closeEditor">{{
+            editor ? "关闭页签" : "收起编辑"
+          }}</el-button>
         </div></template
       ><el-form
         class="admin-form-grid"
@@ -258,7 +280,7 @@ onBeforeUnmount(() => unregister?.());
             @busy="uploads.en = $event"
           /></div></el-form
     ></el-card>
-    <el-card shadow="never"
+    <el-card v-if="!editor" shadow="never"
       ><el-form
         label-position="right"
         label-width="112px"
@@ -295,16 +317,7 @@ onBeforeUnmount(() => unregister?.());
         :data="data.items"
         :default-sort="order.defaultSort"
         @sort-change="order.change"
-        ><el-table-column
-          prop="created_at"
-          label="创建时间"
-          sortable="custom"
-          :sort-orders="['descending', 'ascending']"
-          min-width="165"
-          ><template #default="{ row }">{{
-            businessTime(row.created_at)
-          }}</template></el-table-column
-        ><el-table-column
+        ><ObjectColumns server-sort /><el-table-column
           prop="title_zh"
           label="标题"
           sortable="custom"

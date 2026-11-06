@@ -121,11 +121,12 @@ public class Commerce {
     if (next < 0) throw new Api.Failure(409, "积分不足");
     db.update(
         "UPDATE wallet_account SET balance_units=? WHERE user_id=? AND mode=?", next, user, MODE);
+    String ledgerId = UUID.randomUUID().toString();
     db.update(
         "INSERT INTO"
             + " wallet_ledger(id,user_id,mode,kind,source_id,delta_units,balance_after,cost_fen,created_at)"
             + " VALUES(?,?,?,?,?,?,?,?,?)",
-        UUID.randomUUID().toString(),
+        ledgerId,
         user,
         MODE,
         kind,
@@ -134,28 +135,23 @@ public class Commerce {
         next,
         cost,
         System.currentTimeMillis());
+    Origins.created(db, "wallet_ledger", ledgerId, "SYSTEM");
   }
 
   private void audit(String actor, String entity, String action, String detail) {
-    db.update(
-        "INSERT INTO finance_audit(id,actor_id,entity_id,action_name,detail,created_at)"
-            + " VALUES(?,?,?,?,?,?)",
-        UUID.randomUUID().toString(),
-        actor,
-        entity,
-        action,
-        detail,
-        System.currentTimeMillis());
+    AuditLog.write(db, "finance_audit", actor, entity, action, detail);
   }
 
   void notify(String user, String title, String text) {
+    String notification = UUID.randomUUID().toString();
     db.update(
         "INSERT INTO member_notification(id,user_id,title,body,created_at) VALUES(?,?,?,?,?)",
-        UUID.randomUUID().toString(),
+        notification,
         user,
         title,
         text,
         System.currentTimeMillis());
+    Origins.created(db, "member_notification", notification, "SYSTEM");
     var email =
         db.queryForList(
             "SELECT email FROM app_user WHERE id=? AND business_email=TRUE AND email_verified_at IS"
@@ -324,11 +320,12 @@ public class Commerce {
       if (expiry != null && expiry <= now) {
         // 原批次未预留余额可能已经到期并写入唯一EXPIRE流水。过期预留另建批次，
         // 失败释放保留原到期日并立即到期；审核退款才延长有效期，避免重复流水导致释放回滚。
+        String batchId = UUID.randomUUID().toString();
         db.update(
             "INSERT INTO"
                 + " wallet_batch(id,user_id,mode,source_type,source_id,total_units,remaining_units,cost_fen,remaining_cost_fen,expires_at,created_at)"
                 + " VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-            UUID.randomUUID().toString(),
+            batchId,
             user,
             MODE,
             refund ? "API_REFUND" : "API_RELEASE",
@@ -339,6 +336,7 @@ public class Commerce {
             p.get("cost_fen"),
             refund ? now + settings.integer("wallet.refund_expired_days") * 86400000L : expiry,
             now);
+        Origins.created(db, "wallet_batch", batchId, "SYSTEM");
       } else
         db.update(
             "UPDATE wallet_batch SET"
@@ -386,11 +384,12 @@ public class Commerce {
             String key = UUID.randomUUID().toString();
             long now = System.currentTimeMillis();
             if (delta > 0) {
+              String batchId = UUID.randomUUID().toString();
               db.update(
                   "INSERT INTO"
                       + " wallet_batch(id,user_id,mode,source_type,source_id,total_units,remaining_units,cost_fen,remaining_cost_fen,expires_at,created_at)"
                       + " VALUES(?,?,?,'ADJUSTMENT',?,?,?,0,0,?,?)",
-                  UUID.randomUUID().toString(),
+                  batchId,
                   b.userId(),
                   MODE,
                   key,
@@ -398,6 +397,7 @@ public class Commerce {
                   amount,
                   b.validDays() == 0 ? null : now + b.validDays() * 86400000L,
                   now);
+              Origins.created(db, "wallet_batch", batchId, actor.id());
               ledger(b.userId(), "ADJUST_CREDIT", key, delta, 0);
             } else {
               hold(b.userId(), key, amount, "ADJUST_DEBIT");
@@ -415,6 +415,7 @@ public class Commerce {
                 request,
                 hash,
                 now);
+            Origins.created(db, "wallet_adjustment", key, actor.id());
             audit(actor.id(), key, "ADJUST_POINTS", reason);
             notify(b.userId(), "积分人工调整", decimal(delta) + " 积分。原因：" + reason);
             return key;
@@ -487,6 +488,7 @@ public class Commerce {
               settings.integer("wallet.large_payment_yuan") * 100L,
               now,
               now + settings.integer("wallet.order_timeout_minutes") * 60000L);
+          Origins.created(db, "recharge_order", id, user);
           return safeRow(one("SELECT * FROM recharge_order WHERE id=?", id));
         });
   }
@@ -606,6 +608,14 @@ public class Commerce {
               explanation,
               now,
               id);
+          String batchId =
+              db.queryForObject(
+                  "SELECT id FROM wallet_batch WHERE mode=? AND source_type='RECHARGE' AND"
+                      + " source_id=?",
+                  String.class,
+                  MODE,
+                  id);
+          Origins.created(db, "wallet_batch", batchId, actor.id());
           audit(actor.id(), id, "POST_RECHARGE", explanation);
           notify(user, "模拟充值积分已到账", decimal(points) + " 积分已到账。此记录属于模拟账本，不代表真实收款。");
         });
@@ -673,6 +683,7 @@ public class Commerce {
                   id,
                   p.revision())
               != 1) throw new Api.Failure(409, "优惠包已变化，请重新读取");
+          if (id == null) Origins.created(db, "points_package", key, actor);
           audit(actor, key, "SAVE_PACKAGE", "package configuration");
           return key;
         });
@@ -852,6 +863,7 @@ public class Commerce {
           if (privateData.deliveryMode().equals("LICENSE"))
             licenses.issue(id, product.publicationId());
           ledger(user, "PURCHASE", id, -price, -cost);
+          Origins.created(db, "purchase_order", id, user);
           audit(user, id, "PURCHASE", "points=" + decimal(price));
           notify(user, "兑换成功", product.content().nameZh() + "已加入我的资源。");
           return id;
@@ -938,6 +950,7 @@ public class Commerce {
                 user,
                 explanation,
                 System.currentTimeMillis());
+          if (existing.isEmpty()) Origins.created(db, "refund_request", id, user);
           audit(user, id, "REQUEST_REFUND", explanation);
         });
   }
@@ -968,11 +981,12 @@ public class Commerce {
               long amount = number(allocation, "units"), partCost = number(allocation, "cost_fen");
               Long expiry = (Long) allocation.get("expires_at");
               if (expiry != null && expiry <= now) {
+                String batchId = UUID.randomUUID().toString();
                 db.update(
                     "INSERT INTO"
                         + " wallet_batch(id,user_id,mode,source_type,source_id,total_units,remaining_units,cost_fen,remaining_cost_fen,expires_at,created_at)"
                         + " VALUES(?,?,?,'REFUND',?,?,?,?,?,?,?)",
-                    UUID.randomUUID().toString(),
+                    batchId,
                     user,
                     MODE,
                     allocation.get("id"),
@@ -982,6 +996,7 @@ public class Commerce {
                     partCost,
                     now + settings.integer("wallet.refund_expired_days") * 86400000L,
                     now);
+                Origins.created(db, "wallet_batch", batchId, actor.id());
               } else
                 db.update(
                     "UPDATE wallet_batch SET"

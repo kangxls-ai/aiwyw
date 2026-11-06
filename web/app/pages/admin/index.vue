@@ -6,6 +6,7 @@ definePageMeta({ layout: "admin" });
 const { request, message } = useApi();
 const products = ref<CatalogProduct[]>([]),
   sections = ref<AdminSection[]>([]),
+  overview = ref<any>(null),
   error = ref("");
 const user = useState<any>("admin-user", () => null);
 onMounted(() =>
@@ -13,7 +14,7 @@ onMounted(() =>
     () => user.value?.menus,
     async () => {
       try {
-        [products.value, sections.value] = await Promise.all([
+        [products.value, sections.value, overview.value] = await Promise.all([
           user.value?.menus?.some((m: string) =>
             ["applications", "versions", "publishing"].includes(m),
           )
@@ -22,6 +23,7 @@ onMounted(() =>
           user.value?.menus?.includes("sections")
             ? request("/api/admin/catalog/sections")
             : Promise.resolve([]),
+          request("/api/admin/overview"),
         ]);
       } catch (e) {
         error.value = message(e);
@@ -43,6 +45,9 @@ onMounted(() =>
         >应用管理 →</NuxtLink
       >
     </div>
+    <p v-if="overview" class="admin-muted">
+      当前数据库：{{ overview.databaseEngine }} · {{ overview.databaseName }}
+    </p>
     <div v-if="error" class="alert error">{{ error }}</div>
     <div class="catalog-stat-grid">
       <article>
@@ -57,8 +62,11 @@ onMounted(() =>
         ><span>公开目录当前可见</span>
       </article>
       <article>
-        <span>首页栏目</span><strong>{{ sections.length }} / 6</strong
-        ><span>从配置管理维护</span>
+        <span>首页栏目</span
+        ><strong
+          >{{ sections.filter((s) => s.config.mode !== "ARTICLES").length }} /
+          6</strong
+        ><span>应用展示区，文章导航独立维护</span>
       </article>
     </div>
     <div class="catalog-editor-card">
@@ -66,10 +74,6 @@ onMounted(() =>
       <div class="catalog-editor-actions">
         <NuxtLink class="button secondary" to="/admin/workspace?view=sections"
           >首页栏目</NuxtLink
-        ><NuxtLink
-          class="button secondary"
-          to="/admin/workspace?view=publishing"
-          >发布与静态化</NuxtLink
         ><NuxtLink class="button secondary" to="/admin/settings"
           >配置管理</NuxtLink
         ><NuxtLink class="button secondary" to="/admin/audit"

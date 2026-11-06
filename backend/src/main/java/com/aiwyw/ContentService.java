@@ -184,6 +184,7 @@ public class ContentService {
                 != 1) throw new Api.Failure(409, "内容已变化，请重新读取");
           }
           storage.syncReferences("CONTENT_DRAFT", key, media(p), false);
+          if (id == null) Origins.created(db, "content_document", key, actor);
           audit(actor, key, "SAVE_CONTENT");
           return key;
         });
@@ -395,15 +396,7 @@ public class ContentService {
   }
 
   private void audit(String actor, String id, String action) {
-    db.update(
-        "INSERT INTO catalog_audit(id,actor_id,entity_id,action_name,detail,created_at)"
-            + " VALUES(?,?,?,?,?,?)",
-        UUID.randomUUID().toString(),
-        actor,
-        id,
-        action,
-        "内容操作，不含正文或凭据",
-        System.currentTimeMillis());
+    AuditLog.write(db, "catalog_audit", actor, id, action, "内容维护");
   }
 
   private String render(Input p, boolean requestedEnglish, long now) {

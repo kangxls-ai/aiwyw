@@ -57,13 +57,7 @@ export const adminMenuGroups: AdminMenuGroup[] = [
         "applications",
         "应用管理",
         "shapes",
-        "维护应用名称、图标、标签、价格与详细介绍。",
-      ),
-      item(
-        "versions",
-        "版本与文件",
-        "folder",
-        "管理应用版本、安装包与历史下载权益。",
+        "统一维护应用资料、版本与文件、发布快照和静态详情。",
       ),
       item(
         "licenses",
@@ -72,12 +66,6 @@ export const adminMenuGroups: AdminMenuGroup[] = [
         "维护授权设备策略与审核换机。",
       ),
       item("tags", "标签管理", "palette", "维护标签，用于前台搜索与筛选。"),
-      item(
-        "publishing",
-        "发布与静态化",
-        "browser",
-        "发布应用详情，生成静态页面并检查发布版本。",
-      ),
     ],
   },
   {

@@ -199,15 +199,7 @@ public class Catalog {
   }
 
   private void audit(String actor, String entity, String action, String detail) {
-    db.update(
-        "INSERT INTO catalog_audit(id,actor_id,entity_id,action_name,detail,created_at)"
-            + " VALUES(?,?,?,?,?,?)",
-        UUID.randomUUID().toString(),
-        actor,
-        entity,
-        action,
-        detail,
-        System.currentTimeMillis());
+    AuditLog.write(db, "catalog_audit", actor, entity, action, detail);
   }
 
   private void invalidateAfterCommit() {
@@ -358,8 +350,9 @@ public class Catalog {
             throw new Api.Failure(409, "应用地址已存在");
           }
           CatalogQuerySchema.index(db, key, p);
-          CatalogTags.ensure(db, p.tags());
+          CatalogTags.ensure(db, p.tags(), actor);
           storage.syncReferences("DRAFT", key, p, false);
+          if (id == null) Origins.created(db, "catalog_product", key, actor);
           audit(actor, key, id == null ? "CREATE" : "SAVE", "draft");
           invalidateAfterCommit();
           return key;
@@ -453,7 +446,8 @@ public class Catalog {
                   id,
                   c.revision())
               != 1) throw new Api.Failure(409, "栏目已变化，请刷新后重试");
-          CatalogTags.ensure(db, safe.tags());
+          CatalogTags.ensure(db, safe.tags(), actor);
+          if (id == null) Origins.created(db, "home_section", key, actor);
           audit(
               actor,
               key,

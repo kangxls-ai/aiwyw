@@ -56,7 +56,12 @@ onBeforeUnmount(() => clearInterval(supportTimer));
 watch(
   () => props.activeId,
   (id) => {
-    const group = adminMenuGroups.find((g) => g.items.some((i) => i.id === id));
+    const tab = props.tabs.find((t) => t.id === id);
+    const menuId =
+      tab?.entityType || (tab?.kind === "api-editor" ? "apis" : id);
+    const group = adminMenuGroups.find((g) =>
+      g.items.some((i) => i.id === menuId),
+    );
     if (group && !expanded.value.includes(group.id))
       expanded.value.push(group.id);
   },
@@ -89,8 +94,14 @@ const current = computed(
 );
 const groupName = computed(
   () =>
-    adminMenuGroups.find((g) => g.items.some((i) => i.id === props.activeId))
-      ?.label ||
+    adminMenuGroups.find((g) =>
+      g.items.some(
+        (i) =>
+          i.id ===
+          (props.tabs.find((t) => t.id === props.activeId)?.entityType ||
+            props.activeId),
+      ),
+    )?.label ||
     (current.value.id.startsWith("api-editor-")
       ? "API 服务"
       : current.value.id.startsWith("editor-")

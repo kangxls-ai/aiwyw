@@ -366,16 +366,7 @@ onMounted(load);
           :data="data.items"
           v-loading="busy"
           row-key="id"
-          ><el-table-column
-            :label="t('时间（北京时间）', 'Time (UTC+8)')"
-            prop="created_at"
-            sortable="custom"
-            :sort-orders="['descending', 'ascending']"
-            width="180"
-            ><template #default="{ row }">{{
-              businessTime(row.created_at)
-            }}</template></el-table-column
-          ><el-table-column
+          ><ObjectColumns server-sort /><el-table-column
             :label="t('内容', 'Details')"
             prop="details"
             sortable="custom"
@@ -464,15 +455,7 @@ onMounted(load);
       ><el-table
         :default-sort="{ prop: 'created_at', order: 'descending' }"
         :data="wallet.batches"
-        ><el-table-column
-          :label="t('到账时间', 'Credited')"
-          prop="created_at"
-          sortable
-          :sort-orders="['descending', 'ascending']"
-          ><template #default="{ row }">{{
-            businessTime(row.created_at)
-          }}</template></el-table-column
-        ><el-table-column
+        ><ObjectColumns localized /><el-table-column
           :label="t('剩余积分', 'Remaining points')"
           prop="remaining_units"
           sortable

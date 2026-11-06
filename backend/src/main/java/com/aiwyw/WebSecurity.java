@@ -31,6 +31,7 @@ public class WebSecurity extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest req, HttpServletResponse res, FilterChain chain)
       throws ServletException, IOException {
+    req.setAttribute("aiwyw.source-ip", RequestIp.resolve(req, settings));
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("X-Frame-Options", "DENY");

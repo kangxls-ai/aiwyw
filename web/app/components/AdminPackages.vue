@@ -2,6 +2,11 @@
 import { compareIntegers } from "~/utils/listOrder";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { decimalUnits } from "~/utils/commerce";
+const props = defineProps<{
+  editor?: boolean;
+  tabId?: string;
+  initialId?: string | null;
+}>();
 const { request, message } = useApi();
 const isAdmin = computed(() =>
   useState<any>("admin-user").value?.menus?.includes("packages"),
@@ -29,6 +34,10 @@ async function load() {
   }
 }
 function edit(row?: any) {
+  if (!props.editor && !row) {
+    tabState.openEntityEditor("packages");
+    return;
+  }
   Object.assign(form, {
     id: row?.id || "",
     name: row?.name || "",
@@ -46,35 +55,48 @@ async function save() {
   busy.value = true;
   try {
     const { id, ...body } = form;
-    await request("/api/admin/commerce-packages" + (id ? "/" + id : ""), {
-      method: id ? "PUT" : "POST",
-      body,
-    });
+    const result = await request<any>(
+      "/api/admin/commerce-packages" + (id ? "/" + id : ""),
+      {
+        method: id ? "PUT" : "POST",
+        body,
+      },
+    );
     dialog.value = false;
-    await load();
+    await tabState.saved(result.id, form.name, true);
+    if (!props.editor) await load();
   } catch (e) {
     ElMessage.error(message(e));
   } finally {
     busy.value = false;
   }
 }
-onMounted(load);
+onMounted(async () => {
+  await load();
+  if (props.editor)
+    edit(
+      props.initialId
+        ? data.value.find((r) => r.id === props.initialId)
+        : undefined,
+    );
+});
 
 const baseline = ref("");
-const tabState = useManagementTabs();
+const tabState = useEntityEditing(props, "packages", load);
 watch(dialog, (visible) => {
   if (visible) baseline.value = JSON.stringify(form);
-  else tabState.dirty.value["packages"] = false;
+  else tabState.dirty.value[tabState.key.value] = false;
 });
 watch(
   () => JSON.stringify(form),
   (value) => {
-    tabState.dirty.value["packages"] = dialog.value && value !== baseline.value;
+    tabState.dirty.value[tabState.key.value] =
+      dialog.value && value !== baseline.value;
   },
 );
 let unregister: (() => void) | undefined;
 onMounted(() => {
-  unregister = tabState.registerSave("packages", async () => {
+  unregister = tabState.registerSave(tabState.key.value, async () => {
     await save();
     return !dialog.value;
   });
@@ -83,7 +105,7 @@ onBeforeUnmount(() => unregister?.());
 </script>
 <template>
   <section>
-    <div class="management-panel-heading">
+    <div v-if="!editor" class="management-panel-heading">
       <div>
         <span>POINT PACKAGES</span>
         <h1>优惠积分包</h1>
@@ -100,25 +122,11 @@ onBeforeUnmount(() => unregister?.());
       :title="error"
       type="error"
       :closable="false"
-    /><el-card shadow="never"
+    /><el-card v-if="!editor" shadow="never"
       ><el-table
         :default-sort="{ prop: 'created_at', order: 'descending' }"
         :data="data"
-        ><el-table-column
-          prop="created_at"
-          label="创建时间"
-          sortable
-          :sort-orders="['descending', 'ascending']"
-          min-width="165"
-          ><template #default="{ row }">{{
-            row.created_at
-              ? new Date(Number(row.created_at)).toLocaleString("zh-CN", {
-                  hour12: false,
-                  timeZone: "Asia/Shanghai",
-                })
-              : "历史记录"
-          }}</template></el-table-column
-        ><el-table-column
+        ><ObjectColumns /><el-table-column
           prop="name"
           sortable
           :sort-orders="['descending', 'ascending']"
@@ -161,7 +169,9 @@ onBeforeUnmount(() => unregister?.());
           ></el-table-column
         ></el-table
       ></el-card
-    ><el-dialog
+    ><ManagementForm
+      :editor="editor"
+      v-if="dialog"
       v-model="dialog"
       :title="form.id ? '编辑优惠包' : '新增优惠包'"
       width="min(600px,94vw)"
@@ -171,7 +181,10 @@ onBeforeUnmount(() => unregister?.());
         label-width="128px"
         class="admin-form-grid"
         ><el-form-item label="名称" required
-          ><el-input v-model="form.name" maxlength="100" /></el-form-item
+          ><el-input
+            v-model="form.name"
+            aria-label="积分包名称"
+            maxlength="100" /></el-form-item
         ><el-form-item label="英文名称"
           ><el-input v-model="form.nameEn" maxlength="100" /></el-form-item
         ><el-form-item label="售价（元）"
@@ -202,11 +215,15 @@ onBeforeUnmount(() => unregister?.());
         ><el-form-item label="前台显示"
           ><el-switch v-model="form.enabled" /></el-form-item></el-form
       ><template #footer
-        ><el-button @click="dialog = false">取消</el-button
+        ><el-button
+          @click="
+            editor ? tabState.close(tabState.key.value) : (dialog = false)
+          "
+          >取消</el-button
         ><el-button type="primary" :loading="busy" @click="save"
           >保存优惠包</el-button
         ></template
-      ></el-dialog
+      ></ManagementForm
     >
   </section>
 </template>

@@ -249,16 +249,7 @@ onBeforeUnmount(() => {
         :data="data.items"
         :default-sort="order.defaultSort"
         @sort-change="order.change"
-        ><el-table-column
-          prop="created_at"
-          label="创建时间"
-          min-width="170"
-          sortable="custom"
-          :sort-orders="['descending', 'ascending']"
-          ><template #default="{ row }">{{
-            businessTime(row.created_at)
-          }}</template></el-table-column
-        ><template v-if="view === 'conversations'"
+        ><ObjectColumns server-sort /><template v-if="view === 'conversations'"
           ><el-table-column
             prop="subject"
             label="主题"

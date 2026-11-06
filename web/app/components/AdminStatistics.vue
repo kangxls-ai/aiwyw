@@ -7,6 +7,7 @@ const { request, message } = useApi(),
   mode = ref("REAL"),
   busy = ref(false),
   error = ref("");
+const { openActiveUsers } = useManagementTabs();
 async function load() {
   busy.value = true;
   error.value = "";
@@ -103,6 +104,12 @@ onMounted(load);
         </article>
         <article>
           <span>活跃账户</span><strong>{{ data.traffic.active_users }}</strong>
+          <el-button
+            link
+            type="primary"
+            @click="openActiveUsers(data.from, data.until)"
+            >查看活跃用户</el-button
+          >
         </article>
         <article>
           <span>充值核销金额（元）</span

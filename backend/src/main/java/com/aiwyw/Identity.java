@@ -11,10 +11,8 @@ public final class Identity {
           Map.entry("dashboard", "工作台概览"),
           Map.entry("statistics", "运营统计"),
           Map.entry("applications", "应用管理"),
-          Map.entry("versions", "版本与文件"),
           Map.entry("licenses", "软件授权与换机"),
           Map.entry("tags", "标签管理"),
-          Map.entry("publishing", "发布与静态化"),
           Map.entry("packages", "优惠积分包"),
           Map.entry("orders", "兑换订单"),
           Map.entry("recharge", "充值核销"),
@@ -45,10 +43,8 @@ public final class Identity {
           Map.entry("dashboard", "group:workspace"),
           Map.entry("statistics", "group:workspace"),
           Map.entry("applications", "group:products"),
-          Map.entry("versions", "group:products"),
           Map.entry("licenses", "group:products"),
           Map.entry("tags", "group:products"),
-          Map.entry("publishing", "group:products"),
           Map.entry("packages", "group:transactions"),
           Map.entry("orders", "group:transactions"),
           Map.entry("recharge", "group:transactions"),
@@ -147,6 +143,26 @@ public final class Identity {
           db.update("INSERT INTO access_role_menu VALUES(?,?)", role, menu);
       }
     }
+    if (db.queryForObject(
+            "SELECT COUNT(*) FROM schema_migration WHERE version='V009_MERGED_APPLICATIONS'",
+            Integer.class)
+        == 0) {
+      for (String role :
+          db.queryForList(
+              "SELECT DISTINCT role_id FROM access_role_menu WHERE menu_id IN"
+                  + " ('versions','publishing')",
+              String.class))
+        if (db.queryForObject(
+                "SELECT COUNT(*) FROM access_role_menu WHERE role_id=? AND menu_id='applications'",
+                Integer.class,
+                role)
+            == 0) db.update("INSERT INTO access_role_menu VALUES(?,'applications')", role);
+      db.update("DELETE FROM access_role_menu WHERE menu_id IN ('versions','publishing')");
+      db.update(
+          "INSERT INTO schema_migration"
+              + " VALUES('V009_MERGED_APPLICATIONS','应用资料版本发布统一入口，保留原角色授权',?)",
+          System.currentTimeMillis());
+    }
     // 迁移标记防止启动时把已撤销的角色重新赋给用户。
     if (db.queryForObject(
             "SELECT COUNT(*) FROM schema_migration WHERE version='V006_IDENTITY'", Integer.class)
@@ -183,8 +199,6 @@ public final class Identity {
           Set.of(
               "dashboard",
               "applications",
-              "versions",
-              "publishing",
               "tags",
               "sections",
               "storage",

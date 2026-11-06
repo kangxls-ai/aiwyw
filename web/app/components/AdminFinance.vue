@@ -305,16 +305,9 @@ onMounted(load);
               commerceStates[row.state] || commerceStates[row.kind] || "—"
             }}</el-tag></template
           ></el-table-column
-        ><el-table-column
-          prop="created_at"
-          sortable="custom"
-          :sort-orders="['descending', 'ascending']"
-          label="时间"
-          min-width="160"
-          ><template #default="{ row }">{{
-            businessTime(row.created_at)
-          }}</template></el-table-column
-        ><el-table-column label="说明 / 操作" min-width="240"
+        ><ObjectColumns server-sort /><el-table-column
+          label="说明 / 操作"
+          min-width="240"
           ><template #default="{ row }"
             ><p>{{ row.declaration || row.review_note || row.reason }}</p>
             <a

@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from "element-plus";
 /** 后台权限由服务端角色与MFA决定，变更会撤销该用户的所有会话，不提供明文密码查询。 */
-const props = defineProps<{ view: string }>();
+const props = defineProps<{
+  view: string;
+  editor?: boolean;
+  tabId?: string;
+  initialId?: string | null;
+}>();
 const { request, message } = useApi();
 const q = ref(""),
+  state = ref(""),
   page = ref(1),
   data = ref<any>({ items: [], total: 0 }),
   dialog = ref(false),
@@ -27,6 +33,7 @@ async function load() {
         sort: listOrder.sort.value,
         direction: listOrder.direction.value,
         q: q.value,
+        state: state.value,
         page: page.value,
         pageSize: 20,
       },
@@ -40,6 +47,10 @@ async function load() {
   }
 }
 function edit(row?: any) {
+  if (!props.editor && !row) {
+    tabState.openEntityEditor("users");
+    return;
+  }
   Object.assign(form, {
     id: row?.id || "",
     email: row?.email || "",
@@ -49,17 +60,35 @@ function edit(row?: any) {
   });
   dialog.value = true;
 }
+async function removeUnverified(row: any) {
+  try {
+    await ElMessageBox.confirm(
+      "仅删除没有业务历史的未激活普通账户，同时撤销会话和验证链接。该邮箱可重新注册。",
+      "删除未激活账户",
+      { confirmButtonText: "删除", cancelButtonText: "取消", type: "warning" },
+    );
+    await request("/api/admin/accounts/" + row.id, { method: "DELETE" });
+    await load();
+    ElMessage.success("未激活账户已删除");
+  } catch (e) {
+    if (e !== "cancel" && e !== "close") ElMessage.error(message(e));
+  }
+}
 async function save() {
   busy.value = true;
   try {
     const { id, ...body } = form;
-    await request("/api/admin/accounts" + (id ? "/" + id : ""), {
-      method: id ? "PUT" : "POST",
-      body,
-    });
+    const result = await request<any>(
+      "/api/admin/accounts" + (id ? "/" + id : ""),
+      {
+        method: id ? "PUT" : "POST",
+        body,
+      },
+    );
     dialog.value = false;
+    await tabState.saved(id || result.id, form.email, true);
     form.password = "";
-    tabState.dirty.value[props.view] = false;
+    tabState.dirty.value[tabState.key.value] = false;
     if (id === useState<any>("admin-user").value?.id) {
       // 修改本人角色后服务器已撤销旧会话，明确返回登录页，避免把成功保存显示成查询失败。
       await request("/api/auth/logout", { method: "POST" });
@@ -77,23 +106,30 @@ async function save() {
 onMounted(async () => {
   roleOptions.value = await request("/api/admin/role-options");
   await load();
+  if (props.editor)
+    edit(
+      props.initialId
+        ? data.value.items.find((r: any) => r.id === props.initialId)
+        : undefined,
+    );
 });
 
 const baseline = ref("");
-const tabState = useManagementTabs();
+const tabState = useEntityEditing(props, "users", load);
 watch(dialog, (visible) => {
   if (visible) baseline.value = JSON.stringify(form);
-  else tabState.dirty.value[props.view] = false;
+  else tabState.dirty.value[tabState.key.value] = false;
 });
 watch(
   () => JSON.stringify(form),
   (value) => {
-    tabState.dirty.value[props.view] = dialog.value && value !== baseline.value;
+    tabState.dirty.value[tabState.key.value] =
+      dialog.value && value !== baseline.value;
   },
 );
 let unregister: (() => void) | undefined;
 onMounted(() => {
-  unregister = tabState.registerSave(props.view, async () => {
+  unregister = tabState.registerSave(tabState.key.value, async () => {
     await save();
     return !dialog.value;
   });
@@ -102,7 +138,7 @@ onBeforeUnmount(() => unregister?.());
 </script>
 <template>
   <section>
-    <div class="management-panel-heading">
+    <div v-if="!editor" class="management-panel-heading">
       <div>
         <span>ACCOUNT MANAGEMENT</span>
         <h1>用户与权限</h1>
@@ -117,7 +153,7 @@ onBeforeUnmount(() => unregister?.());
       :title="error"
       type="error"
       :closable="false"
-    /><el-card shadow="never"
+    /><el-card v-if="!editor" shadow="never"
       ><el-form
         inline
         @submit.prevent="
@@ -132,6 +168,17 @@ onBeforeUnmount(() => unregister?.());
               page = 1;
               load();
             " /></el-form-item
+        ><el-form-item label="账户状态"
+          ><el-select
+            v-model="state"
+            clearable
+            aria-label="用户状态筛选"
+            style="width: 180px"
+            ><el-option label="未激活" value="UNVERIFIED" /><el-option
+              label="已激活"
+              value="ACTIVE" /><el-option
+              label="已停用"
+              value="DISABLED" /></el-select></el-form-item
         ><el-button
           type="primary"
           @click="
@@ -144,19 +191,7 @@ onBeforeUnmount(() => unregister?.());
         :default-sort="listOrder.defaultSort"
         @sort-change="listOrder.change"
         :data="data.items"
-        ><el-table-column
-          prop="created_at"
-          label="创建时间"
-          sortable="custom"
-          :sort-orders="['descending', 'ascending']"
-          min-width="165"
-          ><template #default="{ row }">{{
-            new Date(Number(row.created_at)).toLocaleString("zh-CN", {
-              hour12: false,
-              timeZone: "Asia/Shanghai",
-            })
-          }}</template></el-table-column
-        ><el-table-column
+        ><ObjectColumns server-sort /><el-table-column
           prop="nickname"
           sortable="custom"
           :sort-orders="['descending', 'ascending']"
@@ -202,6 +237,15 @@ onBeforeUnmount(() => unregister?.());
           ><template #default="{ row }"
             ><el-button link type="primary" @click="edit(row)"
               >维护权限</el-button
+            ><el-button
+              v-if="
+                !row.email_verified_at &&
+                (row.roles || ['USER']).every((r: string) => r === 'USER')
+              "
+              link
+              type="danger"
+              @click="removeUnverified(row)"
+              >删除未激活</el-button
             ></template
           ></el-table-column
         ></el-table
@@ -211,7 +255,9 @@ onBeforeUnmount(() => unregister?.());
         :total="data.total"
         layout="total,prev,pager,next"
         @current-change="load" /></el-card
-    ><el-dialog
+    ><ManagementForm
+      :editor="editor"
+      v-if="dialog"
       v-model="dialog"
       :title="form.id ? '维护账户权限' : '新增账户'"
       width="min(540px,94vw)"
@@ -238,11 +284,15 @@ onBeforeUnmount(() => unregister?.());
         ><el-form-item label="停用"
           ><el-switch v-model="form.disabled" /></el-form-item></el-form
       ><template #footer
-        ><el-button @click="dialog = false">取消</el-button
+        ><el-button
+          @click="
+            editor ? tabState.close(tabState.key.value) : (dialog = false)
+          "
+          >取消</el-button
         ><el-button type="primary" :loading="busy" @click="save"
           >保存账户</el-button
         ></template
-      ></el-dialog
+      ></ManagementForm
     >
   </section>
 </template>

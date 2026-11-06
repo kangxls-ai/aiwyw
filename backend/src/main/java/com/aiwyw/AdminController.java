@@ -57,32 +57,19 @@ public class AdminController {
   /** 按时间返回最近100条配置与目录审计，不含旧值新值或密钥。 */
   public List<Map<String, Object>> audit(HttpServletRequest req) {
     auth.admin(req);
-    return jdbc.query(
-        "SELECT a.id,a.config_key,a.revision,a.action_name,a.created_at,u.nickname,a.detail FROM"
-            + " (SELECT id,user_id,config_key,revision,action_name,created_at,'' AS detail FROM"
-            + " config_audit UNION ALL SELECT id,actor_id AS user_id,CONCAT('catalog:',entity_id)"
-            + " AS config_key,0 AS revision,action_name,created_at,detail FROM catalog_audit UNION"
-            + " ALL SELECT id,actor_id AS user_id,CONCAT('storage:',entity_id) AS config_key,0 AS"
-            + " revision,action_name,created_at,detail FROM storage_audit UNION ALL SELECT"
-            + " id,actor_id AS user_id,CONCAT('finance:',entity_id) AS config_key,0 AS"
-            + " revision,action_name,created_at,detail FROM finance_audit) a JOIN app_user u ON"
-            + " a.user_id=u.id ORDER BY a.created_at DESC,a.id DESC LIMIT 100",
-        (rs, n) ->
-            Map.of(
-                "id",
-                rs.getString(1),
-                "config_key",
-                rs.getString(2),
-                "revision",
-                rs.getLong(3),
-                "action_name",
-                rs.getString(4),
-                "created_at",
-                rs.getLong(5),
-                "nickname",
-                rs.getString(6),
-                "detail",
-                rs.getString(7)));
+    return Commerce.safeRows(
+        jdbc.queryForList(
+            """
+SELECT a.id,a.config_key,a.revision,a.action_name,a.created_at,
+  COALESCE(u.nickname,a.user_id) AS nickname,a.user_id AS created_by_id,
+  COALESCE(u.nickname,a.user_id) AS created_by_name,a.detail,a.source_ip
+FROM (
+  SELECT id,user_id,config_key,revision,action_name,created_at,'' AS detail,source_ip FROM config_audit
+  UNION ALL SELECT id,actor_id,CONCAT('catalog:',entity_id),0,action_name,created_at,detail,source_ip FROM catalog_audit
+  UNION ALL SELECT id,actor_id,CONCAT('storage:',entity_id),0,action_name,created_at,detail,source_ip FROM storage_audit
+  UNION ALL SELECT id,actor_id,CONCAT('finance:',entity_id),0,action_name,created_at,detail,source_ip FROM finance_audit
+) a LEFT JOIN app_user u ON a.user_id=u.id ORDER BY a.created_at DESC,a.id DESC LIMIT 100
+"""));
   }
 
   @GetMapping("/api/admin/overview")
@@ -92,6 +79,10 @@ public class AdminController {
     return Map.of(
         "installed",
         database.installed(),
+        "databaseEngine",
+        database.engine(),
+        "databaseName",
+        database.databaseName(),
         "settingsCount",
         Settings.DEFINITIONS.size(),
         "paymentMode",

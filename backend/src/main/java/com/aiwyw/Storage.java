@@ -157,15 +157,7 @@ public class Storage {
   }
 
   private void audit(String actor, String entity, String action, String detail) {
-    db.update(
-        "INSERT INTO storage_audit(id,actor_id,entity_id,action_name,detail,created_at)"
-            + " VALUES(?,?,?,?,?,?)",
-        UUID.randomUUID().toString(),
-        actor,
-        entity,
-        action,
-        detail,
-        System.currentTimeMillis());
+    AuditLog.write(db, "storage_audit", actor, entity, action, detail);
   }
 
   public Map<String, Object> capabilities() {
@@ -347,6 +339,7 @@ public class Storage {
                       + " status='UPLOADING'",
                   System.currentTimeMillis(),
                   id);
+              Origins.created(db, "storage_asset", id, actor);
               audit(actor, id, "UPLOAD", "stored");
             });
       } catch (Exception failure) {

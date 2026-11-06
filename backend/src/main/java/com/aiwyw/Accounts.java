@@ -98,6 +98,7 @@ public class Accounts {
           }
           db.update("UPDATE app_user SET nickname=? WHERE id=?", Identity.nickname(), id);
           db.update("INSERT INTO access_user_role VALUES(?,'USER')", id);
+          Origins.created(db, "app_user", id, id);
           issue(id, mail, "VERIFY");
         });
   }
@@ -179,7 +180,8 @@ public class Accounts {
                   now);
           if (ids.isEmpty()) throw new Api.Failure(400, "链接无效或已过期");
           String id = ids.get(0);
-          db.queryForMap("SELECT id FROM app_user WHERE id=? FOR UPDATE", id);
+          if (db.queryForList("SELECT id FROM app_user WHERE id=? FOR UPDATE", id).isEmpty())
+            throw new Api.Failure(400, "链接对应的账户不存在或已删除");
           if (db.update(
                   "UPDATE account_action_token SET used_at=? WHERE token_hash=? AND purpose=? AND"
                       + " used_at IS NULL AND expires_at>?",
@@ -220,13 +222,7 @@ public class Accounts {
                   + " used_at IS NULL",
               System.currentTimeMillis(),
               id);
-          db.update(
-              "INSERT INTO finance_audit(id,actor_id,entity_id,action_name,detail,created_at)"
-                  + " VALUES(?,?,?,'PASSWORD_CHANGED','本人修改密码，已撤销全部会话与重置令牌',?)",
-              UUID.randomUUID().toString(),
-              id,
-              id,
-              System.currentTimeMillis());
+          AuditLog.write(db, "finance_audit", id, id, "PASSWORD_CHANGED", "本人修改密码，已撤销全部会话与重置令牌");
         });
   }
 
@@ -390,10 +386,21 @@ class AccountController {
     auth.admin(r);
     if (q.length() > 100 || page < 1 || pageSize < 1 || pageSize > 100)
       throw new Api.Failure(400, "分页参数不正确");
+    String state = parameters.getFirst("state");
+    String statusClause =
+        switch (state == null ? "" : state) {
+          case "", "ALL" -> "";
+          case "UNVERIFIED" -> " AND email_verified_at IS NULL";
+          case "ACTIVE" -> " AND email_verified_at IS NOT NULL AND disabled=FALSE";
+          case "DISABLED" -> " AND disabled=TRUE";
+          default -> throw new Api.Failure(400, "账户状态不正确");
+        };
     String term = "%" + q.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
     long total =
         db.queryForObject(
-            "SELECT COUNT(*) FROM app_user WHERE email LIKE ? ESCAPE '!'", Long.class, term);
+            "SELECT COUNT(*) FROM app_user WHERE email LIKE ? ESCAPE '!'" + statusClause,
+            Long.class,
+            term);
     int actual = (int) Math.min(page, Math.max(1, (total + pageSize - 1) / pageSize));
     return Map.of(
         "items",
@@ -402,7 +409,9 @@ class AccountController {
                 db.queryForList(
                     "SELECT"
                         + " id,email,nickname,role_name,mfa_enabled,email_verified_at,disabled,created_at"
-                        + " FROM app_user WHERE email LIKE ? ESCAPE '!' ORDER BY "
+                        + " FROM app_user WHERE email LIKE ? ESCAPE '!'"
+                        + statusClause
+                        + " ORDER BY "
                         + ListOrder.sql(
                             parameters.getFirst("sort"),
                             parameters.getFirst("direction") == null
@@ -458,6 +467,7 @@ class AccountController {
     }
     db.update("UPDATE app_user SET nickname=? WHERE id=?", Identity.nickname(), id);
     assign(id, selected);
+    Origins.created(db, "app_user", id, auth.admin(r).id());
     audit(auth.admin(r).id(), id, "CREATE_ACCOUNT");
     return Map.of("id", id);
   }
@@ -494,6 +504,44 @@ class AccountController {
     assign(id, selected);
     db.update("DELETE FROM app_session WHERE user_id=?", id);
     audit(admin.id(), id, "CHANGE_ACCOUNT");
+    return Map.of("success", true);
+  }
+
+  @org.springframework.transaction.annotation.Transactional
+  @DeleteMapping("/api/admin/accounts/{id}")
+  Map<String, Boolean> deleteUnverified(@PathVariable String id, HttpServletRequest r) {
+    var actor = auth.admin(r);
+    if (actor.id().equals(id)) throw new Api.Failure(403, "不能删除本人账户");
+    db.queryForObject("SELECT revision FROM catalog_guard WHERE id=1 FOR UPDATE", Long.class);
+    var rows = db.queryForList("SELECT * FROM app_user WHERE id=? FOR UPDATE", id);
+    if (rows.isEmpty()) throw new Api.Failure(404, "账户不存在");
+    var target = rows.get(0);
+    if (target.get("email_verified_at") != null
+        || !target.get("role_name").equals("USER")
+        || db.queryForObject(
+                "SELECT COUNT(*) FROM access_user_role WHERE user_id=? AND role_id<>'USER'",
+                Integer.class,
+                id)
+            > 0) throw new Api.Failure(409, "仅可删除未激活的普通账户，后台账户不能通过此入口删除");
+    for (String table :
+        List.of(
+            "recharge_order",
+            "purchase_order",
+            "wallet_ledger",
+            "wallet_batch",
+            "api_subscription",
+            "api_key",
+            "support_conversation",
+            "support_feedback"))
+      if (db.queryForObject("SELECT COUNT(*) FROM " + table + " WHERE user_id=?", Integer.class, id)
+          > 0) throw new Api.Failure(409, "该账户已有业务记录，请停用并保留历史，不能删除");
+    db.update("DELETE FROM app_session WHERE user_id=?", id);
+    db.update("DELETE FROM account_action_token WHERE user_id=?", id);
+    db.update("DELETE FROM mail_outbox WHERE recipient=? AND status<>'SENT'", target.get("email"));
+    db.update("DELETE FROM access_user_role WHERE user_id=?", id);
+    db.update("DELETE FROM wallet_account WHERE user_id=? AND balance_units=0", id);
+    db.update("DELETE FROM app_user WHERE id=?", id);
+    audit(actor.id(), id, "DELETE_UNVERIFIED_ACCOUNT");
     return Map.of("success", true);
   }
 
@@ -538,14 +586,6 @@ class AccountController {
   }
 
   private void audit(String actor, String id, String action) {
-    db.update(
-        "INSERT INTO finance_audit(id,actor_id,entity_id,action_name,detail,created_at)"
-            + " VALUES(?,?,?,?,?,?)",
-        UUID.randomUUID().toString(),
-        actor,
-        id,
-        action,
-        "account role/access",
-        System.currentTimeMillis());
+    AuditLog.write(db, "finance_audit", actor, id, action, "账户维护，不含凭据");
   }
 }

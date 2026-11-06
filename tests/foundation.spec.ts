@@ -31,6 +31,7 @@ function otp(secret: string) {
 }
 
 const directory = () => process.env.AIWYW_E2E_DIR!;
+const workspace = (page: Page) => page.locator("[data-workspace]:visible");
 async function menu(page: Page, name: string) {
   await page
     .locator(".management-sidebar")
@@ -299,11 +300,11 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   ).toBeVisible();
   await page.getByRole("button", { name: "新增标签", exact: true }).click();
   await page
-    .getByRole("dialog")
+    .locator("[data-workspace]:visible")
     .getByLabel("标签名称", { exact: true })
     .fill("未使用标签");
   await page
-    .getByRole("dialog")
+    .locator("[data-workspace]:visible")
     .getByRole("button", { name: "保存标签", exact: true })
     .click();
   const unused = page.getByRole("row").filter({ hasText: "未使用标签" });
@@ -802,6 +803,7 @@ test("content draft isolation, static bilingual publishing and SEO discovery", a
     ).text(),
   ).toContain("Disallow: /");
   await configuration(admin, { "seo.allow_indexing": "true" });
+  await menu(admin, "文章与教程");
   await admin
     .getByRole("row")
     .filter({ hasText: "markdo 使用教程" })
@@ -1084,7 +1086,7 @@ test("nickname, role menu union and administrator MFA emergency policy", async (
     admin = await context.newPage();
   await admin.goto("/admin/workspace?view=roles");
   await admin.getByRole("button", { name: "新增角色", exact: true }).click();
-  const editor = admin.getByRole("dialog");
+  const editor = workspace(admin);
   await editor.getByLabel("角色名称", { exact: true }).fill("目录查看员");
   await editor
     .locator(".el-tree-node__content")
@@ -1165,7 +1167,7 @@ test("profile nickname and password, asymmetric menu tree and light authenticati
   const admin = await adminContext.newPage();
   await admin.goto("/admin/workspace?view=roles");
   await admin.getByRole("button", { name: "新增角色", exact: true }).click();
-  const editor = admin.getByRole("dialog"),
+  const editor = workspace(admin),
     parent = editor
       .locator(".el-tree-node__content")
       .filter({ hasText: /^商品管理$/ }),
@@ -1334,10 +1336,10 @@ test("API configuration, one-time keys, billable debugger and subscription refun
     (a: any) => a.slug === "browser-text-api",
   );
   await menu(admin, "套餐与订阅");
-  const planPanel = admin.locator('[data-workspace="plans"]');
-  await planPanel
-    .getByRole("button", { name: "新增套餐", exact: true })
-    .click();
+  const planList = admin.locator('[data-workspace="plans"]');
+  await planList.getByRole("button", { name: "新增套餐", exact: true }).click();
+  const planPanel = workspace(admin);
+  await expect(planPanel.getByRole("table")).toHaveCount(0);
   await planPanel
     .getByLabel("API配置名称", { exact: true })
     .fill("浏览器月度套餐");
@@ -1841,17 +1843,21 @@ test("consistent typography, managed article navigation, API editor tabs and acc
     .getByRole("button", { name: "取消", exact: true })
     .click();
   await menu(admin, "首页栏目");
-  const sections = admin.locator('[data-workspace="sections"]');
-  await sections
+  const sectionList = admin.locator('[data-workspace="sections"]');
+  await sectionList
     .getByRole("row")
     .filter({ hasText: "文章与教程导航" })
     .getByRole("button", { name: "编辑", exact: true })
     .click();
+  const sections = workspace(admin);
   await sections.getByLabel("栏目名称", { exact: true }).fill("使用指南");
   await sections.getByLabel("栏目顺序", { exact: true }).fill("0");
   await sections.getByRole("button", { name: "保存修改", exact: true }).click();
   await expect(sections.getByRole("status")).toHaveText("栏目已保存并生效");
-  await sections.getByRole("button", { name: "新增栏目", exact: true }).click();
+  await menu(admin, "首页栏目");
+  await sectionList
+    .getByRole("button", { name: "新增栏目", exact: true })
+    .click();
   await sections.getByLabel("栏目名称", { exact: true }).fill("快捷工具");
   await sections.getByRole("button", { name: "保存修改", exact: true }).click();
   await expect(sections.getByRole("status")).toHaveText("栏目已保存并生效");
@@ -1937,5 +1943,218 @@ test("consistent typography, managed article navigation, API editor tabs and acc
   await admin.screenshot({ path: "test-results/ui-admin.png", fullPage: true });
   expect(errors).toEqual([]);
   await guest.close();
+  await context.close();
+});
+
+// 新一轮核对列表真实来源、代理IP、独立新增、未激活删除与统计钻取，不能只确认按钮存在。
+test("merged applications, object provenance, independent creation, pending account deletion and active-user drill", async ({
+  browser,
+}) => {
+  test.setTimeout(210000);
+  const context = await browser.newContext({
+    storageState: join(directory(), "admin-state.json"),
+  });
+  const admin = await context.newPage(),
+    errors: string[] = [];
+  admin.on("pageerror", (e) => errors.push(e.message));
+  await admin.goto("/admin/workspace?view=versions");
+  await expect(admin).toHaveURL(/view=applications/);
+  await expect(
+    admin
+      .locator(".management-sidebar")
+      .getByRole("button", { name: "版本与文件", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    admin
+      .locator(".management-sidebar")
+      .getByRole("button", { name: "发布与静态化", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    workspace(admin).getByRole("columnheader", { name: "主键ID", exact: true }),
+  ).toBeVisible();
+  await expect(
+    workspace(admin).getByRole("columnheader", { name: "创建人", exact: true }),
+  ).toBeVisible();
+  const actor = await (await admin.request.get("/api/auth/session")).json();
+  const tag = await admin.request.post("/api/admin/catalog/tags", {
+    headers: {
+      "X-AIWYW-Request": "1",
+      "X-Forwarded-For": "203.0.113.99",
+      "X-AIWYW-Peer-IP": "203.0.113.88",
+    },
+    data: {
+      name: "浏览器来源验收标签",
+      description: "真实操作者与来源IP",
+      revision: 0,
+    },
+  });
+  expect(tag.status()).toBe(200);
+  const tagId = (await tag.json()).id;
+  const tags = (
+    await (
+      await admin.request.get(
+        "/api/admin/catalog/tags?q=" + encodeURIComponent("浏览器来源验收标签"),
+      )
+    ).json()
+  ).items;
+  expect(tags[0].id).toBe(tagId);
+  expect(tags[0].created_by_id).toBe(actor.id);
+  expect(Number(tags[0].created_at)).toBeGreaterThan(0);
+  const logs = await (await admin.request.get("/api/admin/audit")).json();
+  const audit = logs.find((r: any) => r.config_key === "catalog:" + tagId);
+  expect(audit).toBeTruthy();
+  expect(audit.source_ip).toMatch(/^(127\.0\.0\.1|::1|0:0:0:0:0:0:0:1)$/);
+  await menu(admin, "交易管理");
+  await menu(admin, "优惠积分包");
+  await workspace(admin)
+    .getByRole("button", { name: "新增优惠包", exact: true })
+    .click();
+  await expect(workspace(admin).getByRole("table")).toHaveCount(0);
+  await workspace(admin)
+    .getByLabel("积分包名称", { exact: true })
+    .fill("浏览器验收积分包");
+  await admin.screenshot({
+    path: "test-results/management-package-editor.png",
+    fullPage: true,
+    animations: "disabled",
+  });
+  await workspace(admin)
+    .getByRole("button", { name: "保存优惠包", exact: true })
+    .click();
+  await expect(admin).toHaveURL(/view=packages/);
+  await expect(
+    workspace(admin).getByRole("row").filter({ hasText: "浏览器验收积分包" }),
+  ).toBeVisible();
+  await menu(admin, "内容运营");
+  await menu(admin, "FAQ 与案例");
+  for (const kind of ["FAQ", "案例"]) {
+    await workspace(admin)
+      .getByRole("button", { name: "新增内容", exact: true })
+      .click();
+    await expect(workspace(admin).getByRole("table")).toHaveCount(0);
+    const editor = workspace(admin);
+    await editor
+      .getByLabel("内容中文标题", { exact: true })
+      .fill("浏览器独立" + kind + "验收");
+    await editor
+      .getByLabel("内容英文标题", { exact: true })
+      .fill("Independent " + kind + " review");
+    await editor
+      .getByLabel("内容公开地址", { exact: true })
+      .fill(kind === "FAQ" ? "browser-faq-review" : "browser-case-review");
+    await select(admin, "内容类型", kind);
+    await editor
+      .getByRole("textbox", { name: "内容中文正文", exact: true })
+      .fill("用于验证独立页签的" + kind + "正文");
+    await editor
+      .getByRole("textbox", { name: "内容英文正文", exact: true })
+      .fill("Independent editor verification");
+    await editor.getByRole("button", { name: "保存草稿", exact: true }).click();
+    await expect(editor.getByText("草稿已保存", { exact: true })).toBeVisible();
+    await menu(admin, "FAQ 与案例");
+  }
+  await admin.screenshot({
+    path: "test-results/management-content-list.png",
+    fullPage: true,
+    animations: "disabled",
+  });
+  const pendingEmail = "pending-review@example.com";
+  const guest = await browser.newContext();
+  expect(
+    (
+      await guest.request.post("http://127.0.0.1:3000/api/auth/register", {
+        headers: { "X-AIWYW-Request": "1" },
+        data: { email: pendingEmail, password: "pending-review-password-123" },
+      })
+    ).status(),
+  ).toBe(200);
+  const activation = await inboxLink(pendingEmail, "verify");
+  await menu(admin, "用户与权限");
+  await menu(admin, "用户管理");
+  await workspace(admin).getByLabel("邮箱", { exact: true }).fill(pendingEmail);
+  await select(admin, "用户状态筛选", "未激活");
+  await workspace(admin)
+    .getByRole("button", { name: "查询", exact: true })
+    .click();
+  const pending = workspace(admin)
+    .getByRole("row")
+    .filter({ hasText: pendingEmail });
+  await expect(pending).toBeVisible();
+  await pending
+    .getByRole("button", { name: "删除未激活", exact: true })
+    .click();
+  await admin
+    .getByRole("dialog", { name: "删除未激活账户", exact: true })
+    .getByRole("button", { name: "删除", exact: true })
+    .click();
+  await expect(pending).toHaveCount(0);
+  expect(
+    (
+      await guest.request.post("http://127.0.0.1:3000/api/auth/verify-email", {
+        headers: { "X-AIWYW-Request": "1" },
+        data: { token: new URL(activation).searchParams.get("token") },
+      })
+    ).status(),
+  ).toBe(400);
+  await guest.close();
+  const member = await browser.newContext();
+  expect(
+    (
+      await member.request.post("http://127.0.0.1:3000/api/auth/login", {
+        headers: { "X-AIWYW-Request": "1" },
+        data: {
+          email: "member@example.com",
+          password: "brand-new-member-password-456",
+          code: "",
+        },
+      })
+    ).status(),
+  ).toBe(200);
+  expect(
+    (
+      await member.request.post("http://127.0.0.1:3000/api/public/events", {
+        headers: { "X-AIWYW-Request": "1" },
+        data: {
+          kind: "PAGE",
+          path: "/apps",
+          keyword: "",
+          source: "validation.example.test",
+        },
+      })
+    ).status(),
+  ).toBe(200);
+  const report = await (
+    await admin.request.get("/api/admin/statistics")
+  ).json();
+  const drill = await (
+    await admin.request.get(
+      "/api/admin/statistics/active-users?" +
+        new URLSearchParams({ from: report.from, until: report.until }),
+    )
+  ).json();
+  expect(Number(drill.total)).toBe(Number(report.traffic.active_users));
+  expect(Number(drill.total)).toBeGreaterThan(0);
+  await menu(admin, "运营统计");
+  await workspace(admin)
+    .getByRole("button", { name: "查看活跃用户", exact: true })
+    .click();
+  await expect(
+    workspace(admin).getByRole("heading", { name: "活跃用户", exact: true }),
+  ).toBeVisible();
+  await expect(
+    workspace(admin).getByRole("row").filter({ hasText: "我的新昵称" }),
+  ).toBeVisible();
+  await admin.screenshot({
+    path: "test-results/management-active-users.png",
+    fullPage: true,
+    animations: "disabled",
+  });
+  expect(
+    await admin.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth + 1,
+    ),
+  ).toBe(true);
+  expect(errors).toEqual([]);
+  await member.close();
   await context.close();
 });

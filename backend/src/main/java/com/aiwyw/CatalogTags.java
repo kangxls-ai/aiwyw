@@ -41,14 +41,21 @@ public class CatalogTags {
 
   /** 与保存商品共用目录锁/事务，新录入标签自动建目录，兼容升级前的自由标签。 */
   static void ensure(JdbcTemplate db, List<String> names) {
+    ensure(db, names, null);
+  }
+
+  static void ensure(JdbcTemplate db, List<String> names, String actor) {
     for (String name : names)
       if (db.queryForObject("SELECT COUNT(*) FROM catalog_tag WHERE name=?", Integer.class, name)
-          == 0)
+          == 0) {
+        String id = UUID.randomUUID().toString();
         db.update(
             "INSERT INTO catalog_tag(id,name,description,revision,created_at) VALUES(?,?,'',1,?)",
-            UUID.randomUUID().toString(),
+            id,
             name,
             System.currentTimeMillis());
+        if (actor != null) Origins.created(db, "catalog_tag", id, actor);
+      }
   }
 
   public record Input(String name, String description, long revision) {}
@@ -175,13 +182,8 @@ public class CatalogTags {
                 description,
                 id);
           }
-          db.update(
-              "INSERT INTO catalog_audit(id,actor_id,entity_id,action_name,detail,created_at)"
-                  + " VALUES(?,?,?,'SAVE_TAG','tag metadata',?)",
-              UUID.randomUUID().toString(),
-              actor,
-              key,
-              System.currentTimeMillis());
+          if (id == null) Origins.created(db, "catalog_tag", key, actor);
+          AuditLog.write(db, "catalog_audit", actor, key, "SAVE_TAG", "tag metadata");
           return Map.of("id", key);
         });
   }
@@ -204,13 +206,7 @@ public class CatalogTags {
             throw new Api.Failure(409, "标签仍被应用草稿或栏目引用，不能删除");
           if (db.update("DELETE FROM catalog_tag WHERE id=? AND revision=?", id, revision) != 1)
             throw new Api.Failure(409, "标签已变化，请重新读取");
-          db.update(
-              "INSERT INTO catalog_audit(id,actor_id,entity_id,action_name,detail,created_at)"
-                  + " VALUES(?,?,?,'DELETE_TAG','unused tag',?)",
-              UUID.randomUUID().toString(),
-              actor,
-              id,
-              System.currentTimeMillis());
+          AuditLog.write(db, "catalog_audit", actor, id, "DELETE_TAG", "tag metadata");
         });
     return Map.of("success", true);
   }

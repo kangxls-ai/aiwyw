@@ -15,7 +15,14 @@ const id = ref(props.initialProductId),
   base = ref(""),
   knownTags = ref<string[]>([]);
 const information = ref<CatalogProduct | null>(null),
-  history = ref<Array<{ id: string; created_at: number; sha256: string }>>([]),
+  history = ref<
+    Array<{
+      id: string;
+      created_at: number;
+      sha256: string;
+      created_by_name?: string;
+    }>
+  >([]),
   showHistory = ref(false);
 const uploads = reactive<Record<string, boolean>>({}),
   uploading = computed(() => Object.values(uploads).some(Boolean));
@@ -406,6 +413,11 @@ watch(changed, async () => {
       </el-button>
       <div v-if="showHistory">
         <article v-for="item in history" :key="item.id" class="catalog-history">
+          <p class="admin-muted">
+            ID：{{ item.id }} · 创建人：{{
+              item.created_by_name || "历史未记录"
+            }}
+          </p>
           <time>{{
             new Date(item.created_at).toLocaleString("zh-CN", {
               timeZone: "Asia/Shanghai",

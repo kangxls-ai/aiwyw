@@ -147,6 +147,66 @@ UNION ALL SELECT s.api_id,s.plan_name,'API_PLAN',h.mode,-s.price_units,-h.cost_f
 UNION ALL SELECT c.api_id,c.api_name,'API_CALL',h.mode,c.price_units,h.cost_fen,c.finished_at,1,0 FROM api_call c JOIN wallet_hold h ON h.id=c.id WHERE c.state='SUCCESS'
 """;
 
+  /** 与活跃账户指标使用相同PAGE事实和左闭右开窗口；已删除账户的历史ID仍保留，钻取数量不缩水。 */
+  public Map<String, Object> activeUsers(
+      String from, String until, int page, int size, String sort, String direction) {
+    Window w = window(from, until);
+    if (page < 1 || size < 1 || size > 100) throw new Api.Failure(400, "分页参数不正确");
+    String grouped =
+        "SELECT user_id,COUNT(*) AS pages,COUNT(DISTINCT day_key) AS active_days,MIN(created_at) AS"
+            + " first_seen_at,MAX(created_at) AS last_seen_at FROM analytics_event WHERE"
+            + " kind='PAGE' AND user_id IS NOT NULL AND created_at>=? AND created_at<? GROUP BY"
+            + " user_id";
+    long total =
+        db.queryForObject(
+            "SELECT COUNT(*) FROM (" + grouped + ") a", Long.class, w.start(), w.end());
+    int actual = (int) Math.min(page, Math.max(1, (total + size - 1) / size));
+    String ordering =
+        ListOrder.sql(
+            sort,
+            direction == null ? "descending" : direction,
+            Map.of(
+                "last_seen_at",
+                "a.last_seen_at",
+                "first_seen_at",
+                "a.first_seen_at",
+                "pages",
+                "a.pages",
+                "active_days",
+                "a.active_days",
+                "created_at",
+                "u.created_at",
+                "nickname",
+                "u.nickname"),
+            "created_at",
+            "a.user_id");
+    var items =
+        Commerce.safeRows(
+            db.queryForList(
+                "SELECT a.user_id AS id,COALESCE(u.nickname,'已删除账户') AS"
+                    + " nickname,u.created_at,u.email_verified_at,u.disabled,a.pages,a.active_days,a.first_seen_at,a.last_seen_at"
+                    + " FROM ("
+                    + grouped
+                    + ") a LEFT JOIN app_user u ON u.id=a.user_id ORDER BY "
+                    + ordering
+                    + " LIMIT ? OFFSET ?",
+                w.start(),
+                w.end(),
+                size,
+                (actual - 1) * size));
+    return Map.of(
+        "items",
+        items,
+        "total",
+        total,
+        "page",
+        actual,
+        "from",
+        w.from().toString(),
+        "until",
+        w.until().toString());
+  }
+
   public Map<String, Object> report(String from, String until, String mode) {
     if (!Set.of("REAL", "SIMULATED").contains(mode)) throw new Api.Failure(400, "请选择真实或模拟账本");
     Window w = window(from, until);

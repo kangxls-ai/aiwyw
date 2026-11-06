@@ -62,6 +62,26 @@ public class Database {
     return installed;
   }
 
+  /** 只返回运行数据库产品与库名供管理员核对，不返回连接地址、账户或密码。 */
+  public String engine() {
+    try (var c = source.getConnection()) {
+      return c.getMetaData().getDatabaseProductName().toUpperCase(Locale.ROOT).contains("MYSQL")
+          ? "MYSQL"
+          : "H2";
+    } catch (SQLException e) {
+      throw new Api.Failure(503, "数据库状态暂不可用");
+    }
+  }
+
+  public String databaseName() {
+    if (!engine().equals("MYSQL")) return "本地开发库";
+    try (var c = source.getConnection()) {
+      return c.getCatalog();
+    } catch (SQLException e) {
+      throw new Api.Failure(503, "数据库状态暂不可用");
+    }
+  }
+
   public boolean validToken(String token) {
     return !installed
         && token != null
@@ -133,6 +153,7 @@ public class Database {
     Identity.schema(d, j);
     ContentSchema.migrate(j);
     OperationsSchema.migrate(j);
+    ManagementSchema.migrate(d, j);
   }
 
   /** 先写加密待定文件再原子更名；成功后锁安装入口并删除一次性安装码。 */

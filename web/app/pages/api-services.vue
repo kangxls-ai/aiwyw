@@ -409,7 +409,7 @@ Content-Type: application/json
           t("新增Key", "Create key")
         }}</el-button
         ><el-table :data="member.keys"
-          ><el-table-column
+          ><ObjectColumns localized /><el-table-column
             prop="name"
             :label="t('名称', 'Name')"
           /><el-table-column
@@ -445,7 +445,7 @@ Content-Type: application/json
         :label="t('我的订阅', 'My subscriptions')"
         name="subscriptions"
         ><el-table :data="periods.items"
-          ><el-table-column
+          ><ObjectColumns localized /><el-table-column
             prop="plan_name"
             :label="t('套餐', 'Plan')"
           /><el-table-column :label="t('生效时间', 'Starts')" min-width="180"
@@ -567,7 +567,9 @@ Content-Type: application/json
             >{{ t("查询", "Search") }}</el-button
           ></el-form
         ><el-table :data="calls.items"
-          ><el-table-column :label="t('时间', 'Time')" min-width="180"
+          ><ObjectColumns localized /><el-table-column
+            :label="t('时间', 'Time')"
+            min-width="180"
             ><template #default="{ row }">{{
               businessTime(row.created_at)
             }}</template></el-table-column

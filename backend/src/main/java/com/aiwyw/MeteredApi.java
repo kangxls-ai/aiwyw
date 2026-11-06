@@ -77,15 +77,7 @@ public class MeteredApi {
   }
 
   void audit(String actor, String entity, String action) {
-    db.update(
-        "INSERT INTO catalog_audit(id,actor_id,entity_id,action_name,detail,created_at)"
-            + " VALUES(?,?,?,?,?,?)",
-        id(),
-        actor,
-        entity,
-        action,
-        "API操作，不含Key、上游凭据或输入输出正文",
-        System.currentTimeMillis());
+    AuditLog.write(db, "catalog_audit", actor, entity, action, "API维护");
   }
 
   void verified(String user) {
@@ -190,6 +182,7 @@ public class MeteredApi {
                   key,
                   b.revision())
               != 1) throw new Api.Failure(409, "API已变化，请重新读取");
+          if (existing == null) Origins.created(db, "api_definition", key, actor);
           audit(actor, key, "SAVE_API");
           org.springframework.transaction.support.TransactionSynchronizationManager
               .registerSynchronization(
@@ -273,6 +266,7 @@ public class MeteredApi {
                   b.apiId(),
                   b.revision())
               != 1) throw new Api.Failure(409, "套餐已变化或API不一致");
+          if (existing == null) Origins.created(db, "api_plan", key, actor);
           audit(actor, key, "SAVE_API_PLAN");
           return key;
         });
@@ -346,6 +340,7 @@ public class MeteredApi {
           db.update("DELETE FROM api_key_scope WHERE key_id=?", key);
           for (String api : new HashSet<>(b.apiIds()))
             db.update("INSERT INTO api_key_scope VALUES(?,?)", key, api);
+          if (existing == null) Origins.created(db, "api_key", key, user);
           audit(user, key, "SAVE_API_KEY");
           return Map.of("id", key, "token", token);
         });
@@ -503,6 +498,7 @@ public class MeteredApi {
               end,
               System.currentTimeMillis());
           wallet.notify(user, "API套餐已开通", p.get("name") + "，生效时间和到期时间请在API中心查看（北京时间）。");
+          Origins.created(db, "api_subscription", key, user);
           audit(user, key, "BUY_API_PLAN");
           return key;
         });
@@ -733,6 +729,7 @@ public class MeteredApi {
                   debug,
                   now + (settings.integer("api.timeout_seconds") + 60) * 1000L,
                   now);
+              Origins.created(db, "api_call", call, user);
               return new Admission(call, user, api, null);
             });
     if (admission.cached() != null) return replay(admission.cached());

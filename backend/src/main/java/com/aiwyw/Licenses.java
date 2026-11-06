@@ -87,6 +87,7 @@ public class Licenses {
         crypto.encrypt(key),
         terms.get(0),
         System.currentTimeMillis());
+    Origins.created(db, "software_license", purchase, "SYSTEM");
   }
 
   /** 与全额退款同事务调用，不另开事务。旧设备令牌即便已签发也立即失效。 */
@@ -315,6 +316,7 @@ public class Licenses {
               user,
               note,
               System.currentTimeMillis());
+          Origins.created(db, "license_unbind_request", id, user);
           audit(user, id, "REQUEST_UNBIND", "purchase=" + purchase);
           return id;
         });
@@ -366,14 +368,6 @@ public class Licenses {
   }
 
   private void audit(String actor, String entity, String action, String detail) {
-    db.update(
-        "INSERT INTO finance_audit(id,actor_id,entity_id,action_name,detail,created_at)"
-            + " VALUES(?,?,?,?,?,?)",
-        UUID.randomUUID().toString(),
-        actor,
-        entity,
-        action,
-        detail,
-        System.currentTimeMillis());
+    AuditLog.write(db, "finance_audit", actor, entity, action, detail);
   }
 }

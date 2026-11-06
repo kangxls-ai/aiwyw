@@ -1,8 +1,15 @@
 <script setup lang="ts">
 /** 栏目维护仅编辑当前栏目；应用编辑已独立为多个页签。 */
 import type { AdminSection, SectionConfig } from "~/types/catalog";
+const props = defineProps<{
+  editor?: boolean;
+  tabId?: string;
+  initialId?: string | null;
+  initialMode?: string;
+}>();
 const { request, message } = useApi(),
-  { dirty, registerSave } = useManagementTabs();
+  tabState = useEntityEditing(props, "sections", load),
+  { dirty, registerSave } = tabState;
 const sections = ref<AdminSection[]>([]),
   products = ref<Array<{ id: string; nameZh: string }>>([]),
   id = ref<string | null>(null),
@@ -37,7 +44,8 @@ const form = ref(empty()),
 watch(
   () => snapshot(),
   () => {
-    dirty.value.sections = editing.value && snapshot() !== base.value;
+    dirty.value[tabState.key.value] =
+      editing.value && snapshot() !== base.value;
   },
 );
 async function load() {
@@ -50,7 +58,18 @@ async function load() {
   ]);
 }
 function open(value?: AdminSection, mode?: string) {
-  if (dirty.value.sections && !window.confirm("放弃当前栏目未保存修改？"))
+  if (!props.editor) {
+    tabState.openEntityEditor(
+      "sections",
+      value ? { id: value.id, name: value.config.titleZh } : undefined,
+      mode,
+    );
+    return;
+  }
+  if (
+    dirty.value[tabState.key.value] &&
+    !window.confirm("放弃当前栏目未保存修改？")
+  )
     return;
   id.value = value?.id || null;
   form.value = value
@@ -59,7 +78,7 @@ function open(value?: AdminSection, mode?: string) {
 
   editing.value = true;
   base.value = snapshot();
-  dirty.value.sections = false;
+  dirty.value[tabState.key.value] = false;
 }
 async function save() {
   if (!editing.value) return true;
@@ -74,11 +93,12 @@ async function save() {
         : "/api/admin/catalog/sections",
       { method: id.value ? "PUT" : "POST", body: value },
     );
-    dirty.value.sections = false;
+    dirty.value[tabState.key.value] = false;
     editing.value = false;
     await load();
     open(sections.value.find((s) => s.id === result.id));
     changed.value++;
+    await tabState.saved(result.id, form.value.titleZh);
     notice.value = "栏目已保存并生效";
     return true;
   } catch (e) {
@@ -100,7 +120,7 @@ async function remove(value: AdminSection) {
     });
     if (id.value === value.id) {
       editing.value = false;
-      dirty.value.sections = false;
+      dirty.value[tabState.key.value] = false;
     }
     await load();
     changed.value++;
@@ -123,9 +143,16 @@ function move(index: number, direction: number) {
 }
 let unregister: (() => void) | undefined;
 onMounted(async () => {
-  unregister = registerSave("sections", save);
+  unregister = registerSave(tabState.key.value, save);
   try {
     await load();
+    if (props.editor)
+      open(
+        props.initialId
+          ? sections.value.find((s) => s.id === props.initialId)
+          : undefined,
+        props.initialMode,
+      );
   } catch (e) {
     error.value = message(e);
   }
@@ -134,7 +161,7 @@ onBeforeUnmount(() => unregister?.());
 </script>
 <template>
   <section>
-    <div class="management-panel-heading">
+    <div v-if="!editor" class="management-panel-heading">
       <div>
         <span>HOME SECTIONS</span>
         <h1>首页栏目</h1>
@@ -157,26 +184,12 @@ onBeforeUnmount(() => unregister?.());
     </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <p v-if="notice" class="alert success" role="status">{{ notice }}</p>
-    <el-card shadow="never"
+    <el-card v-if="!editor" shadow="never"
       ><el-table
         :default-sort="{ prop: 'createdAt', order: 'descending' }"
         :data="sections"
         row-key="id"
-        ><el-table-column
-          prop="createdAt"
-          label="创建时间"
-          sortable
-          :sort-orders="['descending', 'ascending']"
-          min-width="165"
-          ><template #default="{ row }">{{
-            row.createdAt
-              ? new Date(Number(row.createdAt)).toLocaleString("zh-CN", {
-                  hour12: false,
-                  timeZone: "Asia/Shanghai",
-                })
-              : "历史记录"
-          }}</template></el-table-column
-        ><el-table-column
+        ><ObjectColumns time-prop="createdAt" /><el-table-column
           prop="config.position"
           sortable
           :sort-orders="['descending', 'ascending']"

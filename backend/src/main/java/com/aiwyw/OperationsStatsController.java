@@ -33,6 +33,19 @@ public class OperationsStatsController {
     return stats.report(from, until, mode);
   }
 
+  @GetMapping("/api/admin/statistics/active-users")
+  Map<String, Object> activeUsers(
+      @RequestParam(defaultValue = "") String from,
+      @RequestParam(defaultValue = "") String until,
+      @RequestParam(defaultValue = "1") int page,
+      @RequestParam(defaultValue = "20") int pageSize,
+      @RequestParam(defaultValue = "created_at") String sort,
+      @RequestParam(defaultValue = "descending") String direction,
+      HttpServletRequest r) {
+    auth.permission(r, "statistics");
+    return stats.activeUsers(from, until, page, pageSize, sort, direction);
+  }
+
   @GetMapping("/api/admin/statistics/export")
   ResponseEntity<byte[]> csv(
       @RequestParam(defaultValue = "") String from,

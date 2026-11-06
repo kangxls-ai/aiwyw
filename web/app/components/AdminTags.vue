@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from "element-plus";
 /** 独立标签目录，筛选分页由后端执行；改名有版本冲突保护，引用中的标签不能直接删除。 */
+const props = defineProps<{
+  editor?: boolean;
+  tabId?: string;
+  initialId?: string | null;
+}>();
 const { request, message } = useApi();
 const { open } = useManagementTabs();
 const q = ref(""),
@@ -43,6 +48,10 @@ async function load() {
   }
 }
 function edit(row?: any) {
+  if (!props.editor && !row) {
+    tabState.openEntityEditor("tags");
+    return;
+  }
   Object.assign(form, {
     id: row?.id || "",
     name: row?.name || "",
@@ -54,15 +63,19 @@ function edit(row?: any) {
 async function save() {
   saving.value = true;
   try {
-    await request("/api/admin/catalog/tags" + (form.id ? "/" + form.id : ""), {
-      method: form.id ? "PUT" : "POST",
-      body: {
-        name: form.name,
-        description: form.description,
-        revision: form.revision,
+    const result = await request<any>(
+      "/api/admin/catalog/tags" + (form.id ? "/" + form.id : ""),
+      {
+        method: form.id ? "PUT" : "POST",
+        body: {
+          name: form.name,
+          description: form.description,
+          revision: form.revision,
+        },
       },
-    });
+    );
     dialog.value = false;
+    await tabState.saved(result.id, form.name, true);
     changed.value++;
     await load();
   } catch (e) {
@@ -94,24 +107,33 @@ async function applications(row: any) {
     query: { view: "applications", tag: row.name },
   });
 }
-onMounted(load);
+onMounted(async () => {
+  await load();
+  if (props.editor)
+    edit(
+      props.initialId
+        ? data.value.items.find((r) => r.id === props.initialId)
+        : undefined,
+    );
+});
 watch(changed, load);
 
 const baseline = ref("");
-const tabState = useManagementTabs();
+const tabState = useEntityEditing(props, "tags", load);
 watch(dialog, (visible) => {
   if (visible) baseline.value = JSON.stringify(form);
-  else tabState.dirty.value["tags"] = false;
+  else tabState.dirty.value[tabState.key.value] = false;
 });
 watch(
   () => JSON.stringify(form),
   (value) => {
-    tabState.dirty.value["tags"] = dialog.value && value !== baseline.value;
+    tabState.dirty.value[tabState.key.value] =
+      dialog.value && value !== baseline.value;
   },
 );
 let unregister: (() => void) | undefined;
 onMounted(() => {
-  unregister = tabState.registerSave("tags", async () => {
+  unregister = tabState.registerSave(tabState.key.value, async () => {
     await save();
     return !dialog.value;
   });
@@ -120,7 +142,7 @@ onBeforeUnmount(() => unregister?.());
 </script>
 <template>
   <section>
-    <div class="management-panel-heading">
+    <div v-if="!editor" class="management-panel-heading">
       <div>
         <span>TAG MANAGEMENT</span>
         <h1>标签管理</h1>
@@ -131,7 +153,7 @@ onBeforeUnmount(() => unregister?.());
       <el-button type="primary" @click="edit()">新增标签</el-button>
     </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
-    <el-card shadow="never"
+    <el-card v-if="!editor" shadow="never"
       ><el-form
         inline
         @submit.prevent="
@@ -164,19 +186,7 @@ onBeforeUnmount(() => unregister?.());
         :data="data.items"
         v-loading="busy"
         row-key="id"
-        ><el-table-column
-          prop="created_at"
-          label="创建时间"
-          sortable="custom"
-          :sort-orders="['descending', 'ascending']"
-          min-width="165"
-          ><template #default="{ row }">{{
-            new Date(Number(row.created_at)).toLocaleString("zh-CN", {
-              hour12: false,
-              timeZone: "Asia/Shanghai",
-            })
-          }}</template></el-table-column
-        ><el-table-column
+        ><ObjectColumns server-sort /><el-table-column
           prop="name"
           sortable="custom"
           :sort-orders="['descending', 'ascending']"
@@ -224,7 +234,9 @@ onBeforeUnmount(() => unregister?.());
           load();
         "
     /></el-card>
-    <el-dialog
+    <ManagementForm
+      :editor="editor"
+      v-if="dialog"
       v-model="dialog"
       :title="form.id ? '编辑标签' : '新增标签'"
       width="min(540px,94vw)"
@@ -253,11 +265,15 @@ onBeforeUnmount(() => unregister?.());
             maxlength="500"
             show-word-limit /></el-form-item></el-form
       ><template #footer
-        ><el-button @click="dialog = false">取消</el-button
+        ><el-button
+          @click="
+            editor ? tabState.close(tabState.key.value) : (dialog = false)
+          "
+          >取消</el-button
         ><el-button type="primary" :loading="saving" @click="save"
           >保存标签</el-button
         ></template
-      ></el-dialog
+      ></ManagementForm
     >
   </section>
 </template>

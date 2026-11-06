@@ -254,19 +254,7 @@ watch(changed, () => load());
         row-key="id"
         empty-text="没有符合条件的应用"
       >
-        <el-table-column
-          prop="createdAt"
-          label="创建时间"
-          sortable="custom"
-          :sort-orders="['descending', 'ascending']"
-          min-width="165"
-          ><template #default="{ row }">{{
-            new Date(Number(row.createdAt)).toLocaleString("zh-CN", {
-              hour12: false,
-              timeZone: "Asia/Shanghai",
-            })
-          }}</template></el-table-column
-        ><el-table-column
+        <ObjectColumns time-prop="createdAt" server-sort /><el-table-column
           prop="nameZh"
           sortable="custom"
           :sort-orders="['descending', 'ascending']"

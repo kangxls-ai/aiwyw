@@ -15,6 +15,8 @@ const props = defineProps<{
     openApiEditor,
     updateApiEditor,
     close: closeTab,
+    openEntityEditor,
+    updateEntityEditor,
   } = useManagementTabs();
 const dirtyId = computed(() => props.tabId || props.view);
 const apiChanged = useState("api-management-changed", () => 0);
@@ -102,6 +104,10 @@ watch(kind, () => {
   load();
 });
 function edit(row?: any) {
+  if (props.view === "plans" && !props.editor) {
+    openEntityEditor("plans", row ? { id: row.id, name: row.name } : undefined);
+    return;
+  }
   if (props.view === "apis" && !props.editor) {
     openApiEditor(row);
     return;
@@ -149,9 +155,13 @@ async function save() {
     dirty.value[dirtyId.value] = false;
     notice.value = "已保存，已有购买和调用条款不被覆盖";
     if (props.editor) {
-      const rows = await request<any[]>("/api/admin/apis");
+      const rows = await request<any[]>(
+        props.view === "apis" ? "/api/admin/apis" : "/api/admin/api-plans",
+      );
       edit(rows.find((r) => r.id === saved.id));
-      await updateApiEditor(dirtyId.value, saved.id, form.name);
+      if (props.view === "apis")
+        await updateApiEditor(dirtyId.value, saved.id, form.name);
+      else await updateEntityEditor(dirtyId.value, saved.id, form.name);
       apiChanged.value++;
     } else await load();
     apiOptions.value = (await request<any>("/api/public/apis")).apis;
@@ -214,7 +224,9 @@ onMounted(async () => {
   if (props.editor) {
     try {
       if (props.apiId) {
-        const rows = await request<any[]>("/api/admin/apis");
+        const rows = await request<any[]>(
+          props.view === "apis" ? "/api/admin/apis" : "/api/admin/api-plans",
+        );
         const row = rows.find((r) => r.id === props.apiId);
         if (!row) throw new Error("API不存在或已删除，请返回列表刷新");
         edit(row);
@@ -229,9 +241,15 @@ onBeforeUnmount(() => unregister?.());
 </script>
 <template>
   <section>
-    <div class="management-panel-heading">
+    <div v-if="!editor || view === 'apis'" class="management-panel-heading">
       <div>
-        <h1>{{ editor ? (form.id ? "编辑API" : "新增API") : labels[view] }}</h1>
+        <h1>
+          {{
+            editor
+              ? (form.id ? "编辑" : "新增") + (view === "apis" ? "API" : "套餐")
+              : labels[view]
+          }}
+        </h1>
         <p>
           {{
             view === "usage"
@@ -263,7 +281,7 @@ onBeforeUnmount(() => unregister?.());
       :closable="false"
     />
     <el-radio-group
-      v-if="view === 'plans'"
+      v-if="view === 'plans' && !editor"
       v-model="section"
       style="margin-bottom: 18px"
       ><el-radio-button value="plans">套餐配置</el-radio-button
@@ -445,16 +463,7 @@ onBeforeUnmount(() => unregister?.());
         :default-sort="tableDefaultSort"
         @sort-change="tableSortChanged"
       >
-        <el-table-column
-          prop="created_at"
-          label="创建时间"
-          min-width="170"
-          sortable="custom"
-          :sort-orders="['descending', 'ascending']"
-          ><template #default="{ row }">{{
-            businessTime(row.created_at)
-          }}</template></el-table-column
-        ><el-table-column
+        <ObjectColumns server-sort /><el-table-column
           prop="name"
           label="名称"
           min-width="170"

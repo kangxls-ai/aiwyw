@@ -30,6 +30,20 @@ public class Settings {
   public static final List<Definition> DEFINITIONS = new ArrayList<>();
 
   static {
+    text(
+        "security.trusted_proxies",
+        "账号与安全",
+        "可信代理IP",
+        "127.0.0.1,::1",
+        false,
+        "以逗号分隔精确IP；仅这些代理可提供转发链，不使用客户端任意填写的来源头");
+    text(
+        "security.trusted_front_proxies",
+        "账号与安全",
+        "前台可信反向代理IP",
+        "",
+        false,
+        "默认不接受浏览器传入的转发链；部署CDN/Nginx后填写其实际连接IP，不能填写任意地址或通配符");
     bool("seo.allow_indexing", "SEO与内容", "允许搜索引擎索引", true, "控制robots和站点地图，不能保证搜索引擎收录或AI引用");
     number(
         "security.password_change_hour_limit",
@@ -340,14 +354,16 @@ public class Settings {
                     c.revision());
             if (updated != 1) throw new Api.Failure(409, "配置已被其他管理员修改，请重新加载后保存");
             jdbc.update(
-                "INSERT INTO config_audit(id,user_id,config_key,revision,action_name,created_at)"
-                    + " VALUES(?,?,?,?,?,?)",
+                "INSERT INTO"
+                    + " config_audit(id,user_id,config_key,revision,action_name,created_at,source_ip)"
+                    + " VALUES(?,?,?,?,?,?,?)",
                 UUID.randomUUID().toString(),
                 actor,
                 c.key(),
                 c.revision() + 1,
                 c.clear() ? "CLEAR" : "UPDATE",
-                System.currentTimeMillis());
+                System.currentTimeMillis(),
+                RequestIp.current());
           }
           if (bounds && integer("wallet.min_recharge_yuan") > integer("wallet.max_recharge_yuan"))
             throw new Api.Failure(400, "最低充值金额不能超过最高充值金额");

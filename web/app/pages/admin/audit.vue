@@ -67,22 +67,21 @@ const time = (value: number) =>
         :data="records"
         :default-sort="{ prop: 'created_at', order: 'descending' }"
         row-key="id"
-        ><el-table-column
-          label="时间"
-          prop="created_at"
-          sortable
-          :sort-orders="['descending', 'ascending']"
-          min-width="155"
-          ><template #default="{ row }">{{
-            time(row.created_at)
-          }}</template></el-table-column
-        ><el-table-column
+        ><ObjectColumns :show-creator="false" /><el-table-column
           prop="nickname"
           sortable
           :sort-orders="['descending', 'ascending']"
-          label="操作人"
+          label="创建人／操作人"
           min-width="190"
         /><el-table-column
+          prop="source_ip"
+          label="来源IP"
+          min-width="150"
+          show-overflow-tooltip
+          ><template #default="{ row }">{{
+            row.source_ip || "历史未记录／后台任务"
+          }}</template></el-table-column
+        ><el-table-column
           prop="config_key"
           sortable
           :sort-orders="['descending', 'ascending']"

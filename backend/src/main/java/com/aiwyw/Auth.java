@@ -185,20 +185,25 @@ public class Auth {
     else if (p.contains("/catalog/products"))
       key =
           (p.endsWith("/publish") || p.endsWith("/unlist") || p.endsWith("/rollback"))
-              ? "publishing"
+              ? "applications"
               : "applications";
     else if (p.contains("commerce-packages")) key = "packages";
     else if (p.contains("/commerce/")) {
       String k = p.split("/commerce/")[1].split("/")[0];
       key = k.equals("resources") ? "orders" : k;
     }
-    if (!u.menus().contains(key)
-        && !(key.equals("applications")
-            && (u.menus().contains("versions")
-                || u.menus().contains("publishing")
-                || (r.getMethod().equals("GET")
-                    && p.endsWith("/options")
-                    && u.menus().contains("licenses"))))) throw new Api.Failure(403, "没有该菜单权限");
+    // 栏目选品/授权策略需要只读候选项；此依赖权限不开放应用明细或应用写操作。
+    boolean metadata =
+        key.equals("applications")
+            && r.getMethod().equals("GET")
+            && ((p.endsWith("/options")
+                    && (u.menus().contains("licenses") || u.menus().contains("sections")))
+                || (p.endsWith("/facets")
+                    && (u.menus().contains("sections") || u.menus().contains("tags"))));
+    boolean legacy =
+        key.equals("applications")
+            && (u.menus().contains("versions") || u.menus().contains("publishing"));
+    if (!u.menus().contains(key) && !metadata && !legacy) throw new Api.Failure(403, "没有该菜单权限");
     return u;
   }
 

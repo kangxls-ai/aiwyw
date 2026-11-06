@@ -971,6 +971,14 @@ class OperationsTest {
               Long.class,
               user));
       assertEquals(
+          "SYSTEM",
+          db.queryForObject(
+              "SELECT o.created_by FROM object_origin o JOIN wallet_batch b ON b.id=o.object_id"
+                  + " WHERE o.object_type='wallet_batch' AND b.user_id=? AND"
+                  + " b.source_type='API_RELEASE'",
+              String.class,
+              user));
+      assertEquals(
           0L,
           db.queryForObject(
               "SELECT SUM(remaining_cost_fen) FROM wallet_batch WHERE user_id=?",

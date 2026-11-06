@@ -241,16 +241,7 @@ onBeforeUnmount(() => unregister?.());
         v-loading="busy"
         :default-sort="listOrder.defaultSort"
         @sort-change="listOrder.change"
-        ><el-table-column
-          prop="created_at"
-          label="创建时间"
-          sortable="custom"
-          :sort-orders="['descending', 'ascending']"
-          min-width="165"
-          ><template #default="{ row }">{{
-            businessTime(row.created_at)
-          }}</template></el-table-column
-        ><el-table-column
+        ><ObjectColumns server-sort /><el-table-column
           v-for="(label, key) in {
             email: '账户',
             device_name: '设备',
