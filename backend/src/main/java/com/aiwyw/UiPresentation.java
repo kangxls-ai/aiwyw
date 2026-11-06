@@ -26,7 +26,8 @@ final class UiPresentation {
     html =
         decorate(html)
             .replace("</head>", "<link rel=\"stylesheet\" href=\"/site-shell.css?v=1\"></head>");
-    boolean product = original.contains("data-product-status=");
+    // 类型来自已发布对象，不能让教程正文中的HTML示例决定页面外壳类型。
+    boolean product = Set.of("TOOL", "SOFTWARE", "RESOURCE", "API").contains(kind);
     boolean en = "en".equals(language);
     if (!original.contains("data-language="))
       html = html.replaceFirst("<html ", "<html data-language=\"" + (en ? "en" : "zh") + "\" ");
@@ -49,7 +50,7 @@ final class UiPresentation {
     String toggle =
         product
             ? "<button id=\"language\" class=\"catalog-language\" aria-label=\"切换语言\">中文 /"
-                  + " English</button>"
+                + " English</button>"
             : "<a class=\"catalog-language\" href=\"/articles/"
                 + escape(slug)
                 + (en ? "" : "?lang=en")

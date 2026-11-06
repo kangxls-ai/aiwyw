@@ -225,7 +225,7 @@ class ExperienceTest {
                   "Content title",
                   "摘要",
                   "Summary",
-                  "<p>正文</p>",
+                  "<p>正文中的HTML属性示例：data-product-status=PUBLISHED</p>",
                   "<p>Body</p>",
                   0),
               user());

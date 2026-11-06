@@ -388,7 +388,7 @@ onBeforeUnmount(() => unregister?.());
                 aria-label="真实服务地址"
                 maxlength="1000"
                 placeholder="https://api.example.com/path" /></el-form-item
-            ><el-form-item label="真实服务请求方式" required
+            ><el-form-item label="上游请求方式" required
               ><el-select
                 v-model="form.requestMethod"
                 aria-label="真实服务请求方式"
