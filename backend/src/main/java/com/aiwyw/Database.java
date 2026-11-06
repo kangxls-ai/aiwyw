@@ -154,6 +154,7 @@ public class Database {
     ContentSchema.migrate(j);
     OperationsSchema.migrate(j);
     ManagementSchema.migrate(d, j);
+    ExperienceSchema.migrate(d, j);
   }
 
   /** 先写加密待定文件再原子更名；成功后锁安装入口并删除一次性安装码。 */

@@ -52,7 +52,7 @@ export interface AdminSection {
 }
 export interface PublicSection {
   id: string;
-  kind: "APPLICATIONS" | "ARTICLES";
+  kind: "APPLICATIONS" | "ARTICLES" | "API";
   href: string;
   titleZh: string;
   titleEn: string;

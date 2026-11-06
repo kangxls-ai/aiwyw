@@ -1,4 +1,5 @@
 -- AI万有网 已实现表结构（MySQL）；由SchemaComments/CatalogSchema生成。
+-- 最新充值备注和API请求配置字段另见 EXPERIENCE-SCHEMA.sql，运行时仍为64张业务/系统表。
 -- 最新对象来源表和四审计IP字段增量另见 MANAGEMENT-SCHEMA.sql；当前运行共64张表。
 
 -- 仅供结构审查与灾难恢复参考；日常由安装/迁移自动建表，不要对在线库重复初始化。

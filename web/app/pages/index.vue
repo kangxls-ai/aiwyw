@@ -71,7 +71,9 @@ async function search() {
     </div>
     <template v-else
       ><section
-        v-for="section in catalog.sections.filter((s) => s.kind !== 'ARTICLES')"
+        v-for="section in catalog.sections.filter(
+          (s) => s.kind === 'APPLICATIONS',
+        )"
         :id="section.id"
         :key="section.id"
         class="directory-section"

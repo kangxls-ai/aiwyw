@@ -1,0 +1,147 @@
+/* 静态详情的公共头尾；不依赖Vue或详情接口，支持旧快照和无JavaScript阅读。 */
+body.published-page {
+  padding: 0 !important;
+  margin: 0;
+}
+.public-site-width {
+  width: min(1440px, calc(100% - 64px));
+  margin-left: auto;
+  margin-right: auto;
+}
+.public-site-header {
+  padding: 0;
+  display: block;
+  background: #fff;
+  border-bottom: 1px solid #e7eaf5;
+}
+.public-site-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  min-height: 108px;
+}
+.public-site-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: #30384b;
+  font-size: 22px;
+  font-weight: 650;
+  flex-shrink: 0;
+}
+.public-site-logo {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #9b83f8, #6752ec);
+  color: #fff;
+  font-size: 30px;
+}
+.public-site-brand small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: #8d96ae;
+  margin-top: 4px;
+}
+.public-site-nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.public-site-nav a {
+  color: #828aa1;
+  font-size: 14px;
+  font-weight: 400;
+}
+.public-site-header .catalog-language {
+  margin-left: auto;
+  color: #8068cb;
+  border: 1px solid #e5ddfa;
+  background: #faf7ff;
+  padding: 7px 13px;
+  border-radius: 20px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.published-page .directory-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  border-top: 1px solid #e6e9f2;
+  padding: 28px 0;
+  color: #8b94aa;
+  font-size: 13px;
+  max-width: 1440px;
+}
+.directory-footer p.site-filing {
+  margin: 0;
+  color: #59627c;
+  font-size: 14px;
+}
+.public-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-bottom: 24px;
+  color: #939cb1;
+  font-size: 13px;
+}
+.public-breadcrumb [aria-current] {
+  color: #59627c;
+  overflow-wrap: anywhere;
+}
+[data-language="zh"] .en,
+[data-language="en"] .zh {
+  display: none;
+}
+.payment-memo {
+  text-align: center;
+  background: #f5f0ff;
+  border: 1px solid #d9cbff;
+  border-radius: 10px;
+  padding: 16px;
+  margin: 16px 0;
+}
+.payment-memo strong,
+.payment-memo-code {
+  font-size: 28px;
+  letter-spacing: 0.25em;
+  color: #7052ce;
+}
+.payment-memo p {
+  margin: 6px 0;
+}
+.public-detail {
+  padding: 32px 0 44px;
+}
+.public-detail .public-breadcrumb {
+  margin-top: 0;
+}
+@media (max-width: 900px) {
+  .public-site-header-inner {
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 20px 0;
+  }
+  .public-site-nav {
+    width: 100%;
+    order: 3;
+    margin: 0;
+    gap: 18px 24px;
+  }
+  .public-site-header .catalog-language {
+    margin-left: auto;
+  }
+  .public-site-width {
+    width: calc(100% - 32px);
+  }
+}

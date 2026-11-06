@@ -488,6 +488,12 @@ public class Commerce {
               settings.integer("wallet.large_payment_yuan") * 100L,
               now,
               now + settings.integer("wallet.order_timeout_minutes") * 60000L);
+          // 备注码只用于人工匹配，同一幂等请求返回原码；不唯一、不代替到账核验。
+          db.update(
+              "UPDATE recharge_order SET payment_memo=? WHERE id=?",
+              String.format(
+                  java.util.Locale.ROOT, "%04d", new java.security.SecureRandom().nextInt(10000)),
+              id);
           Origins.created(db, "recharge_order", id, user);
           return safeRow(one("SELECT * FROM recharge_order WHERE id=?", id));
         });
@@ -1133,8 +1139,15 @@ public class Commerce {
     }
     if (!q.isBlank()) {
       if (user != null) throw new Api.Failure(400, "此列表不支持账户筛选");
-      where += " AND user_id IN (SELECT id FROM app_user WHERE email LIKE ? ESCAPE '!')";
-      args.add("%" + q.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%");
+      String term = "%" + q.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+      where +=
+          " AND (user_id IN (SELECT id FROM app_user WHERE email LIKE ? ESCAPE '!' OR nickname LIKE"
+              + " ? ESCAPE '!')"
+              + (kind.equals("recharge") ? " OR payment_memo LIKE ? ESCAPE '!'" : "")
+              + ")";
+      args.add(term);
+      args.add(term);
+      if (kind.equals("recharge")) args.add(term);
     }
     try {
       if (!from.isBlank()) {

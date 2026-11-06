@@ -64,8 +64,11 @@ onMounted(() =>
       <article>
         <span>首页栏目</span
         ><strong
-          >{{ sections.filter((s) => s.config.mode !== "ARTICLES").length }} /
-          6</strong
+          >{{
+            sections.filter((s) => !["ARTICLES", "API"].includes(s.config.mode))
+              .length
+          }}
+          / 6</strong
         ><span>应用展示区，文章导航独立维护</span>
       </article>
     </div>

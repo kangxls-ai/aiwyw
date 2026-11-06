@@ -1,4 +1,8 @@
-# 最新维护补充：对象来源与真实 MySQL
+# 最新维护补充：详情外壳、付款备注与API代理
+
+本轮的旧静态页兼容、四位码不唯一/不代表到账、旧订单不回填、自定义上游头密文维护、GET/POST参数及可信网络边界，见[DETAILS-RECHARGE-AND-PROXY.md](DETAILS-RECHARGE-AND-PROXY.md)。结构增量见[EXPERIENCE-SCHEMA.sql](database/EXPERIENCE-SCHEMA.sql)。不要按备注码自动入账，不要人工填明文到headers_enc。
+
+# 此前维护补充：对象来源与真实 MySQL
 
 本地已迁移真实MySQL，64表校验、备份位置、样本账户、来源IP可信代理配置、未激活删除边界及人工恢复注意事项见[MANAGEMENT-AND-MYSQL.md](MANAGEMENT-AND-MYSQL.md)。结构增量见[MANAGEMENT-SCHEMA.sql](database/MANAGEMENT-SCHEMA.sql)。旧记录未知来源不可伪造回填；数据库、主密钥、加密引导连接与存储静态文件必须成套恢复。
 

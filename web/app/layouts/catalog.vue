@@ -2,12 +2,13 @@
 // 复用用户认可的样式，不加载原型钱包、示例数据或说明文件下载逻辑。
 import "~/assets/catalog-base.css";
 import "~/assets/catalog.css";
+useHead({ link: [{ rel: "stylesheet", href: "/site-shell.css?v=1" }] });
 import zhCn from "element-plus/es/locale/lang/zh-cn";
 import en from "element-plus/es/locale/lang/en";
 const { catalog, deliveryError, load } = useCatalog(),
   { t, toggle, zh } = useLanguage();
 const site = useState<Record<string, string>>("site-settings", () => ({}));
-// 目录之外的登录、客服与文章页同样读取可维护导航；API是末尾固定入口，不参与栏目排序。
+// 所有前台页面复用可维护导航；API显隐来自栏目配置，服务端保证排在末尾。
 if (!catalog.value.sections.length) await load();
 const changed = useState("catalog-changed", () => 0);
 watch(changed, load);
@@ -41,9 +42,6 @@ onMounted(load);
                 t(section.titleZh, section.titleEn || section.titleZh)
               }}</NuxtLink
             >
-            <NuxtLink to="/api-services">{{
-              t("API 服务", "API services")
-            }}</NuxtLink>
           </nav>
           <button class="catalog-language" @click="toggle">
             {{ zh ? "English" : "中文" }}
@@ -52,24 +50,13 @@ onMounted(load);
       </header>
       <slot />
       <footer class="directory-footer directory-width">
-        <div>
-          <NuxtLink to="/support">{{
-            t("联系客服与反馈", "Support and feedback")
-          }}</NuxtLink>
-          <NuxtLink to="/account">{{ t("我的账户", "My account") }}</NuxtLink>
-          <NuxtLink to="/articles">{{
-            t("文章与教程", "Articles and tutorials")
-          }}</NuxtLink>
-          <strong>{{ site["site.name"] || "AI万有网" }}</strong
-          ><span>{{
-            t("实用工具，触手可及。", "Useful tools, within reach.")
-          }}</span>
-        </div>
-        <span
-          >{{ site["site.domain"] || "www.aiwyw.com" }}<br />{{
-            site["site.filing"]
-          }}</span
-        >
+        <NuxtLink to="/support">{{
+          t("联系客服与反馈", "Support and feedback")
+        }}</NuxtLink>
+        <p class="site-filing">
+          {{ site["site.filing"]?.trim() || "模拟ICP备00000000号（占位）" }}
+        </p>
+        <span>{{ site["site.domain"] || "www.aiwyw.com" }}</span>
       </footer>
       <div v-if="deliveryError" class="catalog-feedback" role="alert">
         <span>{{ deliveryError }}</span
@@ -81,9 +68,17 @@ onMounted(load);
   </el-config-provider>
 </template>
 <style scoped>
-.directory-footer > div > a {
-  display: inline-block;
-  margin-right: 12px;
-  margin-bottom: 6px;
+.directory-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+.site-filing {
+  margin: 0;
+  color: #59627c;
+  font-size: 14px;
 }
 </style>

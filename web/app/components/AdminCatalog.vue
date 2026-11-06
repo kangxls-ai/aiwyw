@@ -21,7 +21,9 @@ const sections = ref<AdminSection[]>([]),
   base = ref("");
 const changed = useState("catalog-changed", () => 0);
 const applicationCount = computed(
-  () => sections.value.filter((s) => s.config.mode !== "ARTICLES").length,
+  () =>
+    sections.value.filter((s) => !["ARTICLES", "API"].includes(s.config.mode))
+      .length,
 );
 const empty = (): SectionConfig => ({
   titleZh: "",
@@ -166,7 +168,7 @@ onBeforeUnmount(() => unregister?.());
         <span>HOME SECTIONS</span>
         <h1>首页栏目</h1>
         <p>
-          应用展示栏目最多6个（含停用）；文章栏目独立维护，API固定在顶部导航末尾。
+          应用展示栏目最多6个（含停用）；文章和API导航独立维护，可设置显隐；API显示时始终位于导航末尾。
         </p>
       </div>
       <div class="admin-table-actions">
@@ -179,6 +181,11 @@ onBeforeUnmount(() => unregister?.());
           v-if="!sections.some((s) => s.config.mode === 'ARTICLES')"
           @click="open(undefined, 'ARTICLES')"
           >添加文章栏目</el-button
+        >
+        <el-button
+          v-if="!sections.some((s) => s.config.mode === 'API')"
+          @click="open(undefined, 'API')"
+          >添加API栏目</el-button
         >
       </div>
     </div>
@@ -219,7 +226,8 @@ onBeforeUnmount(() => unregister?.());
               TAG: "按标签",
               AUTO: "自动排序",
               ARTICLES: "文章与教程导航",
-            }[row.config.mode as "MANUAL" | "TAG" | "AUTO" | "ARTICLES"]
+              API: "API服务导航",
+            }[row.config.mode as "MANUAL" | "TAG" | "AUTO" | "ARTICLES" | "API"]
           }}</template></el-table-column
         ><el-table-column
           prop="config.enabled"
@@ -281,7 +289,9 @@ onBeforeUnmount(() => unregister?.());
             :min="0"
             :max="1000"
             controls-position="right" /></el-form-item
-        ><el-form-item v-if="form.mode !== 'ARTICLES'" label="首页显示数量"
+        ><el-form-item
+          v-if="!['ARTICLES', 'API'].includes(form.mode)"
+          label="首页显示数量"
           ><el-input-number
             v-model="form.limit"
             :min="1"
@@ -314,7 +324,12 @@ onBeforeUnmount(() => unregister?.());
         /></el-form-item>
         <el-form-item label="栏目内容"
           ><el-select v-model="form.mode" aria-label="栏目内容类型"
-            ><el-option value="MANUAL" label="人工选品" /><el-option
+            ><el-option
+              value="API"
+              label="API服务（顶部导航末尾）"
+              :disabled="
+                sections.some((s) => s.config.mode === 'API' && s.id !== id)
+              " /><el-option value="MANUAL" label="人工选品" /><el-option
               value="TAG"
               label="按标签筛选" /><el-option
               value="AUTO"
@@ -326,7 +341,9 @@ onBeforeUnmount(() => unregister?.());
                   (s) => s.config.mode === 'ARTICLES' && s.id !== id,
                 )
               " /></el-select></el-form-item
-        ><el-form-item v-if="form.mode !== 'ARTICLES'" label="排序依据"
+        ><el-form-item
+          v-if="!['ARTICLES', 'API'].includes(form.mode)"
+          label="排序依据"
           ><el-select v-model="form.sort"
             ><el-option value="LATEST" label="首次上架时间" /><el-option
               value="VIEWS"
@@ -336,7 +353,7 @@ onBeforeUnmount(() => unregister?.());
         ></el-form-item>
         <el-form-item
           v-if="
-            form.mode !== 'ARTICLES' &&
+            !['ARTICLES', 'API'].includes(form.mode) &&
             form.mode !== 'MANUAL' &&
             form.sort !== 'LATEST'
           "

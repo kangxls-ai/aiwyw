@@ -199,7 +199,7 @@ watch(changed, () => load());
             clearable
             ><el-option
               v-for="item in facets.sections.filter(
-                (s) => s.config.mode !== 'ARTICLES',
+                (s) => !['ARTICLES', 'API'].includes(s.config.mode),
               )"
               :key="item.id"
               :label="

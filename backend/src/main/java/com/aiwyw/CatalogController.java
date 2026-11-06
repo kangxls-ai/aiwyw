@@ -163,17 +163,22 @@ public class CatalogController {
             .toList(),
         "sections",
         data.sections().stream()
+            .sorted(java.util.Comparator.comparing(s -> s.config().mode().equals("API")))
             .map(
                 s ->
                     Map.of(
                         "id",
                         s.id(),
                         "kind",
-                        s.config().mode().equals("ARTICLES") ? "ARTICLES" : "APPLICATIONS",
+                        Set.of("ARTICLES", "API").contains(s.config().mode())
+                            ? s.config().mode()
+                            : "APPLICATIONS",
                         "href",
                         s.config().mode().equals("ARTICLES")
                             ? "/articles"
-                            : "/apps?section=" + s.id(),
+                            : s.config().mode().equals("API")
+                                ? "/api-services"
+                                : "/apps?section=" + s.id(),
                         "titleZh",
                         s.config().titleZh(),
                         "titleEn",
@@ -218,7 +223,14 @@ public class CatalogController {
       @PathVariable String slug, HttpServletRequest req, HttpServletResponse res) {
     // 不要求Nuxt渲染，不查商品详情接口；内存指针命中文件。no-cache允许浏览器验证更新，CDN可配置短TTL。
     visitor(req, res);
-    String html = UiPresentation.decorate(catalog.page(slug));
+    String html =
+        UiPresentation.decorate(
+            catalog.page(slug),
+            settings.publicValues(),
+            catalog.publicData().sections(),
+            catalog.findPublic(slug).content().type(),
+            slug,
+            "zh");
     statistics.pageEvent("/apps/" + slug, req, res);
     String etag = "\"" + catalog.hash(html) + "\"";
     String csp =

@@ -103,7 +103,46 @@ public class MeteredApi {
       String successValue,
       BigDecimal pricePoints,
       boolean enabled,
-      long revision) {}
+      long revision,
+      String requestMethod,
+      String requestHeaders,
+      boolean clearHeaders) {
+    // 旧调用方/已保存配置仍按POST处理，不改变历史服务的请求行为。
+    public Definition(
+        String slug,
+        String name,
+        String nameEn,
+        String description,
+        String descriptionEn,
+        String adapter,
+        String endpoint,
+        String secret,
+        boolean clearSecret,
+        String successPointer,
+        String successValue,
+        BigDecimal pricePoints,
+        boolean enabled,
+        long revision) {
+      this(
+          slug,
+          name,
+          nameEn,
+          description,
+          descriptionEn,
+          adapter,
+          endpoint,
+          secret,
+          clearSecret,
+          successPointer,
+          successValue,
+          pricePoints,
+          enabled,
+          revision,
+          "POST",
+          "",
+          false);
+    }
+  }
 
   public String saveDefinition(String existing, Definition b, String actor) {
     String slug = text(b.slug(), 80, true),
@@ -126,6 +165,9 @@ public class MeteredApi {
         throw new Api.Failure(400, "请提供成功字段JSON Pointer和标量JSON成功值");
       }
     }
+    String requestMethod = UpstreamRequest.method(b.requestMethod());
+    String requestHeaders = b.requestHeaders() == null ? "" : b.requestHeaders().trim();
+    UpstreamRequest.headers(json, requestHeaders);
     String secret = text(b.secret(), 4000, false);
     if (secret.contains("\r") || secret.contains("\n")) throw new Api.Failure(400, "凭据不能换行");
     long price = Commerce.units(b.pricePoints());
@@ -134,12 +176,15 @@ public class MeteredApi {
         s -> {
           db.queryForObject("SELECT revision FROM catalog_guard WHERE id=1 FOR UPDATE", Long.class);
           String key = existing == null ? id() : existing;
-          Object cipher = null;
+          Object cipher = null, headersCipher = null;
           if (existing != null) {
             var old = one("SELECT * FROM api_definition WHERE id=?", key);
             if (!old.get("slug").equals(slug)) throw new Api.Failure(409, "API调用地址创建后固定");
             cipher = old.get("secret_enc");
+            headersCipher = old.get("headers_enc");
           }
+          if (b.clearHeaders()) headersCipher = null;
+          if (!requestHeaders.isBlank()) headersCipher = crypto.encrypt(requestHeaders);
           if (b.clearSecret()) cipher = null;
           if (!secret.isBlank()) cipher = crypto.encrypt(secret);
           if (existing == null) {
@@ -182,6 +227,11 @@ public class MeteredApi {
                   key,
                   b.revision())
               != 1) throw new Api.Failure(409, "API已变化，请重新读取");
+          db.update(
+              "UPDATE api_definition SET request_method=?,headers_enc=? WHERE id=?",
+              requestMethod,
+              headersCipher,
+              key);
           if (existing == null) Origins.created(db, "api_definition", key, actor);
           audit(actor, key, "SAVE_API");
           org.springframework.transaction.support.TransactionSynchronizationManager
@@ -209,8 +259,9 @@ public class MeteredApi {
     String cols =
         "id,slug,name,name_en,description,description_en,adapter,price_units,enabled,revision,created_at"
             + (admin
-                ? ",endpoint,success_pointer,success_value,CASE WHEN secret_enc IS NULL THEN FALSE"
-                    + " ELSE TRUE END AS secret_set"
+                ? ",endpoint,request_method,CASE WHEN headers_enc IS NULL THEN FALSE ELSE TRUE END"
+                      + " AS headers_set,success_pointer,success_value,CASE WHEN secret_enc IS NULL"
+                      + " THEN FALSE ELSE TRUE END AS secret_set"
                 : "");
     var result =
         Commerce.safeRows(

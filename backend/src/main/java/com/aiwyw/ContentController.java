@@ -15,18 +15,21 @@ public class ContentController {
   private final Settings settings;
   private final JdbcTemplate db;
   private final OperationsStats statistics;
+  private final Catalog catalog;
 
   ContentController(
       ContentService service,
       Auth auth,
       Settings settings,
       JdbcTemplate db,
-      OperationsStats statistics) {
+      OperationsStats statistics,
+      Catalog catalog) {
     this.service = service;
     this.auth = auth;
     this.settings = settings;
     this.db = db;
     this.statistics = statistics;
+    this.catalog = catalog;
   }
 
   @GetMapping("/api/admin/content")
@@ -113,7 +116,15 @@ public class ContentController {
       jakarta.servlet.http.HttpServletResponse response) {
     var p = service.page(slug, lang);
     statistics.pageEvent("/articles/" + slug, r, response);
-    String etag = "\"" + p.hash() + "-ui2\"";
+    String html =
+        UiPresentation.decorate(
+            p.html(),
+            settings.publicValues(),
+            catalog.publicData().sections(),
+            p.kind(),
+            slug,
+            lang);
+    String etag = "\"" + catalog.hash(html) + "\"";
     var headers = new HttpHeaders();
     headers.setETag(etag);
     headers.setCacheControl("no-cache");
@@ -125,7 +136,7 @@ public class ContentController {
             + " script-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
     if (etag.equals(r.getHeader("If-None-Match")))
       return new ResponseEntity<>(null, headers, HttpStatus.NOT_MODIFIED);
-    return new ResponseEntity<>(UiPresentation.decorate(p.html()), headers, HttpStatus.OK);
+    return new ResponseEntity<>(html, headers, HttpStatus.OK);
   }
 
   @GetMapping("/api/admin/seo")

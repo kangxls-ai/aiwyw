@@ -162,7 +162,15 @@ public class ApiUpstream {
                             .digest(text.getBytes(StandardCharsets.UTF_8)))));
       throw new Api.Failure(400, "未实现的API适配器");
     }
-    URI u = endpoint((String) definition.get("endpoint"));
+    String method =
+        UpstreamRequest.method((String) definition.getOrDefault("request_method", "POST"));
+    URI u = UpstreamRequest.target(endpoint((String) definition.get("endpoint")), method, input);
+    var customHeaders =
+        UpstreamRequest.headers(
+            json,
+            definition.get("headers_enc") == null
+                ? ""
+                : crypto.decrypt((String) definition.get("headers_enc")));
     InetAddress[] addresses = InetAddress.getAllByName(u.getHost());
     if (addresses.length == 0 || Arrays.stream(addresses).anyMatch(a -> !publicAddress(a)))
       throw new Api.Failure(502, "上游地址不符合公共网络访问策略");
@@ -172,7 +180,15 @@ public class ApiUpstream {
             : crypto.decrypt((String) definition.get("secret_enc"));
     if (secret.contains("\r") || secret.contains("\n")) throw new Api.Failure(502, "上游凭据格式不正确");
     byte[] response =
-        exchange(u, addresses[0], json.writeValueAsBytes(input), secret, timeoutSeconds, limit);
+        exchange(
+            u,
+            addresses[0],
+            method.equals("GET") ? new byte[0] : json.writeValueAsBytes(input),
+            secret,
+            timeoutSeconds,
+            limit,
+            method,
+            customHeaders);
     JsonNode result = json.readTree(response);
     if (result == null
         || !result
@@ -184,6 +200,19 @@ public class ApiUpstream {
 
   /** 整个交换设置绝对截止时间，每次读前缩短SO_TIMEOUT，避免慢速字节绕过超时。禁止压缩和无限响应。 */
   byte[] exchange(URI u, InetAddress pinned, byte[] body, String secret, int seconds, int limit)
+      throws Exception {
+    return exchange(u, pinned, body, secret, seconds, limit, "POST", Map.of());
+  }
+
+  byte[] exchange(
+      URI u,
+      InetAddress pinned,
+      byte[] body,
+      String secret,
+      int seconds,
+      int limit,
+      String method,
+      Map<String, String> customHeaders)
       throws Exception {
     long deadline = System.nanoTime() + seconds * 1_000_000_000L;
     try (Socket tcp = new Socket()) {
@@ -206,7 +235,8 @@ public class ApiUpstream {
         String target = u.getRawPath() == null || u.getRawPath().isEmpty() ? "/" : u.getRawPath();
         if (u.getRawQuery() != null) target += "?" + u.getRawQuery();
         String headers =
-            "POST "
+            method
+                + " "
                 + target
                 + " HTTP/1.1\r\nHost: "
                 + u.getHost()
@@ -219,6 +249,9 @@ public class ApiUpstream {
                 + body.length
                 + "\r\n"
                 + (secret.isEmpty() ? "" : "Authorization: Bearer " + secret + "\r\n")
+                + customHeaders.entrySet().stream()
+                    .map(e -> e.getKey() + ": " + e.getValue() + "\r\n")
+                    .collect(java.util.stream.Collectors.joining())
                 + "\r\n";
         ssl.getOutputStream().write(headers.getBytes(StandardCharsets.US_ASCII));
         ssl.getOutputStream().write(body);

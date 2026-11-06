@@ -19,6 +19,7 @@ const props = defineProps<{
     updateEntityEditor,
   } = useManagementTabs();
 const dirtyId = computed(() => props.tabId || props.view);
+const site = useState<Record<string, string>>("site-settings", () => ({}));
 const apiChanged = useState("api-management-changed", () => 0);
 watch(apiChanged, () => {
   if (!props.editor) load();
@@ -57,7 +58,11 @@ const initial = () => ({
   nameEn: "",
   description: "",
   descriptionEn: "",
-  adapter: "TEXT_STATS",
+  adapter: "HTTPS_JSON",
+  requestMethod: "POST",
+  requestHeaders: "",
+  headersSet: false,
+  clearHeaders: false,
   endpoint: "",
   secret: "",
   secretSet: false,
@@ -123,6 +128,8 @@ function edit(row?: any) {
           nameEn: row.name_en || "",
           descriptionEn: row.description_en || "",
           secretSet: row.secret_set,
+          requestMethod: row.request_method || "POST",
+          headersSet: row.headers_set,
           successPointer: row.success_pointer || "/success",
           successValue: row.success_value || "true",
           pricePoints: Number(row.price_units) / 100,
@@ -130,6 +137,8 @@ function edit(row?: any) {
         }
       : {},
   );
+  form.requestHeaders = "";
+  form.clearHeaders = false;
   form.secret = "";
   form.clearSecret = false;
   editing.value = true;
@@ -151,6 +160,8 @@ async function save() {
       },
     );
     editing.value = false;
+    form.requestHeaders = "";
+    form.clearHeaders = false;
     form.secret = "";
     dirty.value[dirtyId.value] = false;
     notice.value = "已保存，已有购买和调用条款不被覆盖";
@@ -180,6 +191,8 @@ function close() {
   }
   if (!dirty.value[dirtyId.value] || window.confirm("放弃未保存的编辑？")) {
     editing.value = false;
+    form.requestHeaders = "";
+    form.clearHeaders = false;
     form.secret = "";
     dirty.value[dirtyId.value] = false;
   }
@@ -321,7 +334,7 @@ onBeforeUnmount(() => unregister?.());
             aria-label="API积分价格"
         /></el-form-item>
         <template v-if="view === 'apis'"
-          ><el-form-item label="固定调用地址"
+          ><el-form-item label="接口标识（固定）"
             ><el-input
               v-model="form.slug"
               aria-label="API调用地址"
@@ -342,27 +355,72 @@ onBeforeUnmount(() => unregister?.());
               type="textarea"
               maxlength="1000"
               :rows="3" /></el-form-item
-          ><el-form-item label="适配器"
+          ><el-form-item label="平台调用地址"
+            ><el-input
+              :model-value="
+                'https://' +
+                (site['site.domain'] || 'www.aiwyw.com') +
+                '/api/v1/invoke/' +
+                (form.slug || '{接口标识}')
+              "
+              readonly
+              aria-label="平台调用地址"
+            />
+            <p class="admin-muted">
+              用户使用平台Key向此地址POST
+              JSON。平台完成鉴权和计费后，按下方配置转发；上游凭据不提供给用户。
+            </p></el-form-item
+          >
+          <el-form-item label="服务类型"
             ><el-select v-model="form.adapter" aria-label="API适配器"
               ><el-option
                 label="文本统计（真实本地计算）"
                 value="TEXT_STATS" /><el-option
                 label="SHA256（真实本地计算）"
                 value="SHA256" /><el-option
-                label="HTTPS JSON上游"
+                label="代理真实HTTPS JSON服务"
                 value="HTTPS_JSON" /></el-select
           ></el-form-item>
           <template v-if="form.adapter === 'HTTPS_JSON'"
-            ><el-form-item label="上游HTTPS地址"
+            ><el-form-item label="真实服务地址" required
               ><el-input
                 v-model="form.endpoint"
+                aria-label="真实服务地址"
                 maxlength="1000"
                 placeholder="https://api.example.com/path" /></el-form-item
-            ><el-form-item label="成功字段Pointer"
+            ><el-form-item label="真实服务请求方式" required
+              ><el-select
+                v-model="form.requestMethod"
+                aria-label="真实服务请求方式"
+                ><el-option value="POST" label="POST · JSON请求体" /><el-option
+                  value="GET"
+                  label="GET · 标量查询参数" /></el-select
+            ></el-form-item>
+            <el-form-item label="真实服务请求头"
+              ><el-input
+                v-model="form.requestHeaders"
+                type="textarea"
+                :rows="3"
+                maxlength="16000"
+                aria-label="真实服务请求头"
+                :placeholder="
+                  form.headersSet
+                    ? '已加密设置；留空保留，填写JSON替换'
+                    : '{&quot;X-API-Key&quot;:&quot;供应商密钥&quot;}'
+                "
+              />
+              <p class="admin-muted">
+                字符串JSON对象，加密保存且不回显。固定JSON传输头由平台生成，Bearer凭据在下方填写。
+              </p>
+              <el-checkbox v-model="form.clearHeaders"
+                >清除已有请求头</el-checkbox
+              ></el-form-item
+            >
+            <el-form-item label="成功字段Pointer" required
               ><el-input
                 v-model="form.successPointer"
                 placeholder="/success 或 /code" /></el-form-item
-            ><el-form-item label="成功值（JSON）"
+            ><el-form-item label="成功值（JSON）" required
               ><el-input
                 v-model="form.successValue"
                 placeholder='true 或 0 或 "ok"' /></el-form-item

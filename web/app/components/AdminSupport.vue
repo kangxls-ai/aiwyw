@@ -2,10 +2,15 @@
 /** 只在当前在线会话页签可见时发送心跳；切换模块或离开浏览器后不会假装客服在线。 */
 import { ElMessageBox } from "element-plus";
 import { businessTime, adminDateShortcuts } from "~/utils/commerce";
-const props = defineProps<{ view: string }>(),
+const props = defineProps<{
+    view: string;
+    editor?: boolean;
+    tabId?: string;
+    initialId?: string | null;
+  }>(),
   { request, message } = useApi(),
-  { activeId, dirty } = useManagementTabs();
-const active = computed(() => activeId.value === props.view),
+  { activeId, dirty, openEntityEditor } = useManagementTabs();
+const active = computed(() => activeId.value === (props.tabId || props.view)),
   data = ref<any>({ items: [], total: 0, agents: [] }),
   q = ref(""),
   state = ref(""),
@@ -14,7 +19,7 @@ const active = computed(() => activeId.value === props.view),
   range = ref<string[]>([]),
   error = ref(""),
   notice = ref(""),
-  selected = ref(""),
+  selected = ref(props.initialId || ""),
   target = ref(""),
   chat = ref<any>(null),
   loading = ref(false),
@@ -54,9 +59,11 @@ async function load(quiet = false) {
     loading.value = false;
   }
 }
-function select(id: string) {
-  if (chat.value?.draft && !window.confirm("放弃尚未发送的消息？")) return;
-  selected.value = id;
+async function select(row: any) {
+  await openEntityEditor("conversations", {
+    id: row.id,
+    name: row.subject || "会话回复",
+  });
 }
 async function claim(row: any) {
   try {
@@ -64,7 +71,7 @@ async function claim(row: any) {
       method: "POST",
       body: { userId: "", revision: row.revision },
     });
-    selected.value = row.id;
+    await select(row);
     await load();
     await chat.value?.refresh();
     notice.value = "会话已领取";
@@ -121,7 +128,7 @@ async function review(row: any, approve: boolean) {
 watch(
   () => chat.value?.draft,
   (v) => {
-    dirty.value[props.view] = !!v;
+    dirty.value[props.tabId || props.view] = !!v;
   },
 );
 let timer: ReturnType<typeof setInterval> | undefined;
@@ -143,14 +150,14 @@ onMounted(() => {
 });
 onBeforeUnmount(() => {
   clearInterval(timer);
-  dirty.value[props.view] = false;
+  dirty.value[props.tabId || props.view] = false;
 });
 </script>
 <template>
   <section>
     <div class="management-panel-heading">
       <div>
-        <h1>{{ title }}</h1>
+        <h1>{{ editor ? "会话回复" : title }}</h1>
         <p>
           {{
             view === "conversations"
@@ -174,7 +181,7 @@ onBeforeUnmount(() => {
       :closable="false"
     />
     <el-card
-      v-if="view === 'conversations' && selected"
+      v-if="editor && view === 'conversations' && selected"
       shadow="never"
       style="margin-bottom: 22px"
       ><div
@@ -202,7 +209,7 @@ onBeforeUnmount(() => {
         :poll-seconds="data.pollSeconds"
         @updated="load(true)"
     /></el-card>
-    <el-card shadow="never"
+    <el-card v-if="!editor" shadow="never"
       ><el-form
         label-position="right"
         label-width="110px"
@@ -301,7 +308,7 @@ onBeforeUnmount(() => {
           min-width="150"
           ><template #default="{ row }"
             ><template v-if="view === 'conversations'"
-              ><el-button link type="primary" @click="select(row.id)"
+              ><el-button link type="primary" @click="select(row)"
                 >查看</el-button
               ><el-button
                 v-if="!row.assigned_to && row.state === 'OPEN'"

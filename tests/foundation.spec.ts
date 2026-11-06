@@ -487,17 +487,22 @@ test("static catalog, real download, language and mobile", async ({
   await page.getByRole("button", { name: "办公效率", exact: true }).click();
   await page.reload();
   await expect(page.locator(".catalog-app-card")).toHaveCount(1);
+  const popup = page.waitForEvent("popup");
   await page.locator(".catalog-details-link").click();
+  const detail = await popup;
   await expect(
-    page.getByRole("heading", { name: "工具使用说明", exact: true }),
+    detail.getByRole("heading", { name: "工具使用说明", exact: true }),
   ).toBeVisible();
-  const download = page.waitForEvent("download");
-  await page.locator("#download").click();
+  await expect(detail.locator(".public-site-header")).toBeVisible();
+  await expect(detail.locator(".public-breadcrumb")).toContainText("首页");
+  const download = detail.waitForEvent("download");
+  await detail.locator("#download").click();
   const file = await download;
   expect(file.suggestedFilename()).toBe("utility.zip");
   expect(readFileSync((await file.path())!, "utf8")).toBe(
     "isolated-browser-download",
   );
+  await detail.close();
   const noJs = await browser.newContext({ javaScriptEnabled: false });
   const reader = await noJs.newPage();
   await reader.goto("http://127.0.0.1:3000/apps/browser-utility");
@@ -552,6 +557,10 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
   await expect(
     member.getByRole("dialog", { name: "模拟充值订单" }),
   ).toBeVisible();
+  const paymentMemo = (await member
+    .locator(".payment-memo strong")
+    .textContent())!;
+  expect(paymentMemo).toMatch(/^\d{4}$/);
   await member.getByRole("button", { name: "我已付款", exact: true }).click();
   await expect(member.getByText(/付款声明已提交/)).toBeVisible();
   const memberNickname = (
@@ -569,6 +578,7 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
     .filter({ hasText: memberNickname })
     .getByRole("button", { name: "审核", exact: true })
     .click();
+  await expect(admin.locator(".payment-memo-code")).toHaveText(paymentMemo);
   await field(admin, "逐单处理原因", { exact: true }).fill("模拟充值核实通过");
   await admin.getByRole("button", { name: "确认处理", exact: true }).click();
   await expect(
@@ -732,8 +742,13 @@ test("content draft isolation, static bilingual publishing and SEO discovery", a
   ).toBeVisible();
   const browse = await context.newPage();
   await browse.goto("/articles");
+  const contentPopup = browse.waitForEvent("popup");
   await browse.getByRole("link", { name: /markdo 使用教程/ }).click();
-  await expect(browse.locator("article")).toContainText("最初发布的教程正文");
+  const contentDetail = await contentPopup;
+  await expect(contentDetail.locator("article")).toContainText(
+    "最初发布的教程正文",
+  );
+  await contentDetail.close();
   await browse.close();
   await visitor.goto("http://127.0.0.1:3000/articles/markdo-tutorial");
   await expect(
@@ -1302,6 +1317,7 @@ test("API configuration, one-time keys, billable debugger and subscription refun
   await field(apiPanel, "API中文说明", { exact: true }).fill(
     "输入text字符串，返回字符、词和行数。",
   );
+  await select(admin, "API适配器", "文本统计（真实本地计算）");
   await field(apiPanel, "API积分价格", { exact: true }).fill("1.25");
   await apiPanel.getByRole("button", { name: "保存", exact: true }).click();
   await expect(
@@ -1584,6 +1600,14 @@ test("guest support, private image, claim and transfer, moderated feedback and o
     .getByRole("button", { name: "抢单领取", exact: true })
     .click();
   await expect(
+    workspace(admin).getByRole("heading", { name: "会话回复", exact: true }),
+  ).toBeVisible();
+  await expect(
+    admin
+      .locator('[data-workspace="conversations"]')
+      .getByRole("textbox", { name: "客服消息输入", exact: true }),
+  ).toHaveCount(0);
+  await expect(
     admin.getByRole("textbox", { name: "客服消息输入", exact: true }),
   ).toBeVisible();
   await admin
@@ -1631,6 +1655,7 @@ test("guest support, private image, claim and transfer, moderated feedback and o
   );
   expect(transfer.status()).toBe(200);
   await admin.reload();
+  await menu(admin, "在线会话");
   await admin
     .getByRole("row")
     .filter({ hasText: "浏览器游客咨询" })
@@ -2139,5 +2164,152 @@ test("merged applications, object provenance, independent creation, pending acco
   ).toBe(true);
   expect(errors).toEqual([]);
   await member.close();
+  await context.close();
+});
+
+test("new-window details share navigation, managed API visibility and encrypted proxy configuration", async ({
+  browser,
+}) => {
+  test.setTimeout(150000);
+  const context = await browser.newContext({
+    storageState: join(directory(), "admin-state.json"),
+  });
+  await context.addCookies([
+    { name: "aiwyw_language", value: "zh", url: "http://127.0.0.1:3000" },
+  ]);
+  const admin = await context.newPage(),
+    errors: string[] = [];
+  admin.on("pageerror", (error) => errors.push(error.message));
+  await admin.goto("/admin/workspace?view=apis");
+  await workspace(admin)
+    .getByRole("button", { name: "新增API", exact: true })
+    .click();
+  const panel = workspace(admin);
+  await expect(field(panel, "真实服务地址", { exact: true })).toBeVisible();
+  await field(panel, "API配置名称", { exact: true }).fill("浏览器真实代理服务");
+  await field(panel, "API调用地址", { exact: true }).fill("browser-proxy-api");
+  await field(panel, "API中文说明", { exact: true }).fill(
+    "用户访问平台地址，由平台转发到管理员配置的真实服务。",
+  );
+  await field(panel, "真实服务地址", { exact: true }).fill(
+    "https://example.com/vendor-json",
+  );
+  await select(admin, "真实服务请求方式", "GET · 标量查询参数");
+  await field(panel, "真实服务请求头", { exact: true }).fill(
+    '{"X-API-Key":"browser-private-upstream-token"}',
+  );
+  await expect(field(panel, "平台调用地址", { exact: true })).toHaveValue(
+    /\/api\/v1\/invoke\/browser-proxy-api$/,
+  );
+  await panel.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(
+    panel.getByText("已保存，已有购买和调用条款不被覆盖", { exact: true }),
+  ).toBeVisible();
+  await expect(field(panel, "真实服务请求头", { exact: true })).toHaveValue("");
+  const apis = await (await admin.request.get("/api/admin/apis")).json();
+  const api = apis.find((a: any) => a.slug === "browser-proxy-api");
+  expect(api.request_method).toBe("GET");
+  expect(api.headers_set).toBe(true);
+  expect(JSON.stringify(apis)).not.toContain("browser-private-upstream-token");
+  const publicJson = await (await admin.request.get("/api/public/apis")).json();
+  expect(JSON.stringify(publicJson)).not.toContain("vendor-json");
+  expect(JSON.stringify(publicJson)).not.toContain(
+    "browser-private-upstream-token",
+  );
+  const page = await context.newPage();
+  await page.goto("/api-services?api=browser-proxy-api");
+  const details = page.getByRole("link", { name: /查看详情/ }).first();
+  await expect(details).toHaveAttribute("target", "_blank");
+  const popup = page.waitForEvent("popup");
+  await details.click();
+  const detail = await popup;
+  await expect(
+    detail.getByRole("heading", { name: "浏览器真实代理服务", exact: true }),
+  ).toBeVisible();
+  await expect(detail.locator(".public-breadcrumb")).toContainText("API 服务");
+  const footer = detail.locator(".directory-footer");
+  await expect(footer).toContainText("模拟ICP备00000000号");
+  await expect(
+    footer.locator('a[href="/account"],a[href="/articles"]'),
+  ).toHaveCount(0);
+  expect(await footer.evaluate((el) => getComputedStyle(el).textAlign)).toBe(
+    "center",
+  );
+  await detail.screenshot({
+    path: "test-results/experience-api-detail.png",
+    fullPage: true,
+  });
+  await detail.close();
+  // 旧场景会下架其教程；本场景自行发布案例，不能依赖其他用例残留的已发布数据。
+  const createdCase = await admin.request.post("/api/admin/content", {
+    headers: { "X-AIWYW-Request": "1" },
+    data: {
+      slug: "browser-detail-case",
+      kind: "CASE",
+      titleZh: "浏览器详情案例",
+      titleEn: "Detail case",
+      summaryZh: "详情头尾验证",
+      summaryEn: "Detail shell",
+      bodyZh: "<p>案例正文</p>",
+      bodyEn: "<p>Case body</p>",
+      revision: 0,
+    },
+  });
+  expect(createdCase.status()).toBe(200);
+  const caseId = (await createdCase.json()).id;
+  const publishedCase = await admin.request.post(
+    "/api/admin/content/" + caseId + "/publish",
+    { headers: { "X-AIWYW-Request": "1" }, data: { revision: 1 } },
+  );
+  expect(publishedCase.status()).toBe(200);
+  await page.goto("/articles");
+  const article = page
+    .locator('.content-grid a[href^="/articles/browser-detail-case"]')
+    .first();
+  await expect(article).toHaveAttribute("target", "_blank");
+  const articlePopup = page.waitForEvent("popup");
+  await article.click();
+  const articlePage = await articlePopup;
+  await expect(articlePage.locator(".public-site-header")).toBeVisible();
+  await expect(
+    articlePage.locator(".public-breadcrumb [aria-current='page']"),
+  ).not.toBeEmpty();
+  await expect(articlePage.locator(".directory-footer")).toContainText(
+    "模拟ICP备00000000号",
+  );
+  await articlePage.close();
+  const sections = await (
+    await admin.request.get("/api/admin/catalog/sections")
+  ).json();
+  const nav = sections.find((s: any) => s.config.mode === "API");
+  expect(nav).toBeTruthy();
+  const saveNav = async (enabled: boolean, revision: number) => {
+    const response = await admin.request.put(
+      "/api/admin/catalog/sections/" + nav.id,
+      {
+        headers: { "X-AIWYW-Request": "1" },
+        data: { ...nav.config, enabled, position: 0, revision },
+      },
+    );
+    expect(response.status()).toBe(200);
+  };
+  await saveNav(false, nav.revision);
+  await page.goto("/");
+  await expect(
+    page.locator('.directory-header nav a[href="/api-services"]'),
+  ).toHaveCount(0);
+  await saveNav(true, nav.revision + 1);
+  await page.reload();
+  await expect(page.locator(".directory-header nav a").last()).toHaveAttribute(
+    "href",
+    "/api-services",
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  expect(errors).toEqual([]);
   await context.close();
 });

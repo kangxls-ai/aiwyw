@@ -61,7 +61,7 @@ public class Settings {
         "开启时管理员或财务任一角色必须验证；管理员可为应急关闭，已绑定密钥保留，恢复开启后重新要求验证");
     text("site.name", "网站信息", "网站名称", "AI万有网", true, "展示在网站标题和导航");
     text("site.domain", "网站信息", "主站域名", "www.aiwyw.com", true, "只填写域名，不含协议与路径");
-    text("site.filing", "网站信息", "备案号", "", true, "备案完成后填写，当前留空");
+    text("site.filing", "网站信息", "备案号", "模拟ICP备00000000号（占位）", true, "页脚居中展示；备案完成后替换为真实号码");
     text("site.description", "网站信息", "网站介绍", "发现好用的工具，让每个想法都能落地。", true, "用于首页介绍与搜索摘要");
     text(
         "site.description_en",

@@ -272,7 +272,9 @@ public class MeteredApiController {
         switch (kind) {
           case "apis" ->
               "SELECT"
-                  + " id,slug,name,name_en,description,description_en,adapter,endpoint,success_pointer,success_value,price_units,enabled,revision,created_at,CASE"
+                  + " id,slug,name,name_en,description,description_en,adapter,endpoint,request_method,CASE"
+                  + " WHEN headers_enc IS NULL THEN FALSE ELSE TRUE END AS"
+                  + " headers_set,success_pointer,success_value,price_units,enabled,revision,created_at,CASE"
                   + " WHEN secret_enc IS NULL THEN FALSE ELSE TRUE END AS secret_set FROM"
                   + " api_definition";
           case "plans" ->

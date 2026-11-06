@@ -205,7 +205,8 @@ onMounted(load);
         label-width="128px"
         class="admin-filter-grid"
         @submit.prevent="search"
-        ><el-form-item label="账户昵称"
+        ><el-form-item
+          :label="view === 'recharge' ? '账户 / 备注码' : '账户昵称'"
           ><el-input
             v-model="q"
             clearable
@@ -279,8 +280,10 @@ onMounted(load);
           min-width="160"
           ><template #default="{ row }"
             ><template v-if="row.price_fen"
-              >应付 ¥{{ decimalUnits(row.price_fen) }}<br />积分
-              {{ decimalUnits(row.points_units) }}<br /><span
+              >应付 ¥{{ decimalUnits(row.price_fen) }}<br /><strong
+                v-if="view === 'recharge'"
+                >备注码：{{ row.payment_memo || "未生成" }}</strong
+              ><br />积分 {{ decimalUnits(row.points_units) }}<br /><span
                 v-if="row.actual_fen"
                 >实到 ¥{{ decimalUnits(row.actual_fen) }}</span
               ></template
@@ -356,6 +359,10 @@ onMounted(load);
         ><el-descriptions-item label="账户">{{
           selected.nickname
         }}</el-descriptions-item
+        ><el-descriptions-item v-if="view === 'recharge'" label="付款备注码"
+          ><strong class="payment-memo-code">{{
+            selected.payment_memo || "旧订单未生成"
+          }}</strong></el-descriptions-item
         ><el-descriptions-item label="订单">{{
           selected.id || selected.purchase_id
         }}</el-descriptions-item
@@ -461,3 +468,10 @@ onMounted(load);
     >
   </section>
 </template>
+<style scoped>
+.payment-memo-code {
+  font-size: 26px;
+  letter-spacing: 0.2em;
+  color: #7052ce;
+}
+</style>

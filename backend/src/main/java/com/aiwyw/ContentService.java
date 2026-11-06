@@ -25,7 +25,7 @@ public class ContentService {
       String bodyEn,
       long revision) {}
 
-  public record Page(String html, String hash, long cachedAt) {}
+  public record Page(String html, String hash, long cachedAt, String kind) {}
 
   private final JdbcTemplate db;
   private final ObjectMapper json;
@@ -301,7 +301,7 @@ public class ContentService {
     if (cached != null && System.currentTimeMillis() - cached.cachedAt() < 30000) return cached;
     var rows =
         db.queryForList(
-            "SELECT p.file_prefix,p.sha_zh,p.sha_en FROM content_document d JOIN"
+            "SELECT d.kind,p.file_prefix,p.sha_zh,p.sha_en FROM content_document d JOIN"
                 + " content_publication p ON p.id=d.active_publication WHERE d.slug=? AND"
                 + " d.state='PUBLISHED'",
             slug);
@@ -312,7 +312,7 @@ public class ContentService {
           hash = (String) r.get("sha_" + language);
       if (!store.digest(html).equals(hash))
         throw new IllegalStateException("Content hash mismatch");
-      Page result = new Page(html, hash, System.currentTimeMillis());
+      Page result = new Page(html, hash, System.currentTimeMillis(), (String) r.get("kind"));
       cache.put(key, result);
       return result;
     } catch (Exception e) {

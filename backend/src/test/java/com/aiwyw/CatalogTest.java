@@ -123,7 +123,7 @@ class CatalogTest {
   @Test
   @Order(1)
   void initializationDoesNotPublishInventedInventory() {
-    assertEquals(5, catalog.sections().size());
+    assertEquals(6, catalog.sections().size());
     assertTrue(catalog.publicData().products().isEmpty());
     assertEquals(
         "DRAFT",
@@ -173,14 +173,20 @@ class CatalogTest {
       int successes = 0;
       for (Future<Boolean> result : pool.invokeAll(jobs)) if (result.get()) successes++;
       assertEquals(2, successes);
-      assertEquals(7, catalog.sections().size());
+      assertEquals(8, catalog.sections().size());
     } finally {
       pool.shutdownNow();
     }
     for (var s : catalog.sections())
-      if (!Set.of("recommended", "latest", "downloads", "views", "articles-navigation")
+      if (!Set.of(
+              "recommended",
+              "latest",
+              "downloads",
+              "views",
+              "articles-navigation",
+              "api-navigation")
           .contains(s.id())) catalog.deleteSection(s.id(), s.revision(), actor);
-    assertEquals(5, catalog.sections().size());
+    assertEquals(6, catalog.sections().size());
   }
 
   @Test

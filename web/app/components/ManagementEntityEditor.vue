@@ -27,8 +27,15 @@ watch(
       type="success"
       :closable="false"
     />
+    <AdminSupport
+      v-if="tab.entityType === 'conversations'"
+      view="conversations"
+      editor
+      :tab-id="tab.id"
+      :initial-id="tab.entityId"
+    />
     <AdminContent
-      v-if="['articles', 'faq'].includes(tab.entityType!)"
+      v-else-if="['articles', 'faq'].includes(tab.entityType!)"
       :view="tab.entityType!"
       editor
       :tab-id="tab.id"

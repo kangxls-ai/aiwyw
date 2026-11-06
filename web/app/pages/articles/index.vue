@@ -120,6 +120,8 @@ useHead(() => ({
         v-for="item in data.items"
         :key="item.id"
         :href="'/articles/' + item.slug + (zh ? '' : '?lang=en')"
+        target="_blank"
+        rel="noopener noreferrer"
         ><el-card shadow="hover"
           ><h2>{{ zh ? item.title_zh : item.title_en || item.title_zh }}</h2>
           <p>{{ zh ? item.summary_zh : item.summary_en || item.summary_zh }}</p>

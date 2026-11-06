@@ -347,7 +347,20 @@ useHead(() => ({ title: t("API 服务 · AI万有网", "API services · AI万有
           shadow="never"
           class="api-card"
         >
-          <h2>{{ t(api.name, api.name_en || api.name) }}</h2>
+          <h2>
+            <a
+              :href="'/api-services/' + api.slug"
+              target="_blank"
+              rel="noopener noreferrer"
+              >{{ t(api.name, api.name_en || api.name) }}</a
+            >
+          </h2>
+          <a
+            :href="'/api-services/' + api.slug"
+            target="_blank"
+            rel="noopener noreferrer"
+            >{{ t("查看详情", "View details") }} →</a
+          >
           <p>{{ t(api.description, api.description_en || api.description) }}</p>
           <p>
             {{ t("成功按次单价", "Price per successful call") }}：{{

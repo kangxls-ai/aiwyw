@@ -49,6 +49,7 @@ export function useManagementTabs() {
           "users",
           "tags",
           "sections",
+          "conversations",
         ].includes(type) ||
         !/^[a-f0-9-]{36}$/.test(editor)
       )
@@ -60,7 +61,10 @@ export function useManagementTabs() {
         entityId: route.query.object ? String(route.query.object) : null,
         preset: route.query.preset ? String(route.query.preset) : undefined,
         editorId: editor,
-        label: `${route.query.object ? "编辑" : "新增"}：${adminMenuItem(type).label}`,
+        label:
+          type === "conversations"
+            ? "回复：在线会话"
+            : `${route.query.object ? "编辑" : "新增"}：${adminMenuItem(type).label}`,
         icon: adminMenuItem(type).icon,
         route: route.fullPath,
         description: "独立编辑，切换页签保留草稿",
@@ -236,7 +240,7 @@ export function useManagementTabs() {
       editorId: editor,
       preset,
       label: object
-        ? `编辑：${object.name || menu.label}`
+        ? `${type === "conversations" ? "回复" : "编辑"}：${object.name || menu.label}`
         : `新增：${menu.label}`,
       icon: menu.icon,
       route: useRouter().resolve(target).fullPath,

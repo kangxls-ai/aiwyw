@@ -5,7 +5,7 @@ const { catalog, error, load } = useCatalog(),
 await load();
 const catalogSections = computed(() =>
   catalog.value.sections
-    .filter((s) => s.kind !== "ARTICLES")
+    .filter((s) => s.kind === "APPLICATIONS")
     .map((s) => ({
       ...s,
       title: t(s.titleZh, s.titleEn || s.titleZh),

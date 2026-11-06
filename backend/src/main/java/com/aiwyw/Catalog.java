@@ -189,6 +189,45 @@ public class Catalog {
                 System.currentTimeMillis());
           }
         });
+    // API导航从固定链接迁入栏目，仅一次；以后停用/删除不因重启恢复，始终排在导航末尾。
+    tx.executeWithoutResult(
+        status -> {
+          lock();
+          if (db.queryForObject(
+                  "SELECT COUNT(*) FROM schema_migration WHERE version='V011_API_NAV'",
+                  Integer.class)
+              == 0) {
+            if (db.queryForList("SELECT config_json FROM home_section", String.class).stream()
+                .map(value -> decode(value, SectionInput.class))
+                .noneMatch(c -> c.mode().equals("API"))) {
+              var c =
+                  new SectionInput(
+                      "API 服务",
+                      "API services",
+                      "",
+                      "",
+                      "browser",
+                      true,
+                      1000,
+                      "API",
+                      "LATEST",
+                      30,
+                      20,
+                      List.of(),
+                      List.of(),
+                      0);
+              db.update(
+                  "INSERT INTO home_section(id,config_json,revision,created_at)"
+                      + " VALUES('api-navigation',?,0,?)",
+                  encode(c),
+                  System.currentTimeMillis());
+              Origins.created(db, "home_section", "api-navigation", "SYSTEM");
+            }
+            db.update(
+                "INSERT INTO schema_migration VALUES('V011_API_NAV','统一管理可显隐API导航',?)",
+                System.currentTimeMillis());
+          }
+        });
     initializedGeneration = database.generation();
     cached = null;
   }
@@ -383,7 +422,7 @@ public class Catalog {
         || c.mode() == null
         || c.sort() == null
         || c.icon() == null
-        || !Set.of("MANUAL", "TAG", "AUTO", "ARTICLES").contains(c.mode())
+        || !Set.of("MANUAL", "TAG", "AUTO", "ARTICLES", "API").contains(c.mode())
         || !Set.of("LATEST", "VIEWS", "DOWNLOADS").contains(c.sort())
         || !Set.of(0, 7, 30).contains(c.days())
         || c.limit() < 1
@@ -422,12 +461,14 @@ public class Catalog {
                   .stream()
                   .filter(s -> !s.id().equals(id))
                   .toList();
-          if (safe.mode().equals("ARTICLES")
-              && others.stream().anyMatch(s -> s.config().mode().equals("ARTICLES")))
-            throw new Api.Failure(409, "文章与教程栏目已存在，请编辑已有栏目");
-          if (!safe.mode().equals("ARTICLES")
-              && others.stream().filter(s -> !s.config().mode().equals("ARTICLES")).count() >= 6)
-            throw new Api.Failure(409, "首页最多6个栏目，请编辑或删除已有栏目");
+          if (Set.of("ARTICLES", "API").contains(safe.mode())
+              && others.stream().anyMatch(s -> s.config().mode().equals(safe.mode())))
+            throw new Api.Failure(409, "该导航栏目已存在，请编辑已有栏目");
+          if (!Set.of("ARTICLES", "API").contains(safe.mode())
+              && others.stream()
+                      .filter(s -> !Set.of("ARTICLES", "API").contains(s.config().mode()))
+                      .count()
+                  >= 6) throw new Api.Failure(409, "首页最多6个栏目，请编辑或删除已有栏目");
           for (String productId : safe.productIds())
             if (db.queryForObject(
                     "SELECT COUNT(*) FROM catalog_product WHERE id=?", Integer.class, productId)
@@ -687,7 +728,7 @@ public class Catalog {
     for (Section s : sections())
       if (s.config().enabled()) {
         SectionInput c = s.config();
-        if (c.mode().equals("ARTICLES")) {
+        if (Set.of("ARTICLES", "API").contains(c.mode())) {
           views.add(new SectionView(s.id(), c, List.of()));
           continue;
         }

@@ -11,7 +11,11 @@ const date = (n: number) =>
 <template>
   <article v-if="!list" class="home-application-tile">
     <div class="home-tile-main">
-      <a class="home-tile-information" :href="`/apps/${product.slug}`"
+      <a
+        class="home-tile-information"
+        :href="`/apps/${product.slug}`"
+        target="_blank"
+        rel="noopener noreferrer"
         ><CatalogLogo :product="product" /><span class="directory-app-name">{{
           t(
             product.content.nameZh,
@@ -33,7 +37,10 @@ const date = (n: number) =>
         ><SiteIcon name="eye" />{{ count(product.views) }}</span
       ><span :title="t('下载数', 'Downloads')"
         ><SiteIcon name="download" />{{ count(product.downloads) }}</span
-      ><a :href="`/apps/${product.slug}`"
+      ><a
+        :href="`/apps/${product.slug}`"
+        target="_blank"
+        rel="noopener noreferrer"
         >{{ t("查看详情", "Details") }}<SiteIcon name="chevron"
       /></a>
     </div>
@@ -88,6 +95,8 @@ const date = (n: number) =>
         ><a
           class="catalog-details-link"
           :href="`/apps/${product.slug}`"
+          target="_blank"
+          rel="noopener noreferrer"
           @click.stop
           >{{ t("查看详情", "Details") }}<SiteIcon name="chevron"
         /></a>

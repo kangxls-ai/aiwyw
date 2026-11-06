@@ -381,6 +381,11 @@ onMounted(load);
                     commerceStates[row.kind] ||
                     row.id
               }}</strong>
+              <p v-if="row.payment_memo">
+                {{ t("付款备注", "Payment remark") }}：<strong>{{
+                  row.payment_memo
+                }}</strong>
+              </p>
               <p v-if="row.price_fen">
                 ¥{{ decimalUnits(row.price_fen) }} /
                 {{ decimalUnits(row.points_units) }} {{ t("积分", "points") }}
@@ -497,6 +502,25 @@ onMounted(load);
       />
       <p>{{ order?.id }}</p>
       <h2>¥{{ decimalUnits(order?.price_fen) }}</h2>
+      <div v-if="order?.payment_memo" class="payment-memo" role="note">
+        <p>
+          {{
+            t(
+              "请在支付备注中填写以下四位数字",
+              "Enter these four digits in the payment remark",
+            )
+          }}
+        </p>
+        <strong>{{ order.payment_memo }}</strong>
+        <p>
+          {{
+            t(
+              "请一并提供账户昵称供核销人员匹配；备注码不是到账凭证。",
+              "Include your account nickname for matching. This code is not proof of payment.",
+            )
+          }}
+        </p>
+      </div>
       <el-image
         :src="payment.image"
         style="width: 220px; height: 220px"

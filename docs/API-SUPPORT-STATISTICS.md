@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | TEXT_STATS | `{"text":"Hello world"}`，返回Unicode码点数、按空白切分的词数和行数 | 本地完整计算成功 |
 | SHA256 | text字符串，返回UTF-8文本的SHA256十六进制摘要 | 本地摘要计算成功 |
-| HTTPS_JSON | JSON POST至后台配置的HTTPS上游，可配置Bearer凭据 | 2xx、完整有限JSON、指定JSON Pointer的值与配置的标量JSON值精确一致 |
+| HTTPS_JSON | 按配置GET查询参数或POST JSON至固定HTTPS上游，可配置加密请求头和Bearer凭据 | 2xx、完整有限JSON、指定JSON Pointer的值与配置的标量JSON值精确一致 |
 
 HTTPS_JSON只访问公共网络443端口，检查所有DNS结果并固定实际连接IP，保留TLS证书及主机名校验；不跟随重定向，不接受调用者提供URL，不支持尚无成功边界的流式输出。响应不满足业务成功字段时，HTTP200也不计费。上游凭据加密、不回显，留空保留、明确清除才删除。具体第三方接口资料、凭据、成功条件和生产网络需要站长配置及实际联调，不能用内置计算或测试替身冒充第三方验收。
 
