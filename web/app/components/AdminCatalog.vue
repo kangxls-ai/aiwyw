@@ -11,7 +11,6 @@ const { request, message } = useApi(),
   tabState = useEntityEditing(props, "sections", load),
   { dirty, registerSave } = tabState;
 const sections = ref<AdminSection[]>([]),
-  products = ref<Array<{ id: string; nameZh: string }>>([]),
   id = ref<string | null>(null),
   editing = ref(false),
   busy = ref(false),
@@ -54,10 +53,7 @@ async function load() {
   knownTags.value = (
     await request<{ tags: string[] }>("/api/admin/catalog/products/facets")
   ).tags;
-  [sections.value, products.value] = await Promise.all([
-    request("/api/admin/catalog/sections"),
-    request("/api/admin/catalog/products/options"),
-  ]);
+  sections.value = await request("/api/admin/catalog/sections");
 }
 function open(value?: AdminSection, mode?: string) {
   if (!props.editor) {
@@ -130,18 +126,6 @@ async function remove(value: AdminSection) {
   } catch (e) {
     error.value = message(e);
   }
-}
-function select(id: string, checked: boolean) {
-  form.value.productIds = checked
-    ? [...form.value.productIds, id]
-    : form.value.productIds.filter((v) => v !== id);
-}
-function move(index: number, direction: number) {
-  const values = [...form.value.productIds],
-    next = index + direction;
-  if (next < 0 || next >= values.length) return;
-  [values[index], values[next]] = [values[next]!, values[index]!];
-  form.value.productIds = values;
 }
 let unregister: (() => void) | undefined;
 onMounted(async () => {
@@ -378,29 +362,9 @@ onBeforeUnmount(() => unregister?.());
               :value="tag" /></el-select
         ></el-form-item>
         <div v-if="form.mode === 'MANUAL'" class="full">
-          <h3>选择应用</h3>
-          <el-checkbox-group v-model="form.productIds"
-            ><el-checkbox
-              v-for="product in products"
-              :key="product.id"
-              :value="product.id"
-              >{{ product.nameZh }}</el-checkbox
-            ></el-checkbox-group
-          >
-          <div
-            v-for="(productId, index) in form.productIds"
-            :key="productId"
-            class="catalog-editor-actions"
-          >
-            <span
-              >{{ index + 1 }}.
-              {{ products.find((p) => p.id === productId)?.nameZh }}</span
-            ><el-button size="small" @click="move(index, -1)">上移</el-button
-            ><el-button size="small" @click="move(index, 1)">下移</el-button>
-          </div>
-          <p class="admin-muted">未发布的选择会保留，首页只展示已上架应用。</p>
-        </div>
-      </el-form></el-card
-    >
+          <h3>人工选品与排序</h3>
+          <SelectionPicker v-model="form.productIds" />
+        </div> </el-form
+    ></el-card>
   </section>
 </template>

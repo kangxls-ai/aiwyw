@@ -33,7 +33,6 @@ public final class Identity {
           Map.entry("sections", "首页栏目"),
           Map.entry("settings", "配置管理"),
           Map.entry("storage", "存储管理"),
-          Map.entry("email", "邮件设置"),
           Map.entry("audit", "操作记录"),
           Map.entry("security", "账户安全"));
 
@@ -65,7 +64,6 @@ public final class Identity {
           Map.entry("sections", "group:system"),
           Map.entry("settings", "group:system"),
           Map.entry("storage", "group:system"),
-          Map.entry("email", "group:system"),
           Map.entry("audit", "group:system"),
           Map.entry("security", "group:system"));
 
@@ -143,6 +141,7 @@ public final class Identity {
           db.update("INSERT INTO access_role_menu VALUES(?,?)", role, menu);
       }
     }
+    db.update("DELETE FROM access_role_menu WHERE menu_id='email'");
     if (db.queryForObject(
             "SELECT COUNT(*) FROM schema_migration WHERE version='V009_MERGED_APPLICATIONS'",
             Integer.class)

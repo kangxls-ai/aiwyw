@@ -31,7 +31,14 @@ public class InstallerController {
   /** 只返回是否安装和版本，不返回安装码、数据库密码或主密钥。 */
   public Map<String, Object> status() {
     return Map.of(
-        "installed", db.installed(), "version", "0.1.0", "requiresToken", !db.installed());
+        "installed",
+        db.installed(),
+        "version",
+        "0.1.0",
+        "requiresToken",
+        !db.installed(),
+        "production",
+        db.production());
   }
 
   /** 同时检查安装锁和常量时间安装码校验，避免远程抢先初始化。 */
@@ -46,6 +53,7 @@ public class InstallerController {
       @RequestHeader(value = "X-Install-Token", required = false) String token,
       @RequestBody Database.ConnectionSpec spec) {
     verify(token);
+    db.requireProductionEngine(spec);
     try (var pool = db.connect(spec);
         var connection = pool.getConnection()) {
       connection.isValid(3);
@@ -66,6 +74,7 @@ public class InstallerController {
     verify(token);
     if (req.password() == null || req.password().isBlank())
       throw new Api.Failure(400, "管理员密码至少12位");
+    db.requireProductionEngine(req.connection());
     var pool = db.connect(req.connection());
     boolean activated = false;
     try {

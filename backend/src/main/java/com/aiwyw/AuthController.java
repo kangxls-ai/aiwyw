@@ -23,11 +23,16 @@ public class AuthController {
 
   public record Code(String code) {}
 
+  /** 生产入口清洗转发头且内部服务只监听回环；所有身份及访客Cookie统一识别代理终止的HTTPS。 */
+  static boolean secure(HttpServletRequest request) {
+    return request.isSecure() || "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto"));
+  }
+
   /** HttpOnly/SameSite保护身份令牌；生产HTTPS设置Secure。反向代理必须清洗不可信转发头。 */
   private String cookie(String value, HttpServletRequest r, boolean clear) {
     return ResponseCookie.from("AIWYW_SESSION", value)
         .httpOnly(true)
-        .secure(r.isSecure() || "https".equalsIgnoreCase(r.getHeader("X-Forwarded-Proto")))
+        .secure(secure(r))
         .sameSite("Strict")
         .path("/")
         .maxAge(clear ? 0 : 86400)

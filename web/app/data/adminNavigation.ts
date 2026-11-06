@@ -164,7 +164,6 @@ export const adminMenuGroups: AdminMenuGroup[] = [
         "/admin/settings",
       ),
       item("storage", "存储管理", "folder", "维护文件及对象存储连接。"),
-      item("email", "邮件设置", "note", "维护邮件投递参数。"),
       item(
         "audit",
         "操作记录",

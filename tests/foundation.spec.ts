@@ -206,6 +206,26 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
     "mail.security": "TLS",
     "account.link_origin": "http://127.0.0.1:3000",
   });
+  const smtpCheck = await page.request.post("/api/admin/mail/check", {
+    headers: { "X-AIWYW-Request": "1" },
+    data: { protocol: "SMTP" },
+  });
+  expect(smtpCheck.status()).toBe(200);
+  expect((await smtpCheck.json()).success).toBe(true);
+  await page.getByRole("button", { name: "生产上线检查", exact: true }).click();
+  const readinessDialog = page.getByRole("dialog", {
+    name: "生产上线检查",
+    exact: true,
+  });
+  await expect(
+    readinessDialog.getByText("运行模式", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    readinessDialog.getByText("管理及财务双因素策略", { exact: true }),
+  ).toBeVisible();
+  await readinessDialog
+    .getByRole("button", { name: "关闭", exact: true })
+    .click();
   const png = await QRCode.toBuffer("AIWYW ISOLATED FILE FIXTURE");
   await page
     .locator(".settings-groups")
@@ -289,7 +309,16 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
     .getByRole("button", { name: "编辑", exact: true })
     .click();
   await field(page, "栏目名称", { exact: true }).fill("精选工具");
-  await page.locator(".el-checkbox").filter({ hasText: "浏览器工具" }).click();
+  await page.getByRole("button", { name: "选择内容", exact: true }).click();
+  const picker = page.getByRole("dialog", { name: "选择栏目内容" });
+  await field(picker, "选品搜索", { exact: true }).fill("浏览器工具");
+  await picker.getByRole("button", { name: "搜索", exact: true }).click();
+  await picker
+    .getByRole("row")
+    .filter({ hasText: "浏览器工具" })
+    .locator(".el-checkbox")
+    .click();
+  await picker.getByRole("button", { name: /^确认选择/ }).click();
   await page.getByRole("button", { name: "保存修改", exact: true }).click();
   await expect(page.locator(".alert[role=status]:visible")).toHaveText(
     "栏目已保存并生效",
@@ -1890,9 +1919,7 @@ test("consistent typography, managed article navigation, API editor tabs and acc
   await expect(
     nav.getByRole("link", { name: "快捷工具", exact: true }),
   ).toBeVisible();
-  await expect(
-    guest.locator(".directory-section").filter({ hasText: "使用指南" }),
-  ).toHaveCount(0);
+  await expect(guest.locator(".directory-section h2")).toHaveText(["使用指南"]);
   await expect(nav.getByRole("link").last()).toHaveCSS("font-size", "14px");
   await guest.screenshot({ path: "test-results/ui-home.png", fullPage: true });
   await nav.getByRole("link", { name: "使用指南", exact: true }).click();
@@ -2311,5 +2338,119 @@ test("new-window details share navigation, managed API visibility and encrypted 
     ),
   ).toBe(true);
   expect(errors).toEqual([]);
+  await context.close();
+});
+
+test("manual section picker retains cross-page selection and homepage opens first section", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    storageState: join(directory(), "admin-state.json"),
+    locale: "zh-CN",
+  });
+  await context.addCookies([
+    { name: "aiwyw_language", value: "zh", url: "http://127.0.0.1:3000" },
+  ]);
+  const page = await context.newPage();
+  for (let i = 0; i < 21; i++) {
+    const response = await page.request.post("/api/admin/catalog/products", {
+      headers: { "X-AIWYW-Request": "1" },
+      data: content(
+        "paged-picker-" + i,
+        "跨页选品" + String(i).padStart(2, "0"),
+      ),
+    });
+    expect(response.status()).toBe(200);
+  }
+  await page.goto("/admin/workspace?view=sections");
+  await page
+    .getByRole("row")
+    .filter({ hasText: "精选工具" })
+    .getByRole("button", { name: "编辑", exact: true })
+    .click();
+  const pickerRoot = workspace(page).locator(".selection-picker");
+  // count不自动等待异步编辑页挂载；先等加载完成，避免误把未渲染的原选品当作空集合。
+  await expect(pickerRoot).toBeVisible();
+  while (
+    await pickerRoot.getByRole("button", { name: "移除", exact: true }).count()
+  )
+    await pickerRoot
+      .getByRole("button", { name: "移除", exact: true })
+      .first()
+      .click();
+  await pickerRoot
+    .getByRole("button", { name: "选择内容", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "选择栏目内容" });
+  await field(dialog, "选品搜索", { exact: true }).fill("跨页选品");
+  await dialog.getByRole("button", { name: "搜索", exact: true }).click();
+  await expect(
+    dialog.locator(".el-table__body-wrapper .el-checkbox"),
+  ).toHaveCount(20);
+  const first = dialog.getByRole("checkbox").first(),
+    firstName =
+      "选择 " +
+      (await dialog
+        .locator(".el-table__body-wrapper tbody tr")
+        .first()
+        .locator("td")
+        .nth(1)
+        .innerText());
+  await dialog.locator(".el-table__body-wrapper .el-checkbox").first().click();
+  await dialog.locator(".btn-next").click();
+  await expect(
+    dialog.locator(".el-table__body-wrapper .el-checkbox"),
+  ).toHaveCount(1);
+  const secondName =
+    "选择 " +
+    (await dialog
+      .locator(".el-table__body-wrapper tbody tr")
+      .first()
+      .locator("td")
+      .nth(1)
+      .innerText());
+  await dialog.locator(".el-table__body-wrapper .el-checkbox").first().click();
+  await dialog.locator(".btn-prev").click();
+  await expect(
+    dialog.getByRole("checkbox", { name: firstName!, exact: true }),
+  ).toBeChecked();
+  await dialog
+    .getByRole("button", { name: "确认选择（2）", exact: true })
+    .click();
+  await expect(pickerRoot.locator(".selected-name strong")).toHaveText([
+    firstName!.slice(3),
+    secondName!.slice(3),
+  ]);
+  await pickerRoot
+    .getByRole("button", { name: "下移 " + firstName!.slice(3), exact: true })
+    .click();
+  await expect(pickerRoot.locator(".selected-name strong")).toHaveText([
+    secondName!.slice(3),
+    firstName!.slice(3),
+  ]);
+  await pickerRoot
+    .getByRole("button", { name: "选择内容", exact: true })
+    .click();
+  await dialog
+    .getByRole("row")
+    .filter({ hasText: firstName!.slice(3) })
+    .locator(".el-checkbox")
+    .click();
+  await dialog.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(pickerRoot.locator(".selected-name strong")).toHaveCount(2);
+  // 离开验证编辑页时丢弃草稿，不发布合成选品。
+  page.on("dialog", (d) => d.accept());
+  await page.goto("/");
+  const metadata = await (
+    await page.request.get("/api/public/catalog?summary=true")
+  ).json();
+  expect(metadata.products).toEqual([]);
+  await expect(page.locator(".directory-section h2")).toHaveText([
+    metadata.sections[0].titleZh,
+  ]);
+  await page.goto("/?section=disabled-or-missing");
+  await expect(page.locator(".directory-section h2")).toHaveText([
+    metadata.sections[0].titleZh,
+  ]);
   await context.close();
 });

@@ -158,10 +158,20 @@ public class Settings {
     number("redis.retry_seconds", "缓存与限流", "Redis故障重试间隔 秒", 30, 5, 300, "熔断期间不反复连接");
     bool("analytics.enabled", "运营统计", "启用访问行为统计", true, "关闭不影响交易、API及客服的服务端事实报表");
     bool("mail.enabled", "邮件服务", "启用邮件服务", false, "先填写服务商资料并测试后开启");
+    text("mail.pop3.host", "邮件服务", "POP3主机（仅收信诊断）", "pop.qq.com", false, "SSL/TLS连接；不用于网站发信，不读取邮件");
+    number("mail.pop3.port", "邮件服务", "POP3端口", 995, 1, 65535, "QQ使用995 SSL/TLS");
+    text(
+        "mail.imap.host",
+        "邮件服务",
+        "IMAP主机（仅收信诊断）",
+        "imap.qq.com",
+        false,
+        "SSL/TLS连接；与SMTP共用邮箱账号和授权码，不读取邮件");
+    number("mail.imap.port", "邮件服务", "IMAP端口", 993, 1, 65535, "QQ使用993 SSL/TLS");
     text("mail.host", "邮件服务", "SMTP主机", "", false, "服务商SMTP地址");
     number("mail.port", "邮件服务", "SMTP端口", 587, 1, 65535, "按服务商说明设置");
     text("mail.username", "邮件服务", "SMTP账号", "", false, "用于邮件认证");
-    secret("mail.password", "邮件服务", "SMTP密码或授权码", "仅加密保存，不返回原文");
+    secret("mail.password", "邮件服务", "SMTP密码或授权码", "QQ邮箱必须使用授权码，不是QQ登录密码；完整邮箱账号，不含空格。仅加密保存，不返回原文");
     text("mail.from", "邮件服务", "发信邮箱", "", false, "须为服务商允许的发信地址");
     option(
         "mail.security",
@@ -169,7 +179,7 @@ public class Settings {
         "邮件连接安全方式",
         "STARTTLS",
         false,
-        "不支持明文非加密SMTP",
+        "TLS代表465隐式SSL/TLS；STARTTLS代表587升级加密。不支持明文SMTP",
         List.of("STARTTLS", "TLS"));
     option(
         "storage.provider",
@@ -444,6 +454,10 @@ public class Settings {
         throw new Api.Failure(400, "Endpoint必须是有效HTTPS地址");
       }
     }
+    if (Set.of("mail.host", "mail.pop3.host", "mail.imap.host").contains(d.key())
+        && !v.isBlank()
+        && !v.matches("[a-zA-Z0-9._:-]{1,253}"))
+      throw new Api.Failure(400, "邮件主机只填写域名或IP，不带协议、端口和路径");
     if (List.of("mail.from", "support.inbox").contains(d.key())
         && !v.isBlank()
         && !v.matches("[^\\s@]+@[^\\s@]+\\.[^\\s@]+")) throw new Api.Failure(400, "邮箱格式不正确");

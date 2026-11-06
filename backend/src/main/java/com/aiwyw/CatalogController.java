@@ -152,9 +152,22 @@ public class CatalogController {
 
   /** 不返回文件路径表、草稿、后台人工选品ID列表与交付地址。 */
   @GetMapping("/api/public/catalog")
-  public Map<String, Object> publicCatalog(HttpServletRequest req, HttpServletResponse res) {
+  public Map<String, Object> publicCatalog(
+      @RequestParam(defaultValue = "false") boolean summary,
+      HttpServletRequest req,
+      HttpServletResponse res) {
     visitor(req, res);
-    Catalog.PublicData data = catalog.publicData();
+    Catalog.PublicData data =
+        summary
+            ? new Catalog.PublicData(
+                List.of(),
+                catalog.sections().stream()
+                    .filter(s -> s.config().enabled())
+                    .map(s -> new Catalog.SectionView(s.id(), s.config(), List.of()))
+                    .toList(),
+                Map.of(),
+                Map.of())
+            : catalog.publicData();
     return Map.of(
         "products",
         data.products().stream()
@@ -307,7 +320,7 @@ public class CatalogController {
         "Set-Cookie",
         ResponseCookie.from("AIWYW_VISITOR", id)
             .httpOnly(true)
-            .secure(req.isSecure())
+            .secure(AuthController.secure(req))
             .sameSite("Lax")
             .path("/")
             .maxAge(Duration.ofDays(365))

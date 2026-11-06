@@ -8,11 +8,19 @@ import en from "element-plus/es/locale/lang/en";
 const { catalog, deliveryError, load } = useCatalog(),
   { t, toggle, zh } = useLanguage();
 const site = useState<Record<string, string>>("site-settings", () => ({}));
+const route = useRoute();
+const currentSection = computed(() =>
+  catalog.value.sections.some((s) => s.id === route.query.section)
+    ? String(route.query.section)
+    : catalog.value.sections[0]?.id,
+);
 // 所有前台页面复用可维护导航；API显隐来自栏目配置，服务端保证排在末尾。
-if (!catalog.value.sections.length) await load();
+if (!catalog.value.sections.length) await load(true);
 const changed = useState("catalog-changed", () => 0);
-watch(changed, load);
-onMounted(load);
+watch(changed, () => load(true));
+onMounted(() => {
+  if (!catalog.value.sections.length) load(true);
+});
 </script>
 <template>
   <el-config-provider :locale="zh ? zhCn : en">
@@ -32,11 +40,18 @@ onMounted(load);
             <NuxtLink
               v-for="section in catalog.sections"
               :key="section.id"
+              :aria-current="
+                route.path === '/' && currentSection === section.id
+                  ? 'page'
+                  : undefined
+              "
               :to="
-                section.href || {
-                  path: '/apps',
-                  query: { section: section.id },
-                }
+                section.kind === 'APPLICATIONS'
+                  ? {
+                      path: '/',
+                      query: { section: section.id },
+                    }
+                  : section.href
               "
               >{{
                 t(section.titleZh, section.titleEn || section.titleZh)
@@ -68,6 +83,10 @@ onMounted(load);
   </el-config-provider>
 </template>
 <style scoped>
+.directory-header nav a[aria-current="page"] {
+  color: #755db2;
+  box-shadow: 0 2px 0 #ad9cd6;
+}
 .directory-footer {
   display: flex;
   flex-direction: column;

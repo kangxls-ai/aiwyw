@@ -10,9 +10,11 @@ export function useCatalog() {
     deliveryError = useState("delivery-error", () => ""),
     busy = useState("delivery-busy", () => false);
   const { request, message } = useApi();
-  async function load() {
+  async function load(summary = false) {
     try {
-      catalog.value = await request<PublicCatalog>("/api/public/catalog");
+      catalog.value = await request<PublicCatalog>("/api/public/catalog", {
+        query: { summary },
+      });
       error.value = "";
     } catch (e) {
       error.value = message(e);

@@ -1,4 +1,9 @@
 <script setup lang="ts">
+const legacyRoute = useRoute();
+if (legacyRoute.query.view === "email")
+  await navigateTo("/admin/settings?group=" + encodeURIComponent("邮件服务"), {
+    replace: true,
+  });
 /** 工作区按已打开页签显式保留组件；关闭即卸载，避免多应用编辑被单一表单或缓存上限覆盖。 */
 defineOptions({ name: "AdminWorkspace" });
 definePageMeta({ layout: "admin" });

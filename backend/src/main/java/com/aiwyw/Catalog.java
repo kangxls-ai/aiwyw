@@ -469,10 +469,7 @@ public class Catalog {
                       .filter(s -> !Set.of("ARTICLES", "API").contains(s.config().mode()))
                       .count()
                   >= 6) throw new Api.Failure(409, "首页最多6个栏目，请编辑或删除已有栏目");
-          for (String productId : safe.productIds())
-            if (db.queryForObject(
-                    "SELECT COUNT(*) FROM catalog_product WHERE id=?", Integer.class, productId)
-                == 0) throw new Api.Failure(400, "人工选品包含不存在的应用");
+          SectionSelection.validate(db, safe.productIds());
           String key = id == null ? UUID.randomUUID().toString() : id;
           if (id == null)
             db.update(

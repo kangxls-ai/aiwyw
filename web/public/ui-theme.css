@@ -360,6 +360,38 @@ body .el-dialog__footer {
 body .el-dialog__footer .el-button + .el-button {
   margin-left: 0;
 }
+/* 操作按钮与分页在窄屏自然换行，避免配置、批量选择和对话框被撑出可视区。 */
+body .heading-actions,
+body .el-pagination {
+  flex-wrap: wrap;
+  row-gap: 12px;
+}
+body .mail-testing .heading-actions {
+  margin: 16px 0;
+}
+body .settings-layout > .el-card {
+  min-width: 0;
+}
+@media (max-width: 700px) {
+  body .settings-layout .el-form-item__label {
+    width: 120px !important;
+    flex-shrink: 0;
+    white-space: normal;
+    height: auto;
+    line-height: 22px;
+    padding-top: 7px;
+  }
+  body .settings-layout .el-form-item__content {
+    min-width: 0;
+  }
+  body .mail-testing .el-button {
+    margin-left: 0;
+    max-width: 100%;
+    height: auto;
+    min-height: 32px;
+    white-space: normal;
+  }
+}
 /* 静态正文只调整界面标题与导航，不覆盖作者在富文本正文中的字重/字号。 */
 body.published-page {
   font: 14px/1.8 var(--ui-font);

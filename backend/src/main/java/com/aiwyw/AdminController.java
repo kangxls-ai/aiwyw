@@ -7,8 +7,6 @@ import java.util.*;
 import javax.imageio.ImageIO;
 import org.springframework.http.*;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -150,41 +148,5 @@ FROM (
     Path path = crypto.root.resolve("payment-images").resolve(name);
     if (!Files.isRegularFile(path)) throw new Api.Failure(404, "图片不存在");
     return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(Files.readAllBytes(path));
-  }
-
-  @PostMapping("/api/admin/mail/test")
-  /** 使用已保存配置和认证会话邮箱，TLS强制启用；失败只给脱敏提示。 */
-  public Map<String, Boolean> testMail(HttpServletRequest req) {
-    var u = auth.admin(req);
-    if (settings.value("mail.host").isBlank() || settings.value("mail.from").isBlank())
-      throw new Api.Failure(400, "请先保存SMTP主机、端口、账号和发信地址");
-    var sender = new JavaMailSenderImpl();
-    sender.setHost(settings.value("mail.host"));
-    sender.setPort(settings.integer("mail.port"));
-    sender.setUsername(settings.value("mail.username"));
-    sender.setPassword(settings.value("mail.password"));
-    var p = sender.getJavaMailProperties();
-    p.setProperty("mail.smtp.auth", "true");
-    p.setProperty("mail.smtp.ssl.checkserveridentity", "true");
-    p.setProperty("mail.smtp.connectiontimeout", "5000");
-    p.setProperty("mail.smtp.timeout", "5000");
-    p.setProperty("mail.smtp.writetimeout", "5000");
-    if (settings.value("mail.security").equals("TLS"))
-      p.setProperty("mail.smtp.ssl.enable", "true");
-    else {
-      p.setProperty("mail.smtp.starttls.enable", "true");
-      p.setProperty("mail.smtp.starttls.required", "true");
-    }
-    try {
-      var message = new SimpleMailMessage();
-      message.setFrom(settings.value("mail.from"));
-      message.setTo(u.email());
-      message.setSubject("AI万有网 邮件配置测试");
-      message.setText("如果您收到这封邮件，说明当前SMTP配置可以发送邮件。这是管理员手动触发的测试。");
-      sender.send(message);
-      return Map.of("success", true);
-    } catch (Exception e) {
-      throw new Api.Failure(400, "测试邮件未发送成功，请检查服务商设置、授权码和发信地址");
-    }
   }
 }

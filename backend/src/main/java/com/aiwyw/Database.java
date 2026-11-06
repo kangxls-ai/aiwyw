@@ -19,6 +19,20 @@ public class Database {
 
   private final SecureStore store;
   private final ObjectMapper json;
+
+  @org.springframework.beans.factory.annotation.Value("${aiwyw.mode:development}")
+  private String mode = "development";
+
+  public boolean production() {
+    return "production".equals(mode);
+  }
+
+  /** 生产安装与已安装启动都限制MySQL；安装前的临时H2仅承载一次性引导，不接受业务用户。 */
+  public void requireProductionEngine(ConnectionSpec spec) {
+    if (production() && !"MYSQL".equals(spec.engine()))
+      throw new Api.Failure(400, "生产模式只允许安装MySQL");
+  }
+
   private volatile boolean installed;
   private final String installToken;
   private SwitchingSource source;
@@ -54,6 +68,17 @@ public class Database {
                   ConnectionSpec.class));
     else delegate = connect(new ConnectionSpec("H2", "", 0, "", "", ""));
     source = new SwitchingSource(delegate);
+    if (production() && installed) {
+      var j = new JdbcTemplate(source);
+      if (j.queryForObject(
+              "SELECT COUNT(*) FROM schema_migration WHERE version LIKE 'LOCAL!_REVIEW!_%' ESCAPE"
+                  + " '!'",
+              Long.class)
+          > 0) {
+        delegate.close();
+        throw new IllegalStateException("生产模式拒绝使用本地合成验收数据库，请安装到新MySQL库");
+      }
+    }
     schema(source);
     return source;
   }
@@ -92,6 +117,7 @@ public class Database {
 
   /** 只接收受限主机和库名；生产MySQL强制TLS，连接超时有上限。 */
   public HikariDataSource connect(ConnectionSpec spec) {
+    if (installed) requireProductionEngine(spec);
     HikariDataSource d = new HikariDataSource();
     if ("MYSQL".equals(spec.engine())) {
       if (spec.host() == null

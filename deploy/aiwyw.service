@@ -1,0 +1,26 @@
+[Unit]
+Description=AIwanyouwang production application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aiwyw
+Group=aiwyw
+WorkingDirectory=/opt/aiwyw/current
+ExecStart=/usr/bin/node /opt/aiwyw/current/deploy/start-production.mjs /var/lib/aiwyw
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=35
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/aiwyw
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

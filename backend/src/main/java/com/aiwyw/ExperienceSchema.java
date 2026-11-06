@@ -7,6 +7,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 final class ExperienceSchema {
   static void migrate(DataSource source, JdbcTemplate db) {
     String[][] fields = {
+      {
+        "mail_outbox",
+        "last_error_code",
+        "VARCHAR(30) NULL COMMENT '最近失败脱敏分类AUTH/TLS/DNS/TIMEOUT/CONNECT/DELIVERY；成功清除，不保存异常原文'"
+      },
       {"recharge_order", "payment_memo", "VARCHAR(4) NULL COMMENT '创建时随机四位付款备注，可重复，非支付凭证；旧订单为空'"},
       {
         "api_definition",

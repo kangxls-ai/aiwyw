@@ -97,7 +97,7 @@ public class OperationsStats {
       var c = new Cookie("AIWYW_ANALYTICS", token);
       c.setHttpOnly(true);
       c.setPath("/");
-      c.setSecure(r.isSecure());
+      c.setSecure(AuthController.secure(r));
       c.setAttribute("SameSite", "Lax");
       c.setMaxAge(365 * 86400);
       response.addCookie(c);

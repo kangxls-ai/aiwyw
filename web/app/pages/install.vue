@@ -6,6 +6,7 @@ const busy = ref(false),
   error = ref(""),
   notice = ref(""),
   installed = ref(false);
+const production = ref(false);
 const token = ref(""),
   email = ref(""),
   password = ref("");
@@ -21,6 +22,8 @@ onMounted(async () => {
   try {
     const s = await request("/api/install/status");
     installed.value = s.installed;
+    production.value = s.production;
+    if (s.production) connection.engine = "MYSQL";
   } catch (e) {
     error.value = message(e);
   }
@@ -94,7 +97,11 @@ async function install() {
         <div class="form-section-title">01 数据库</div>
         <el-form-item label="数据库类型"
           ><el-select v-model="connection.engine" aria-label="数据库类型">
-            <el-option value="H2" label="本地数据库 · 开发与体验" />
+            <el-option
+              v-if="!production"
+              value="H2"
+              label="本地数据库 · 开发与体验"
+            />
             <el-option value="MYSQL" label="MySQL · 生产环境" /> </el-select
         ></el-form-item>
         <p v-if="connection.engine === 'H2'" class="field-help">

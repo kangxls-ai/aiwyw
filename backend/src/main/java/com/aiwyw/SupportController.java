@@ -22,7 +22,7 @@ public class SupportController {
   void cookie(HttpServletRequest r, HttpServletResponse response, String token) {
     var c = new Cookie("AIWYW_SUPPORT", token);
     c.setHttpOnly(true);
-    c.setSecure(r.isSecure());
+    c.setSecure(AuthController.secure(r));
     c.setPath("/");
     c.setMaxAge(service.settings.integer("support.retention_days") * 86400);
     c.setAttribute("SameSite", "Lax");

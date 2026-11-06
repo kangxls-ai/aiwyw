@@ -253,12 +253,13 @@ public class Accounts {
         message.setText(crypto.decrypt((String) row.get("body_enc")));
         sender.send(message);
         db.update(
-            "UPDATE mail_outbox SET status='SENT',body_enc=? WHERE id=?",
+            "UPDATE mail_outbox SET status='SENT',body_enc=?,last_error_code=NULL WHERE id=?",
             crypto.encrypt("sent"),
             id);
       } catch (Exception failure) {
         db.update(
-            "UPDATE mail_outbox SET status='PENDING',next_at=? WHERE id=?",
+            "UPDATE mail_outbox SET status='PENDING',last_error_code=?,next_at=? WHERE id=?",
+            MailDiagnostics.code(failure),
             System.currentTimeMillis()
                 + Math.min(3600000, 60000L * (1 + ((Number) row.get("attempts")).intValue())),
             id);
@@ -267,24 +268,7 @@ public class Accounts {
   }
 
   static JavaMailSenderImpl sender(Settings settings) {
-    var sender = new JavaMailSenderImpl();
-    sender.setHost(settings.value("mail.host"));
-    sender.setPort(settings.integer("mail.port"));
-    sender.setUsername(settings.value("mail.username"));
-    sender.setPassword(settings.value("mail.password"));
-    var p = sender.getJavaMailProperties();
-    p.setProperty("mail.smtp.auth", "true");
-    p.setProperty("mail.smtp.ssl.checkserveridentity", "true");
-    p.setProperty("mail.smtp.connectiontimeout", "5000");
-    p.setProperty("mail.smtp.timeout", "5000");
-    p.setProperty("mail.smtp.writetimeout", "5000");
-    if (settings.value("mail.security").equals("TLS"))
-      p.setProperty("mail.smtp.ssl.enable", "true");
-    else {
-      p.setProperty("mail.smtp.starttls.enable", "true");
-      p.setProperty("mail.smtp.starttls.required", "true");
-    }
-    return sender;
+    return MailDiagnostics.sender(settings);
   }
 }
 

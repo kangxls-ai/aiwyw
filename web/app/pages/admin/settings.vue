@@ -25,7 +25,8 @@ const { request, message } = useApi();
 const entries = ref<Entry[]>([]),
   values = reactive<Record<string, string>>({}),
   clears = reactive<Record<string, boolean>>({});
-const group = ref("网站信息"),
+const route = useRoute();
+const group = ref(String(route.query.group || "网站信息")),
   error = ref(""),
   notice = ref(""),
   loading = ref(true),
@@ -67,7 +68,8 @@ const titles: Record<string, string> = {
   网站信息: "让用户更好地认识你的商店。",
   首发商品: "维护 markdo 的展示资料，准备好后再发布。",
   充值收款: "当前仅使用模拟充值，真实付款码可预先上传保存。",
-  邮件服务: "保存服务商资料后，可发送一封测试邮件。",
+  邮件服务:
+    "SMTP负责注册验证和密码找回邮件；POP3/IMAP只用于收信连接诊断，不能替代发信。",
   文件存储: "本地与对象存储配置在保存后用于新上传，历史资源仍保留原连接。",
 };
 async function load() {
@@ -143,13 +145,67 @@ const preview = (url: string) =>
   url.startsWith("/api/public/assets/")
     ? url.replace("/api/public/assets/", "/api/admin/assets/")
     : url;
-async function testMail() {
+const readiness = ref<any>(null),
+  readinessBusy = ref(false);
+async function checkProduction() {
+  readinessBusy.value = true;
+  try {
+    readiness.value = await request("/api/admin/production/readiness");
+  } catch (e) {
+    error.value = message(e);
+  } finally {
+    readinessBusy.value = false;
+  }
+}
+const mailResult = ref<any>(null),
+  mailStatus = ref<any>(null);
+watch(
+  () => JSON.stringify(values),
+  () => {
+    mailResult.value = null;
+  },
+);
+async function refreshMailStatus() {
+  try {
+    mailStatus.value = await request("/api/admin/mail/status");
+  } catch {
+    /* 主表错误独立展示，不覆盖用户输入。 */
+  }
+}
+watch(
+  group,
+  (g) => {
+    if (g === "邮件服务") refreshMailStatus();
+  },
+  { immediate: true },
+);
+function mailPreset(alternate = false) {
+  Object.assign(values, {
+    "mail.host": "smtp.qq.com",
+    "mail.port": alternate ? "587" : "465",
+    "mail.security": alternate ? "STARTTLS" : "TLS",
+    "mail.pop3.host": "pop.qq.com",
+    "mail.pop3.port": "995",
+    "mail.imap.host": "imap.qq.com",
+    "mail.imap.port": "993",
+  });
+  if (values["mail.username"] && !values["mail.from"])
+    values["mail.from"] = values["mail.username"];
+  notice.value =
+    "已填入QQ方案；请填写完整邮箱账号和授权码，保存后测试。原授权码和启用状态保持不变。";
+  mailResult.value = null;
+}
+async function testMail(protocol = "SMTP", send = false) {
   saving.value = true;
   error.value = "";
   notice.value = "";
+  mailResult.value = null;
   try {
-    await request("/api/admin/mail/test", { method: "POST" });
-    notice.value = "测试邮件已发送至当前管理员邮箱";
+    mailResult.value = await request(
+      send ? "/api/admin/mail/test" : "/api/admin/mail/check",
+      { method: "POST", ...(send ? {} : { body: { protocol } }) },
+    );
+    await refreshMailStatus();
   } catch (e) {
     error.value = message(e);
   } finally {
@@ -201,6 +257,9 @@ onBeforeUnmount(() => unregister?.());
         </p>
       </div>
       <div class="heading-actions">
+        <el-button :loading="readinessBusy" @click="checkProduction"
+          >生产上线检查</el-button
+        >
         <el-button :disabled="saving || loading" @click="reload"
           >重新加载</el-button
         ><el-button
@@ -219,6 +278,50 @@ onBeforeUnmount(() => unregister?.());
     />
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <div v-if="notice" class="alert success" role="status">{{ notice }}</div>
+    <el-dialog
+      :model-value="!!readiness"
+      title="生产上线检查"
+      width="min(960px,96vw)"
+      @close="readiness = null"
+      ><el-alert
+        :title="
+          readiness?.blocked
+            ? '仍有上线阻断项，请按清单处理'
+            : '自动检查无阻断项；仍须完成下列人工核验'
+        "
+        :type="readiness?.blocked ? 'warning' : 'info'"
+        :closable="false"
+      /><el-table :data="readiness?.checks || []"
+        ><el-table-column
+          prop="name"
+          label="检查项目"
+          width="180" /><el-table-column label="结果" width="100"
+          ><template #default="{ row }"
+            ><el-tag
+              :type="
+                row.state === 'PASS'
+                  ? 'success'
+                  : row.state === 'BLOCK'
+                    ? 'danger'
+                    : 'warning'
+              "
+              >{{
+                row.state === "PASS"
+                  ? "通过"
+                  : row.state === "BLOCK"
+                    ? "阻断"
+                    : "待核验"
+              }}</el-tag
+            ></template
+          ></el-table-column
+        ><el-table-column
+          prop="detail"
+          label="处理说明"
+          min-width="300" /></el-table
+      ><template #footer
+        ><el-button @click="readiness = null">关闭</el-button></template
+      ></el-dialog
+    >
     <div v-loading="loading" class="settings-layout">
       <aside class="settings-groups">
         <NuxtLink to="/admin/workspace?view=sections">首页栏目 →</NuxtLink
@@ -279,7 +382,13 @@ onBeforeUnmount(() => unregister?.());
                   v-for="v in e.definition.options"
                   :key="v"
                   :value="v"
-                  :label="v"
+                  :label="
+                    e.definition.key === 'mail.security'
+                      ? v === 'TLS'
+                        ? 'SSL/TLS（通常465）'
+                        : 'STARTTLS（通常587）'
+                      : v
+                  "
               /></el-select>
               <template v-else-if="e.definition.type === 'image'"
                 ><el-image
@@ -350,12 +459,60 @@ onBeforeUnmount(() => unregister?.());
           v-if="!visible.length && !loading"
           description="没有匹配的配置项"
         />
-        <el-button
-          v-if="!filter && group === '邮件服务'"
-          :disabled="saving || !!changes.length"
-          @click="testMail"
-          >发送测试邮件</el-button
-        >
+        <div v-if="!filter && group === '邮件服务'" class="mail-testing">
+          <el-alert
+            title="QQ邮箱：先在邮箱网页开启协议并生成授权码；账号使用完整邮箱地址，发信邮箱与账号一致。网站发送验证邮件必须通过SMTP。"
+            type="info"
+            :closable="false"
+          />
+          <div class="heading-actions">
+            <el-button :disabled="saving" @click="mailPreset()"
+              >填入QQ方案（465 SSL/TLS）</el-button
+            ><el-button :disabled="saving" @click="mailPreset(true)"
+              >填入QQ备用方案（587 STARTTLS）</el-button
+            >
+          </div>
+          <p class="admin-muted">
+            POP3：pop.qq.com / 995 SSL/TLS；IMAP：imap.qq.com / 993
+            SSL/TLS。三个协议共用上方邮箱账号和授权码；连接测试不读取或删除邮件。先保存修改再测试。
+          </p>
+          <div class="heading-actions">
+            <el-button
+              v-for="protocol in ['SMTP', 'POP3', 'IMAP']"
+              :key="protocol"
+              :disabled="saving || !!changes.length"
+              @click="testMail(protocol)"
+              >测试{{ protocol }}连接</el-button
+            ><el-button
+              type="primary"
+              :disabled="saving || !!changes.length"
+              @click="testMail('SMTP', true)"
+              >发送测试邮件到我的邮箱</el-button
+            >
+          </div>
+          <p v-if="saving" role="status">正在测试，请稍候…</p>
+          <el-alert
+            v-if="mailResult"
+            :title="`${mailResult.protocol} · ${mailResult.code} · ${mailResult.elapsedMs}ms：${mailResult.message}`"
+            :type="mailResult.success ? 'success' : 'error'"
+            :closable="false"
+          />
+          <p v-if="mailStatus" class="admin-muted">
+            自动投递：{{ mailStatus.enabled ? "已启用" : "未启用" }}；等待投递
+            {{ mailStatus.pending }} 封。<span
+              v-for="item in mailStatus.recentFailures"
+              :key="item.last_error_code"
+            >
+              {{ item.last_error_code }}：{{ item.total }} 封。</span
+            >配置修复并启用服务后队列按退避策略自动重试，最多每小时一次。
+          </p>
+          <a
+            href="https://help.mail.qq.com/detail/106/985"
+            target="_blank"
+            rel="noopener"
+            >QQ邮箱授权码说明 ↗</a
+          >
+        </div>
         <el-button
           v-if="!filter && group === '缓存与限流'"
           :disabled="saving || !!changes.length"
