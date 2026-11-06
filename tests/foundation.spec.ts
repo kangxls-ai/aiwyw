@@ -1819,6 +1819,13 @@ test("consistent typography, managed article navigation, API editor tabs and acc
   await close
     .getByRole("button", { name: "放弃修改并关闭", exact: true })
     .click();
+  // 确认框关闭与工作页签移除分两步完成；先验证原草稿确实移除，再定位剩下的同名页签。
+  await expect(admin.locator('[data-workspace="' + firstId + '"]')).toHaveCount(
+    0,
+  );
+  await expect(
+    admin.getByRole("tab", { name: "新增API", exact: true }),
+  ).toHaveCount(1);
   await admin.getByRole("tab", { name: "新增API", exact: true }).click();
   await admin
     .locator('[data-workspace^="api-editor-"]:visible')
@@ -1827,6 +1834,9 @@ test("consistent typography, managed article navigation, API editor tabs and acc
   await close
     .getByRole("button", { name: "放弃修改并关闭", exact: true })
     .click();
+  await expect(
+    admin.getByRole("tab", { name: "新增API", exact: true }),
+  ).toHaveCount(0);
   await menu(admin, "用户与权限");
   await menu(admin, "角色与权限");
   const roles = admin.locator('[data-workspace="roles"]');
