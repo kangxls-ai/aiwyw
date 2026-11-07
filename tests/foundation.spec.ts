@@ -291,12 +291,7 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
     buffer: png,
   });
   await expect(page.getByAltText("应用图标", { exact: true })).toBeVisible();
-  await upload(page, "上传添加截图", {
-    name: "utility-screenshot.png",
-    mimeType: "image/png",
-    buffer: png,
-  });
-  await expect(page.getByAltText("截图1", { exact: true })).toBeVisible();
+  await expect(editor.getByText("添加截图", { exact: true })).toHaveCount(0);
   await upload(page, "上传下载内容", {
     name: "utility.zip",
     mimeType: "application/zip",
@@ -534,6 +529,22 @@ test("static catalog, real download, language and mobile", async ({
   await expect(
     page.getByRole("heading", { name: "精选工具", exact: true }),
   ).toBeVisible();
+  const checkColumns = async (width: number, columns: number) => {
+    await page.setViewportSize({ width, height: 844 });
+    await expect
+      .poll(() =>
+        page
+          .locator(".directory-card-grid")
+          .first()
+          .evaluate(
+            (grid) =>
+              getComputedStyle(grid).gridTemplateColumns.split(" ").length,
+          ),
+      )
+      .toBe(columns);
+  };
+  await checkColumns(1079, 2);
+  await checkColumns(1080, 3);
   await page.getByRole("link", { name: "更多", exact: true }).first().click();
   await expect(page.locator(".directory-pager")).toContainText("100");
   await page.locator(".directory-pager .el-select__wrapper").click();
@@ -542,12 +553,33 @@ test("static catalog, real download, language and mobile", async ({
   await pick(page, "标签筛选", ["办公效率"]);
   await page.reload();
   await expect(page.locator(".directory-entry-card")).toHaveCount(1);
+  await checkColumns(1080, 3);
+  await expect(page.locator(".directory-entry-card")).toHaveCSS(
+    "height",
+    "220px",
+  );
+  await checkColumns(768, 2);
+  await checkColumns(767, 1);
+  await checkColumns(390, 1);
+  const mobileCard = page.locator(".directory-entry-card");
+  const stats = await mobileCard.locator(".entry-stats").boundingBox();
+  const actions = await mobileCard.locator(".entry-actions").boundingBox();
+  expect(actions!.y).toBeGreaterThanOrEqual(stats!.y + stats!.height);
+  const [downloadButton, detailButton] = await Promise.all(
+    [
+      mobileCard.locator(".entry-actions button"),
+      mobileCard.locator(".entry-actions a"),
+    ].map((action) => action.boundingBox()),
+  );
+  expect(Math.abs(downloadButton!.width - detailButton!.width)).toBeLessThan(1);
   const popup = page.waitForEvent("popup");
   await page.getByRole("link", { name: "查看详情", exact: true }).click();
   const detail = await popup;
   await expect(
     detail.getByRole("heading", { name: "工具使用说明", exact: true }),
   ).toBeVisible();
+  await expect(detail.locator(".body .zh img")).toHaveCount(1);
+  await expect(detail.locator("section.screenshots")).toHaveCount(0);
   await expect(detail.locator(".public-site-header")).toBeVisible();
   await expect(detail.locator(".public-breadcrumb")).toContainText("首页");
   const download = detail.waitForEvent("download");
@@ -2529,8 +2561,7 @@ test("manual picker retains cross-page selection and homepage shows configured s
   const apiCard = page
     .locator(".directory-entry-card")
     .filter({ hasText: "浏览器文本API" });
-  await expect(apiCard).toHaveCSS("width", "460px");
-  await expect(apiCard).toHaveCSS("height", "250px");
+  await expect(apiCard).toHaveCSS("height", "220px");
   await expect(
     apiCard.getByRole("link", { name: "调试", exact: true }),
   ).toHaveAttribute("href", "/api-services?api=browser-text-api&debug=1");

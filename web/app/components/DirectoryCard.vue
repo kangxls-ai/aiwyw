@@ -113,6 +113,12 @@ const price = computed(() => {
         <span v-if="product && !isApi" :title="t('下载数', 'Downloads')"
           ><SiteIcon name="download" />{{ count(product.downloads) }}</span
         >
+        <span
+          v-if="views === undefined && (!product || isApi)"
+          class="entry-category"
+        >
+          {{ category }}
+        </span>
       </div>
       <div class="entry-actions">
         <button
@@ -138,9 +144,9 @@ const price = computed(() => {
 <style scoped>
 .directory-entry-card {
   display: grid;
-  grid-template-rows: 100px 100px 50px;
-  width: min(460px, 100%);
-  height: 250px;
+  grid-template-rows: 88px 88px 44px;
+  width: 100%;
+  height: 220px;
   min-width: 0;
   padding: 0;
   overflow: hidden;
@@ -166,8 +172,8 @@ const price = computed(() => {
 }
 .entry-icon :deep(.directory-app-logo),
 .entry-kind-icon {
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
   margin: 0;
   border-radius: 17px;
   display: grid;
@@ -204,7 +210,7 @@ const price = computed(() => {
   color: #6f6287;
 }
 .entry-body {
-  padding: 10px 16px;
+  padding: 8px 16px;
   min-width: 0;
   border-top: 1px solid #f0edf5;
 }
@@ -257,6 +263,9 @@ const price = computed(() => {
 .entry-stats {
   color: #697189;
 }
+.entry-stats .entry-category {
+  display: none;
+}
 .entry-stats svg {
   width: 15px;
   height: 15px;
@@ -282,20 +291,34 @@ const price = computed(() => {
 .entry-actions button:disabled {
   opacity: 0.55;
 }
-@media (max-width: 420px) {
-  .entry-foot {
-    gap: 4px;
-    padding-inline: 8px;
+@media (width < 768px) {
+  .directory-entry-card {
+    height: auto;
+    grid-template-rows: auto auto auto;
   }
-  .entry-stats,
-  .entry-actions,
-  .entry-stats span {
-    gap: 4px;
+  .entry-head {
+    padding: 12px 14px 12px 0;
+  }
+  .entry-icon :deep(.directory-app-logo),
+  .entry-kind-icon {
+    width: 48px;
+    height: 48px;
+  }
+  .entry-foot {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 10px 13px;
+  }
+  .entry-stats .entry-category {
+    display: inline;
   }
   .entry-actions button,
   .entry-actions a {
-    font-size: 12px;
-    padding-inline: 6px;
+    justify-content: center;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
   }
 }
 </style>

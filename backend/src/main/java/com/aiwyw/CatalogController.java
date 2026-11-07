@@ -244,10 +244,11 @@ public class CatalogController {
       @PathVariable String slug, HttpServletRequest req, HttpServletResponse res) {
     // 不要求Nuxt渲染，不查商品详情接口；内存指针命中文件。no-cache允许浏览器验证更新，CDN可配置短TTL。
     visitor(req, res);
+    var site = settings.publicValues();
     String html =
         UiPresentation.decorate(
-            catalog.page(slug),
-            settings.publicValues(),
+            catalog.page(slug, site),
+            site,
             catalog.publicData().sections(),
             catalog.findPublic(slug).content().type(),
             slug,

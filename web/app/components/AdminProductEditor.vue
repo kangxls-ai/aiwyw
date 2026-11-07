@@ -54,7 +54,7 @@ watch([() => snapshot(), uploading], () => {
 async function fillMarkdo() {
   try {
     await ElMessageBox.confirm(
-      "填入已核对仓库的双语介绍和建议标签？会替换当前名称、摘要和图文，价格、版本、文件及截图保留。保存前可继续编辑。",
+      "填入已核对仓库的双语介绍和建议标签？会替换当前名称、摘要和图文，价格、版本和下载文件保留。保存前可继续编辑。",
       "填入MarkDo介绍",
       { confirmButtonText: "填入介绍", cancelButtonText: "取消" },
     );
@@ -161,22 +161,6 @@ async function rollback(publication: string) {
   } catch (e) {
     error.value = message(e);
   }
-}
-function screenshot(value: string) {
-  if (!value) return;
-  if (form.value.screenshots.length >= 12) {
-    error.value = "最多12张截图";
-    return;
-  }
-  if (!form.value.screenshots.includes(value))
-    form.value.screenshots.push(value);
-}
-function move(index: number, direction: number) {
-  const values = [...form.value.screenshots],
-    next = index + direction;
-  if (next < 0 || next >= values.length) return;
-  [values[index], values[next]] = [values[next]!, values[index]!];
-  form.value.screenshots = values;
 }
 let unregister: (() => void) | undefined;
 onMounted(() => {
@@ -336,42 +320,14 @@ onBeforeUnmount(() => unregister?.());
         />
       </div>
       <div class="full">
-        <AssetControl
-          model-value=""
-          purpose="IMAGE"
-          label="添加截图"
-          @update:model-value="screenshot"
-          @busy="uploads.screenshots = $event"
-        />
-        <div class="editor-screenshots">
-          <article v-for="(url, index) in form.screenshots" :key="url">
-            <el-image
-              :src="url"
-              :preview-src-list="form.screenshots"
-              :initial-index="index"
-              :alt="`截图${index + 1}`"
-              fit="contain"
-            />
-            <div>
-              <el-button size="small" @click="move(index, -1)">上移</el-button
-              ><el-button size="small" @click="move(index, 1)">下移</el-button
-              ><el-button
-                size="small"
-                type="danger"
-                plain
-                @click="form.screenshots.splice(index, 1)"
-                >移除</el-button
-              >
-            </div>
-          </article>
-        </div>
-      </div>
-      <div class="full">
         <SummernoteEditor
           v-model="form.bodyZh"
           label="图文介绍"
           @busy="uploads.bodyZh = $event"
         />
+        <p class="admin-muted">
+          图片直接插入图文介绍，可上传、粘贴或从文件库选择。
+        </p>
       </div>
       <div class="full">
         <SummernoteEditor

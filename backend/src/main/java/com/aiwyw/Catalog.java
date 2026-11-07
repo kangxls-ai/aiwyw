@@ -36,7 +36,31 @@ public class Catalog {
       String version,
       String deliveryMode,
       String downloadUrl,
-      long revision) {}
+      long revision) {
+    /** 旧截图字段仍能读取。只把未出现在正文中的图片追加到介绍，空英文沿用中文。 */
+    ProductInput withInlineImages() {
+      if (screenshots == null || screenshots.isEmpty()) return this;
+      return new ProductInput(
+          slug,
+          nameZh,
+          nameEn,
+          summaryZh,
+          summaryEn,
+          ContentHtml.appendImages(bodyZh, screenshots, "应用图片"),
+          bodyEn == null || bodyEn.isBlank()
+              ? ""
+              : ContentHtml.appendImages(bodyEn, screenshots, "Application image"),
+          tags,
+          iconUrl,
+          List.of(),
+          type,
+          pricePoints,
+          version,
+          deliveryMode,
+          downloadUrl,
+          revision);
+    }
+  }
 
   /** 选品规则与排序参数属于栏目配置，产品标签不依赖栏目存在。 */
   public record SectionInput(
@@ -305,31 +329,32 @@ public class Catalog {
     List<String> screenshots = p.screenshots() == null ? List.of() : p.screenshots();
     if (screenshots.size() > 12) throw new Api.Failure(400, "最多12张截图");
     return new ProductInput(
-        slug,
-        text(p.nameZh(), 100, true),
-        text(p.nameEn(), 100, false),
-        text(p.summaryZh(), 500, false),
-        text(p.summaryEn(), 500, false),
-        ContentHtml.sanitize(p.bodyZh()),
-        ContentHtml.sanitize(p.bodyEn()),
-        labels(p.tags(), 20),
-        url(p.iconUrl()),
-        screenshots.stream().map(this::url).toList(),
-        p.type(),
-        p.pricePoints().setScale(2),
-        text(p.version(), 60, false),
-        p.deliveryMode(),
-        p.downloadUrl() != null && p.downloadUrl().matches("asset:[a-f0-9-]{36}")
-            ? p.downloadUrl()
-            : url(p.downloadUrl()),
-        p.revision());
+            slug,
+            text(p.nameZh(), 100, true),
+            text(p.nameEn(), 100, false),
+            text(p.summaryZh(), 500, false),
+            text(p.summaryEn(), 500, false),
+            ContentHtml.sanitize(p.bodyZh()),
+            ContentHtml.sanitize(p.bodyEn()),
+            labels(p.tags(), 20),
+            url(p.iconUrl()),
+            screenshots.stream().map(this::url).toList(),
+            p.type(),
+            p.pricePoints().setScale(2),
+            text(p.version(), 60, false),
+            p.deliveryMode(),
+            p.downloadUrl() != null && p.downloadUrl().matches("asset:[a-f0-9-]{36}")
+                ? p.downloadUrl()
+                : url(p.downloadUrl()),
+            p.revision())
+        .withInlineImages();
   }
 
   Product mapDraft(java.sql.ResultSet r, int n) throws java.sql.SQLException {
     return new Product(
         r.getString("id"),
         r.getString("slug"),
-        decode(r.getString("draft_json"), ProductInput.class),
+        decode(r.getString("draft_json"), ProductInput.class).withInlineImages(),
         r.getLong("revision"),
         r.getString("status"),
         r.getString("active_publication"),
@@ -804,11 +829,23 @@ public class Catalog {
   }
 
   public String page(String slug) {
-    Product p = findPublic(slug);
+    return page(slug, null);
+  }
+
+  String page(String slug, Map<String, String> site) {
+    var data = publicData();
+    Product p =
+        data.products().stream()
+            .filter(item -> item.slug().equals(slug))
+            .findFirst()
+            .orElseThrow(() -> new Api.Failure(404, "应用不存在或尚未发布"));
     try {
-      String html = Files.readString(staticPath(publicData().staticFiles().get(slug)));
-      if (!hash(html).equals(publicData().staticHashes().get(slug)))
+      String html = Files.readString(staticPath(data.staticFiles().get(slug)));
+      if (!hash(html).equals(data.staticHashes().get(slug)))
         throw new Api.Failure(503, "页面完整性校验失败，请联系站点管理员恢复发布文件");
+      // 使用刚校验的同一份发布快照适配旧图库，不改写文件、订单或历史数据。
+      if (site != null && p.content().screenshots() != null && !p.content().screenshots().isEmpty())
+        return StaticProductPage.render(p, site);
       return p.status().equals("UNLISTED")
           ? html.replace("data-product-status=\"PUBLISHED\"", "data-product-status=\"UNLISTED\"")
           : html;

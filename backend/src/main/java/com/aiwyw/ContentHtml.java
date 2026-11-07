@@ -119,4 +119,21 @@ public final class ContentHtml {
     if (input.length() > 100000) throw new Api.Failure(400, "图文介绍不能超过10万字符");
     return POLICY.sanitize(input);
   }
+
+  /** 仅向已净化的正文追加通过同一URL规则的图片。重复资源不再插入。 */
+  static String appendImages(String body, java.util.List<String> images, String alt) {
+    StringBuilder result = new StringBuilder(body == null ? "" : body);
+    for (String image : images) {
+      if (image == null || image.isBlank() || !safeUrl(image)) continue;
+      String source = "src=\"" + escape(image) + "\"";
+      if (result.indexOf(source) >= 0) continue;
+      result
+          .append("<p><img ")
+          .append(source)
+          .append(" alt=\"")
+          .append(escape(alt))
+          .append("\" /></p>");
+    }
+    return result.toString();
+  }
 }

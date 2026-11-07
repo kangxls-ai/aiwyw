@@ -570,4 +570,81 @@ class CatalogTest {
     catalog.initialize();
     assertTrue(catalog.sections().stream().noneMatch(s -> s.config().mode().equals("ARTICLES")));
   }
+
+  @Test
+  @Order(16)
+  void legacyGalleryBecomesEditableIntroductionWithoutRewritingPublication() throws Exception {
+    String slug = "legacy-gallery";
+    String id = catalog.saveProduct(null, product(slug, "旧版说明", 0), actor);
+    String publication = catalog.publish(id, 1, actor, settings);
+    var p = catalog.draft(id).content();
+    String image = "/images/legacy-example.png";
+    var legacy =
+        new Catalog.ProductInput(
+            p.slug(),
+            p.nameZh(),
+            p.nameEn(),
+            p.summaryZh(),
+            p.summaryEn(),
+            "<p>旧版中文</p>",
+            "<p>Legacy English</p>",
+            p.tags(),
+            p.iconUrl(),
+            List.of(image, image),
+            p.type(),
+            p.pricePoints(),
+            p.version(),
+            p.deliveryMode(),
+            "",
+            0);
+    db.update("UPDATE catalog_product SET draft_json=? WHERE id=?", catalog.encode(legacy), id);
+    var draft = catalog.draft(id).content();
+    assertTrue(draft.screenshots().isEmpty());
+    assertTrue(draft.bodyZh().contains("旧版中文"));
+    assertTrue(draft.bodyEn().contains("Legacy English"));
+    assertEquals(1, draft.bodyZh().split(image, -1).length - 1);
+    assertEquals(1, draft.bodyEn().split(image, -1).length - 1);
+
+    var published = catalog.findPublic(slug);
+    var legacySnapshot =
+        new Catalog.Product(
+            id,
+            slug,
+            legacy,
+            published.revision(),
+            published.status(),
+            publication,
+            published.firstPublishedAt(),
+            0,
+            0);
+    String file =
+        db.queryForObject(
+            "SELECT file_name FROM catalog_publication WHERE id=?", String.class, publication);
+    Path path = directory.resolve("publications").resolve(file);
+    String original =
+        Files.readString(path)
+            .replace(
+                "<section class=\"body\">",
+                "<section class=\"screenshots\"><div class=\"gallery\"><img src=\""
+                    + image
+                    + "\" /></div></section><section class=\"body\">");
+    Files.writeString(path, original);
+    db.update(
+        "UPDATE catalog_publication SET snapshot_json=?,sha256=? WHERE id=?",
+        catalog.encode(legacySnapshot),
+        catalog.hash(original),
+        publication);
+    catalog.rollback(id, publication, catalog.draft(id).revision(), actor);
+
+    String response =
+        mvc.perform(get("/api/public/pages/" + slug))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+    assertFalse(response.contains("<section class=\"screenshots\">"));
+    assertTrue(response.substring(response.indexOf("<section class=\"body\">")).contains(image));
+    assertEquals(original, Files.readString(path));
+    assertTrue(response.contains(StaticProductPage.SCRIPT));
+  }
 }
