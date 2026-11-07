@@ -149,6 +149,84 @@ class ReleasePreparationTest {
   }
 
   @Test
+  void homepageCapsEnabledSectionsAndDirectoryFiltersBeforePaging() throws Exception {
+    for (int i = 0; i < 205; i++)
+      api.saveDefinition(
+          null,
+          new MeteredApi.Definition(
+              "directory-fixture-" + i,
+              "分页接口 " + i,
+              "Directory fixture " + i,
+              "分页上限验收",
+              "Directory limit",
+              "TEXT_STATS",
+              "",
+              "",
+              false,
+              "",
+              "",
+              BigDecimal.ONE,
+              true,
+              0),
+          "release-fixture");
+    var current =
+        catalog.sections().stream().filter(s -> s.config().mode().equals("API")).findFirst();
+    String id =
+        catalog.saveSection(
+            current.map(Catalog.Section::id).orElse(null),
+            new Catalog.SectionInput(
+                "接口目录",
+                "APIs",
+                "",
+                "",
+                "browser",
+                true,
+                0,
+                "API",
+                "LATEST",
+                0,
+                40,
+                List.of(),
+                List.of(),
+                current.map(Catalog.Section::revision).orElse(0L)),
+            "release-fixture");
+    var json = new com.fasterxml.jackson.databind.ObjectMapper();
+    var response =
+        mvc.perform(get("/api/public/home-sections"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsByteArray();
+    var sections = json.readTree(response);
+    var expected =
+        catalog.sections().stream()
+            .filter(s -> s.config().enabled())
+            .map(Catalog.Section::id)
+            .toList();
+    assertEquals(expected.size(), sections.size());
+    for (int i = 0; i < expected.size(); i++) {
+      assertEquals(expected.get(i), sections.get(i).get("id").asText());
+      if (expected.get(i).equals(id)) assertEquals(40, sections.get(i).get("items").size());
+    }
+    mvc.perform(get("/api/public/sections/" + id + "/items").param("q", "分页上限验收"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(100));
+    mvc.perform(
+            get("/api/public/sections/" + id + "/items")
+                .param("q", "Directory fixture")
+                .param("price", "PAID")
+                .param("pageSize", "200")
+                .param("page", "2"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.total").value(205))
+        .andExpect(jsonPath("$.items.length()").value(5))
+        .andExpect(jsonPath("$.page").value(2))
+        .andExpect(jsonPath("$.items[0].endpoint").doesNotExist());
+    mvc.perform(get("/api/public/sections/" + id + "/items").param("pageSize", "201"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   void manualMixedSelectionHonorsPublishStateAndOrder() {
     var input =
         new Catalog.ProductInput(

@@ -43,7 +43,6 @@ const q = ref(""),
   busy = ref(false),
   editing = ref(false),
   baseline = ref(""),
-  apiOptions = ref<any[]>([]),
   section = ref("plans");
 const kind = computed(() =>
   props.view === "plans" ? section.value : props.view,
@@ -108,7 +107,10 @@ watch(kind, () => {
   listOrdering.direction.value = "descending";
   load();
 });
+const planApiLabels = ref<Record<string, string>>({});
 function edit(row?: any) {
+  planApiLabels.value =
+    row?.api_id && row?.api_name ? { [row.api_id]: row.api_name } : {};
   if (props.view === "plans" && !props.editor) {
     openEntityEditor("plans", row ? { id: row.id, name: row.name } : undefined);
     return;
@@ -145,6 +147,14 @@ function edit(row?: any) {
   baseline.value = JSON.stringify(form);
   dirty.value[dirtyId.value] = false;
 }
+async function editorRow(id: string) {
+  const kind = props.view === "apis" ? "apis" : "plans";
+  const result = await request<any>("/api/admin/api-list/" + kind, {
+    query: { id, pageSize: 1 },
+  });
+  if (!result.items[0]) throw new Error("API或套餐不存在，请返回列表刷新");
+  return result.items[0];
+}
 async function save() {
   if (!editing.value) return true;
   busy.value = true;
@@ -166,16 +176,12 @@ async function save() {
     dirty.value[dirtyId.value] = false;
     notice.value = "已保存，已有购买和调用条款不被覆盖";
     if (props.editor) {
-      const rows = await request<any[]>(
-        props.view === "apis" ? "/api/admin/apis" : "/api/admin/api-plans",
-      );
-      edit(rows.find((r) => r.id === saved.id));
+      edit(await editorRow(saved.id));
       if (props.view === "apis")
         await updateApiEditor(dirtyId.value, saved.id, form.name);
       else await updateEntityEditor(dirtyId.value, saved.id, form.name);
       apiChanged.value++;
     } else await load();
-    apiOptions.value = (await request<any>("/api/public/apis")).apis;
     return true;
   } catch (e) {
     error.value = message(e);
@@ -237,18 +243,12 @@ onMounted(async () => {
   if (props.editor) {
     try {
       if (props.apiId) {
-        const rows = await request<any[]>(
-          props.view === "apis" ? "/api/admin/apis" : "/api/admin/api-plans",
-        );
-        const row = rows.find((r) => r.id === props.apiId);
-        if (!row) throw new Error("API不存在或已删除，请返回列表刷新");
-        edit(row);
+        edit(await editorRow(props.apiId));
       } else edit();
     } catch (e) {
       error.value = message(e);
     }
   } else await load();
-  apiOptions.value = (await request<any>("/api/public/apis")).apis;
 });
 onBeforeUnmount(() => unregister?.());
 </script>
@@ -442,15 +442,12 @@ onBeforeUnmount(() => unregister?.());
         >
         <template v-else
           ><el-form-item label="所属API"
-            ><el-select
+            ><PagedPicker
               v-model="form.apiId"
-              aria-label="套餐所属API"
-              :disabled="!!form.id"
-              ><el-option
-                v-for="a in apiOptions"
-                :key="a.id"
-                :value="a.id"
-                :label="a.name" /></el-select></el-form-item
+              title="套餐所属API"
+              endpoint="/api/public/api-records/apis"
+              :labels="planApiLabels"
+              :disabled="!!form.id" /></el-form-item
           ><el-form-item label="成功调用额度"
             ><el-input-number
               v-model="form.quota"

@@ -203,6 +203,21 @@ public class CommerceController {
             value));
   }
 
+  @GetMapping("/api/admin/commerce/adjust-options/page")
+  Map<String, Object> adjustmentUserPage(
+      @RequestParam Map<String, String> filters, HttpServletRequest r) {
+    var actor = auth.permission(r, "points");
+    if (!actor.hasRole("ADMIN")) throw new Api.Failure(403, "仅管理员可选择调整账户");
+    return OperationalPage.query(
+        db,
+        "SELECT id,nickname,created_at FROM app_user WHERE disabled=FALSE",
+        "id<>?",
+        List.of(actor.id()),
+        Map.of("id", "id", "created_at", "created_at"),
+        "CONCAT(nickname,' ',id)",
+        filters);
+  }
+
   @PostMapping("/api/admin/commerce/recharge/{id}/review")
   Map<String, Boolean> review(
       @PathVariable String id, @RequestBody RechargeReview b, HttpServletRequest r) {

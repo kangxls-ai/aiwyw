@@ -195,24 +195,8 @@ class SectionSelection {
                       + marks(apis.size())
                       + ")",
                   apis.toArray()))) {
-        String ref = "api:" + row.get("id");
-        items.put(
-            ref,
-            Map.of(
-                "ref",
-                ref,
-                "kind",
-                "API",
-                "name",
-                row.get("name"),
-                "nameEn",
-                row.get("name_en"),
-                "summary",
-                row.get("description"),
-                "summaryEn",
-                row.get("description_en"),
-                "href",
-                "/api-services/" + row.get("slug")));
+        var item = apiItem(row);
+        items.put((String) item.get("ref"), item);
       }
     if (!contents.isEmpty())
       for (var row :
@@ -224,26 +208,72 @@ class SectionSelection {
                       + marks(contents.size())
                       + ")",
                   contents.toArray()))) {
-        String ref = "content:" + row.get("id");
-        items.put(
-            ref,
-            Map.of(
-                "ref",
-                ref,
-                "kind",
-                row.get("kind"),
-                "name",
-                row.get("title_zh"),
-                "nameEn",
-                row.get("title_en"),
-                "summary",
-                row.get("summary_zh"),
-                "summaryEn",
-                row.get("summary_en"),
-                "href",
-                "/articles/" + row.get("slug")));
+        var item = articleItem(row);
+        items.put((String) item.get("ref"), item);
       }
     return refs.stream().filter(items::containsKey).map(items::get).toList();
+  }
+
+  static Map<String, Object> apiItem(Map<String, Object> row) {
+    return Map.of(
+        "ref",
+        "api:" + row.get("id"),
+        "kind",
+        "API",
+        "name",
+        row.get("name"),
+        "nameEn",
+        row.get("name_en"),
+        "summary",
+        row.get("description"),
+        "summaryEn",
+        row.get("description_en"),
+        "href",
+        "/api-services/" + row.get("slug"),
+        "slug",
+        row.get("slug"),
+        "priceUnits",
+        row.get("price_units"));
+  }
+
+  static Map<String, Object> articleItem(Map<String, Object> row) {
+    return Map.of(
+        "ref",
+        "content:" + row.get("id"),
+        "kind",
+        row.get("kind"),
+        "name",
+        row.get("title_zh"),
+        "nameEn",
+        row.get("title_en"),
+        "summary",
+        row.get("summary_zh"),
+        "summaryEn",
+        row.get("summary_en"),
+        "href",
+        "/articles/" + row.get("slug"));
+  }
+
+  /** 只统计当前返回页中已有的内容浏览记录，保留运营统计原有的去重与保留期。 */
+  void addViews(List<Map<String, Object>> items) {
+    var paths =
+        items.stream()
+            .filter(row -> !row.containsKey("product"))
+            .map(row -> (String) row.get("href"))
+            .distinct()
+            .toList();
+    if (paths.isEmpty()) return;
+    var counts = new HashMap<String, Long>();
+    db.query(
+        "SELECT path,COUNT(*) AS views FROM analytics_event WHERE kind='PAGE' AND path IN ("
+            + marks(paths.size())
+            + ") GROUP BY path",
+        r -> {
+          counts.put(r.getString("path"), r.getLong("views"));
+        },
+        paths.toArray());
+    for (var item : items)
+      if (counts.containsKey(item.get("href"))) item.put("views", counts.get(item.get("href")));
   }
 }
 
@@ -253,19 +283,13 @@ class SectionSelectionController {
   final Catalog catalog;
   final Auth auth;
   final ContentService content;
-  final MeteredApi api;
 
   SectionSelectionController(
-      SectionSelection service,
-      Catalog catalog,
-      Auth auth,
-      ContentService content,
-      MeteredApi api) {
+      SectionSelection service, Catalog catalog, Auth auth, ContentService content) {
     this.service = service;
     this.catalog = catalog;
     this.auth = auth;
     this.content = content;
-    this.api = api;
   }
 
   @GetMapping("/api/admin/catalog/selection")
@@ -287,200 +311,321 @@ class SectionSelectionController {
     return service.lookup(b.refs());
   }
 
+  private static final Set<String> ARTICLE_TYPES = Set.of("ARTICLE", "TUTORIAL", "FAQ", "CASE");
+  private static final Set<String> PRODUCT_TYPES =
+      Set.of("TOOL", "SOFTWARE", "RESOURCE", "DOCUMENT", "API");
+
+  @GetMapping("/api/public/home-sections")
+  List<Map<String, Object>> home() {
+    return catalog.sections().stream()
+        .filter(s -> s.config().enabled())
+        .map(
+            s -> {
+              var c = s.config();
+              var result = browse(s, "", "", List.of(), "", "", 1, Math.min(40, c.limit()), false);
+              return Map.<String, Object>of(
+                  "id",
+                  s.id(),
+                  "titleZh",
+                  c.titleZh(),
+                  "titleEn",
+                  c.titleEn(),
+                  "subtitleZh",
+                  c.subtitleZh(),
+                  "subtitleEn",
+                  c.subtitleEn(),
+                  "icon",
+                  c.icon(),
+                  "items",
+                  result.get("items"));
+            })
+        .toList();
+  }
+
   @GetMapping("/api/public/sections/{id}/items")
   Map<String, Object> items(
       @PathVariable String id,
-      @RequestParam(defaultValue = "1") int page,
-      @RequestParam(defaultValue = "20") int pageSize,
-      @RequestParam(defaultValue = "") String q,
-      @RequestParam(defaultValue = "") String tag) {
-    if (page < 1
-        || page > 1000000
-        || pageSize < 1
-        || pageSize > 60
-        || q.length() > 100
-        || tag.length() > 100) throw new Api.Failure(400, "栏目分页范围不正确");
-    var section =
-        catalog.sections().stream()
-            .filter(s -> s.id().equals(id) && s.config().enabled())
-            .findFirst()
-            .orElseThrow(() -> new Api.Failure(404, "栏目不存在或已停用"));
-    var c = section.config();
-    List<Map<String, Object>> all;
-    if (c.mode().equals("MANUAL")) all = service.publicItems(c.productIds());
-    else if (c.mode().equals("ARTICLES")) {
-      var data = content.list(false, Set.of(), q, "", page, pageSize, "created_at", "descending");
-      var list = (List<Map<String, Object>>) data.get("items");
-      return Map.of(
-          "items",
-          list.stream()
-              .map(
-                  row ->
-                      Map.of(
-                          "ref",
-                          "content:" + row.get("id"),
-                          "kind",
-                          row.get("kind"),
-                          "name",
-                          row.get("title_zh"),
-                          "nameEn",
-                          row.get("title_en"),
-                          "summary",
-                          row.get("summary_zh"),
-                          "summaryEn",
-                          row.get("summary_en"),
-                          "href",
-                          "/articles/" + row.get("slug")))
-              .toList(),
-          "total",
-          data.get("total"),
-          "page",
-          data.get("page"));
-    } else if (c.mode().equals("API")) {
-      String term = "%" + q.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
-      String where =
-          " WHERE enabled=TRUE AND (name LIKE ? ESCAPE '!' OR name_en LIKE ? ESCAPE '!')";
-      long total =
-          service.db.queryForObject(
-              "SELECT COUNT(*) FROM api_definition" + where, Long.class, term, term);
-      int actual = (int) Math.min(page, Math.max(1, (total + pageSize - 1) / pageSize));
-      var rows =
-          Commerce.safeRows(
-              service.db.queryForList(
-                  "SELECT id,slug,name,name_en,description,description_en FROM api_definition"
-                      + where
-                      + " ORDER BY created_at DESC,id LIMIT ? OFFSET ?",
-                  term,
-                  term,
-                  pageSize,
-                  (actual - 1) * pageSize));
-      return Map.of(
-          "items",
-          rows.stream()
-              .map(
-                  row ->
-                      Map.<String, Object>of(
-                          "ref",
-                          "api:" + row.get("id"),
-                          "kind",
-                          "API",
-                          "name",
-                          row.get("name"),
-                          "nameEn",
-                          row.get("name_en"),
-                          "summary",
-                          row.get("description"),
-                          "summaryEn",
-                          row.get("description_en"),
-                          "href",
-                          "/api-services/" + row.get("slug")))
-              .toList(),
-          "total",
-          total,
-          "page",
-          actual,
-          "tags",
-          List.of());
-    } else {
-      // 自动栏目可超过人工上限：仅查询当前页元数据；先在已缓存的短目录上筛选，不把富文本返回首页。
-      all =
-          catalog.publicData().sections().stream()
-              .filter(s -> s.id().equals(id))
-              .findFirst()
-              .map(
-                  s ->
-                      s.products().stream()
-                          .map(
-                              p ->
-                                  Map.<String, Object>of(
-                                      "ref",
-                                      p.id(),
-                                      "kind",
-                                      "PRODUCT",
-                                      "name",
-                                      p.content().nameZh(),
-                                      "nameEn",
-                                      p.content().nameEn(),
-                                      "product",
-                                      p))
-                          .toList())
-              .orElse(List.of());
+      @RequestParam org.springframework.util.MultiValueMap<String, String> filters) {
+    return browseRequest(section(id), "", filters);
+  }
+
+  @GetMapping("/api/public/directory/{kind}")
+  Map<String, Object> directory(
+      @PathVariable String kind,
+      @RequestParam org.springframework.util.MultiValueMap<String, String> filters) {
+    if (!Set.of("applications", "articles", "apis").contains(kind))
+      throw new Api.Failure(404, "目录不存在");
+    return browseRequest(null, kind, filters);
+  }
+
+  private Catalog.Section section(String id) {
+    return catalog.sections().stream()
+        .filter(s -> s.id().equals(id) && s.config().enabled())
+        .findFirst()
+        .orElseThrow(() -> new Api.Failure(404, "栏目不存在或已停用"));
+  }
+
+  @GetMapping("/api/public/sections/{id}/items/tags")
+  Map<String, Object> sectionTags(
+      @PathVariable String id, @RequestParam Map<String, String> params) {
+    return tagPage(section(id), params);
+  }
+
+  @GetMapping("/api/public/directory/applications/tags")
+  Map<String, Object> applicationTags(@RequestParam Map<String, String> params) {
+    return tagPage(null, params);
+  }
+
+  private Map<String, Object> tagPage(Catalog.Section section, Map<String, String> params) {
+    int page, size;
+    try {
+      page = Integer.parseInt(params.getOrDefault("page", "1"));
+      size = Integer.parseInt(params.getOrDefault("pageSize", "20"));
+    } catch (NumberFormatException invalid) {
+      throw new Api.Failure(400, "标签分页参数不正确");
     }
+    String q = params.getOrDefault("q", "").trim().toLowerCase(Locale.ROOT);
+    if (page < 1 || page > 1000000 || size < 1 || size > 100 || q.length() > 80)
+      throw new Api.Failure(400, "标签分页参数不正确");
     var tags =
-        all.stream()
-            .filter(row -> row.get("product") instanceof Catalog.Product)
-            .flatMap(row -> ((Catalog.Product) row.get("product")).content().tags().stream())
-            .distinct()
-            .sorted()
+        tags(productItems(section)).stream()
+            .filter(tag -> tag.toLowerCase(Locale.ROOT).contains(q))
             .toList();
-    String term = q.trim().toLowerCase(Locale.ROOT);
-    all =
-        all.stream()
-            .filter(
-                row -> {
-                  var p = (Catalog.Product) row.get("product");
-                  return (tag.isBlank() || (p != null && p.content().tags().contains(tag)))
-                      && (term.isBlank()
-                          || (row.get("name")
-                                  + " "
-                                  + row.getOrDefault("nameEn", "")
-                                  + " "
-                                  + row.getOrDefault("summary", "")
-                                  + (p == null
-                                      ? ""
-                                      : p.content().summaryZh() + " " + p.content().summaryEn()))
-                              .toLowerCase(Locale.ROOT)
-                              .contains(term));
-                })
-            .toList();
-    int actual = (int) Math.min(page, Math.max(1, (all.size() + pageSize - 1) / pageSize)),
-        offset = (actual - 1) * pageSize;
+    int actual = Math.min(page, Math.max(1, (tags.size() + size - 1) / size));
+    int offset = (actual - 1) * size;
     return Map.of(
         "items",
-        all.subList(offset, Math.min(offset + pageSize, all.size())).stream()
-            .map(
-                row -> {
-                  if (!(row.get("product") instanceof Catalog.Product p)) return row;
-                  var result = new HashMap<String, Object>(row);
-                  var c1 = p.content();
-                  var safe =
-                      new Catalog.ProductInput(
-                          c1.slug(),
-                          c1.nameZh(),
-                          c1.nameEn(),
-                          c1.summaryZh(),
-                          c1.summaryEn(),
-                          "",
-                          "",
-                          c1.tags(),
-                          c1.iconUrl(),
-                          List.of(),
-                          c1.type(),
-                          c1.pricePoints(),
-                          c1.version(),
-                          c1.deliveryMode(),
-                          "",
-                          c1.revision());
-                  result.put(
-                      "product",
-                      new Catalog.Product(
-                          p.id(),
-                          p.slug(),
-                          safe,
-                          p.revision(),
-                          p.status(),
-                          p.publicationId(),
-                          p.firstPublishedAt(),
-                          p.views(),
-                          p.downloads()));
-                  return result;
-                })
+        tags.subList(offset, Math.min(offset + size, tags.size())).stream()
+            .map(tag -> Map.of("name", tag))
             .toList(),
         "total",
-        all.size(),
+        tags.size(),
         "page",
+        actual);
+  }
+
+  private Map<String, Object> browseRequest(
+      Catalog.Section section,
+      String directory,
+      org.springframework.util.MultiValueMap<String, String> filters) {
+    var params = filters.toSingleValueMap();
+    String q = params.getOrDefault("q", "").trim(),
+        type = params.getOrDefault("type", ""),
+        price = params.getOrDefault("price", "");
+    List<String> tags =
+        filters.getOrDefault("tag", List.of()).stream()
+            .filter(tag -> !tag.isBlank())
+            .distinct()
+            .toList();
+    int page, size;
+    try {
+      page = Integer.parseInt(params.getOrDefault("page", "1"));
+      size = Integer.parseInt(params.getOrDefault("pageSize", "100"));
+    } catch (NumberFormatException invalid) {
+      throw new Api.Failure(400, "栏目分页范围不正确");
+    }
+    if (page < 1
+        || page > 1000000
+        || size < 1
+        || size > 200
+        || q.length() > 100
+        || tags.size() > 20
+        || tags.stream().anyMatch(tag -> tag.length() > 80)
+        || (!price.isBlank() && !Set.of("FREE", "PAID").contains(price))
+        || (!type.isBlank() && !PRODUCT_TYPES.contains(type) && !ARTICLE_TYPES.contains(type)))
+      throw new Api.Failure(400, "栏目筛选参数不正确");
+    return browse(
+        section,
+        directory,
+        q,
+        tags,
+        type,
+        price,
+        page,
+        size,
+        !"false".equals(params.get("includeTags")));
+  }
+
+  private Map<String, Object> browse(
+      Catalog.Section section,
+      String directory,
+      String q,
+      List<String> selectedTags,
+      String type,
+      String price,
+      int page,
+      int size,
+      boolean includeTags) {
+    String mode = section == null ? directory : section.config().mode();
+    if (Set.of("ARTICLES", "articles").contains(mode)) {
+      if (!type.isBlank() && !ARTICLE_TYPES.contains(type))
+        return result(List.of(), 0, 1, List.of());
+      var data = content.list(false, Set.of(), q, type, page, size, "created_at", "descending");
+      var rows = (List<Map<String, Object>>) data.get("items");
+      return result(
+          rows.stream().map(SectionSelection::articleItem).toList(),
+          ((Number) data.get("total")).longValue(),
+          ((Number) data.get("page")).intValue(),
+          List.of());
+    }
+    if (Set.of("API", "apis").contains(mode)) return apiPage(q, price, page, size);
+    var all = productItems(section);
+    var tags = includeTags ? tags(all) : List.<String>of();
+    String term = q.toLowerCase(Locale.ROOT);
+    var matches =
+        all.stream().filter(row -> matches(row, term, selectedTags, type, price)).toList();
+    int actual = Math.min(page, Math.max(1, (matches.size() + size - 1) / size));
+    int offset = (actual - 1) * size;
+    return result(
+        matches.subList(offset, Math.min(offset + size, matches.size())).stream()
+            .map(SectionSelectionController::safeItem)
+            .toList(),
+        matches.size(),
         actual,
-        "tags",
         tags);
+  }
+
+  private List<Map<String, Object>> productItems(Catalog.Section section) {
+    if (section != null && section.config().mode().equals("MANUAL"))
+      return service.publicItems(section.config().productIds());
+    // 自动选品沿用发布快照和既有排序，只发送当前页的短字段。
+    var data = catalog.publicData();
+    List<Catalog.Product> products =
+        section == null
+            ? data.products().stream()
+                .filter(p -> p.status().equals("PUBLISHED"))
+                .sorted(
+                    Comparator.comparingLong(Catalog.Product::firstPublishedAt)
+                        .reversed()
+                        .thenComparing(Catalog.Product::id))
+                .toList()
+            : data.sections().stream()
+                .filter(s -> s.id().equals(section.id()))
+                .findFirst()
+                .map(Catalog.SectionView::products)
+                .orElse(List.of());
+    return products.stream()
+        .map(
+            p ->
+                Map.<String, Object>of(
+                    "ref",
+                    p.id(),
+                    "kind",
+                    "PRODUCT",
+                    "name",
+                    p.content().nameZh(),
+                    "nameEn",
+                    p.content().nameEn(),
+                    "product",
+                    p))
+        .toList();
+  }
+
+  private static List<String> tags(List<Map<String, Object>> rows) {
+    return rows.stream()
+        .map(row -> (Catalog.Product) row.get("product"))
+        .filter(Objects::nonNull)
+        .flatMap(p -> p.content().tags().stream())
+        .distinct()
+        .sorted()
+        .toList();
+  }
+
+  private static boolean matches(
+      Map<String, Object> row, String term, List<String> tags, String type, String price) {
+    var product = (Catalog.Product) row.get("product");
+    var c = product == null ? null : product.content();
+    String kind = c == null ? (String) row.get("kind") : c.type();
+    if (!type.isBlank() && !type.equals(kind)) return false;
+    if (!tags.isEmpty() && (c == null || !c.tags().containsAll(tags))) return false;
+    var amount =
+        c == null
+            ? new java.math.BigDecimal(String.valueOf(row.getOrDefault("priceUnits", "0")))
+            : c.pricePoints();
+    if (price.equals("FREE") && amount.signum() > 0 || price.equals("PAID") && amount.signum() == 0)
+      return false;
+    String summary =
+        c == null
+            ? row.getOrDefault("summary", "") + " " + row.getOrDefault("summaryEn", "")
+            : String.join(" ", c.summaryZh(), c.summaryEn(), c.slug(), String.join(" ", c.tags()));
+    return (row.get("name")
+            + " "
+            + row.get("nameEn")
+            + " "
+            + summary
+            + " "
+            + row.getOrDefault("href", ""))
+        .toLowerCase(Locale.ROOT)
+        .contains(term);
+  }
+
+  private Map<String, Object> apiPage(String q, String price, int page, int size) {
+    String term =
+        "%"
+            + q.toLowerCase(Locale.ROOT).replace("!", "!!").replace("%", "!%").replace("_", "!_")
+            + "%";
+    String where =
+        " WHERE enabled=TRUE AND LOWER(CONCAT(name,' ',name_en,' ',slug,' ',"
+            + "description,' ',description_en)) LIKE ? ESCAPE '!'";
+    if (price.equals("FREE")) where += " AND price_units=0";
+    if (price.equals("PAID")) where += " AND price_units>0";
+    long total =
+        service.db.queryForObject("SELECT COUNT(*) FROM api_definition" + where, Long.class, term);
+    int actual = (int) Math.min(page, Math.max(1, (total + size - 1) / size));
+    var rows =
+        Commerce.safeRows(
+            service.db.queryForList(
+                "SELECT id,slug,name,name_en,description,description_en,price_units FROM"
+                    + " api_definition"
+                    + where
+                    + " ORDER BY created_at DESC,id LIMIT ? OFFSET ?",
+                term,
+                size,
+                (actual - 1) * size));
+    return result(rows.stream().map(SectionSelection::apiItem).toList(), total, actual, List.of());
+  }
+
+  private Map<String, Object> result(
+      List<Map<String, Object>> rows, long total, int page, List<String> tags) {
+    var items = rows.stream().map(HashMap::new).map(row -> (Map<String, Object>) row).toList();
+    service.addViews(items);
+    return Map.of("items", items, "total", total, "page", page, "tags", tags);
+  }
+
+  private static Map<String, Object> safeItem(Map<String, Object> row) {
+    if (!(row.get("product") instanceof Catalog.Product p)) return row;
+    var c = p.content();
+    var safe =
+        new Catalog.ProductInput(
+            c.slug(),
+            c.nameZh(),
+            c.nameEn(),
+            c.summaryZh(),
+            c.summaryEn(),
+            "",
+            "",
+            c.tags(),
+            c.iconUrl(),
+            List.of(),
+            c.type(),
+            c.pricePoints(),
+            c.version(),
+            c.deliveryMode(),
+            "",
+            c.revision());
+    var result = new HashMap<String, Object>(row);
+    result.put(
+        "product",
+        new Catalog.Product(
+            p.id(),
+            p.slug(),
+            safe,
+            p.revision(),
+            p.status(),
+            p.publicationId(),
+            p.firstPublishedAt(),
+            p.views(),
+            p.downloads()));
+    return result;
   }
 }

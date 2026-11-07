@@ -66,3 +66,32 @@ export interface PublicCatalog {
   products: CatalogProduct[];
   sections: PublicSection[];
 }
+
+export interface DirectoryItem {
+  ref: string;
+  kind: string;
+  name: string;
+  nameEn?: string;
+  summary?: string;
+  summaryEn?: string;
+  slug?: string;
+  href?: string;
+  priceUnits?: string;
+  views?: number;
+  product?: CatalogProduct;
+}
+export interface DirectoryPage {
+  items: DirectoryItem[];
+  page: number;
+  total: number;
+  tags: string[];
+}
+export interface HomeSection {
+  id: string;
+  titleZh: string;
+  titleEn: string;
+  subtitleZh: string;
+  subtitleEn: string;
+  icon: string;
+  items: DirectoryItem[];
+}

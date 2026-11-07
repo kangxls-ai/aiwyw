@@ -14,8 +14,9 @@ const editor = computed(() => user.value?.menus?.includes("licenses"));
 const reviewer = computed(() =>
   user.value?.roles?.some((r: string) => ["ADMIN", "SUPPORT"].includes(r)),
 );
-const products = ref<any[]>([]),
-  product = ref(""),
+const product = ref(""),
+  policyLoading = ref(false),
+  policyReady = ref(false),
   devices = ref(1),
   revision = ref(0),
   q = ref(""),
@@ -31,6 +32,9 @@ const { dirty, registerSave } = useManagementTabs();
 const listOrder = useListOrder(load, page);
 watch(devices, () => (dirty.value.licenses = devices.value !== baseline.value));
 async function policy() {
+  policyLoading.value = true;
+  policyReady.value = false;
+  error.value = "";
   try {
     const result = await request<any>(
       "/api/admin/licenses/policy/" + product.value,
@@ -39,11 +43,21 @@ async function policy() {
     revision.value = Number(result.revision);
     baseline.value = devices.value;
     dirty.value.licenses = false;
+    policyReady.value = true;
   } catch (e) {
     error.value = message(e);
+  } finally {
+    policyLoading.value = false;
   }
 }
 async function choose(value: string) {
+  if (
+    !value ||
+    (value === product.value && policyReady.value) ||
+    policyLoading.value ||
+    saving.value
+  )
+    return;
   if (dirty.value.licenses) {
     try {
       await ElMessageBox.confirm(
@@ -59,7 +73,7 @@ async function choose(value: string) {
   await policy();
 }
 async function save() {
-  if (!product.value) return false;
+  if (!product.value || !policyReady.value || saving.value) return false;
   saving.value = true;
   try {
     await request("/api/admin/licenses/policy/" + product.value, {
@@ -127,15 +141,13 @@ async function review(row: any, approve: boolean) {
   }
 }
 let unregister: (() => void) | undefined;
-// 会话由外层布局异步读取；等待角色确定后加载对应数据，直接刷新授权页面也能得到应用选项。
+// 进入工作台只加载换机请求，应用选项在弹窗打开时按需查。
 onMounted(() => {
   unregister = registerSave("licenses", save);
   watch(
     () => user.value?.role,
     async () => {
       try {
-        if (editor.value)
-          products.value = await request("/api/admin/catalog/products/options");
         await load();
       } catch (e) {
         error.value = message(e);
@@ -160,28 +172,24 @@ onBeforeUnmount(() => unregister?.());
       ><template #header>应用授权策略</template
       ><el-form label-position="right" label-width="128px"
         ><el-form-item label="应用"
-          ><el-select
+          ><PagedPicker
             :model-value="product"
-            filterable
-            aria-label="授权策略应用"
-            @update:model-value="choose"
-            ><el-option
-              v-for="p in products"
-              :key="p.id"
-              :label="p.nameZh"
-              :value="p.id" /></el-select></el-form-item
+            title="授权策略应用"
+            endpoint="/api/admin/catalog/products/options/page"
+            :disabled="policyLoading || saving"
+            @update:model-value="choose" /></el-form-item
         ><el-form-item label="设备数量"
           ><el-input-number
             v-model="devices"
             :min="1"
             :max="1000"
-            :disabled="!product"
+            :disabled="!policyReady || saving"
             controls-position="right" /></el-form-item
         ><el-form-item
           ><el-button
             type="primary"
             :loading="saving"
-            :disabled="!product"
+            :disabled="!policyReady || saving"
             @click="save"
             >保存授权策略</el-button
           ></el-form-item

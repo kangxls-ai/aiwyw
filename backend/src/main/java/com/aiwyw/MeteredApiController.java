@@ -322,6 +322,11 @@ public class MeteredApiController {
         }) columns.put(c, c);
     String where = kind.equals("api-refunds") ? "refund_state<>'NONE'" : "1=1";
     var args = new ArrayList<Object>();
+    String id = p.getOrDefault("id", "");
+    if (!id.isBlank()) {
+      where += " AND id=?";
+      args.add(id);
+    }
     String state = p.getOrDefault("state", "");
     if (!state.isBlank()) {
       if (List.of("apis", "plans", "keys").contains(kind)) {

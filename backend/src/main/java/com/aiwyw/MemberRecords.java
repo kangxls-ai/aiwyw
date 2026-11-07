@@ -106,6 +106,12 @@ class MemberRecords {
       default -> throw new Api.Failure(404, "列表不存在");
     }
     if (user == null && !Set.of("apis", "plans").contains(kind)) throw new Api.Failure(401, "请先登录");
+    String slug = p.getOrDefault("slug", "");
+    if (!slug.isBlank() && Set.of("apis", "debug").contains(kind)) {
+      if (!slug.matches("[a-z0-9-]{1,100}")) throw new Api.Failure(400, "接口标识不正确");
+      where += " AND slug=?";
+      args.add(slug);
+    }
     String apiId = p.getOrDefault("apiId", "");
     if (!apiId.isBlank()) {
       if (kind.equals("keys")) {
@@ -138,11 +144,17 @@ class MemberRecords {
       columns.put("price_units", "price_units");
     var result = OperationalPage.query(db, source, where, args, columns, search, p);
     for (var row : (List<Map<String, Object>>) result.get("items")) {
-      if (kind.equals("keys"))
-        row.put(
-            "apiIds",
+      if (kind.equals("keys")) {
+        var scopes =
             db.queryForList(
-                "SELECT api_id FROM api_key_scope WHERE key_id=?", String.class, row.get("id")));
+                "SELECT a.id,a.name FROM api_key_scope s JOIN api_definition a"
+                    + " ON a.id=s.api_id WHERE s.key_id=? ORDER BY a.id",
+                row.get("id"));
+        Map<String, String> labels = new LinkedHashMap<>();
+        for (var scope : scopes) labels.put((String) scope.get("id"), (String) scope.get("name"));
+        row.put("apiIds", List.copyOf(labels.keySet()));
+        row.put("apiLabels", labels);
+      }
       if (kind.equals("apis") && user != null) {
         var preferences =
             db.queryForList(

@@ -64,9 +64,17 @@ public class CatalogController {
   }
 
   @GetMapping("/api/admin/catalog/products/facets")
-  public Map<String, Object> facets(HttpServletRequest req) {
+  public Map<String, Object> facets(
+      @RequestParam(defaultValue = "true") boolean includeTags, HttpServletRequest req) {
     auth.editor(req);
-    return query.facets();
+    return includeTags ? query.facets() : Map.of("sections", catalog.sections());
+  }
+
+  @GetMapping("/api/admin/catalog/products/options/page")
+  public Map<String, Object> productOptionsPage(
+      @RequestParam Map<String, String> filters, HttpServletRequest req) {
+    auth.editor(req);
+    return catalog.productOptions(filters);
   }
 
   @GetMapping("/api/admin/catalog/products/options")
@@ -191,7 +199,7 @@ public class CatalogController {
                             ? "/articles"
                             : s.config().mode().equals("API")
                                 ? "/api-services"
-                                : "/apps?section=" + s.id(),
+                                : "/sections/" + s.id(),
                         "titleZh",
                         s.config().titleZh(),
                         "titleEn",

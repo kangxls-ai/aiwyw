@@ -259,7 +259,8 @@ CREATE TABLE IF NOT EXISTS analytics_event (
           {"support_feedback", "ix_feedback_public", "kind,state,created_at"},
           {"analytics_event", "ix_event_day", "day_key,kind"},
           {"analytics_event", "ix_event_user", "user_id,day_key,kind"},
-          {"analytics_event", "ix_event_created", "created_at"}
+          {"analytics_event", "ix_event_created", "created_at"},
+          {"analytics_event", "ix_event_path_kind", "path,kind"}
         })
       if (!hasIndex(db, i[0], i[1]))
         try {

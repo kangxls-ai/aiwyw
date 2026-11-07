@@ -307,3 +307,11 @@
     padding: 7px 10px;
   }
 }
+
+/* 首页与公共目录共用460px卡片列，窄屏只缩小列宽。 */
+.directory-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 460px));
+  justify-content: start;
+  gap: 18px;
+}

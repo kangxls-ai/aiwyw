@@ -461,14 +461,6 @@ public class SupportService {
         System.currentTimeMillis() - settings.integer("support.presence_seconds") * 1000L);
   }
 
-  public List<Map<String, Object>> agents() {
-    var rows =
-        Commerce.safeRows(
-            db.queryForList(
-                "SELECT id,nickname FROM app_user WHERE disabled=FALSE ORDER BY nickname,id"));
-    return rows.stream().filter(r -> canReceive((String) r.get("id"))).toList();
-  }
-
   boolean canReceive(String user) {
     return db.queryForObject(
             "SELECT COUNT(*) FROM access_user_role ur JOIN access_role_menu rm ON"

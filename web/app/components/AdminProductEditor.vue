@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {businessTime} from "~/utils/commerce";
+import { businessTime } from "~/utils/commerce";
 /** 每个页签独立持有商品ID、草稿、上传与编辑器；保存后更新当前页签，不另开重复编辑页。 */
 import { markdoIntroduction } from "~/data/markdoIntroduction";
 import { ElMessageBox } from "element-plus";
@@ -13,8 +13,7 @@ const id = ref(props.initialProductId),
   publishing = ref(false),
   error = ref(""),
   notice = ref(""),
-  base = ref(""),
-  knownTags = ref<string[]>([]);
+  base = ref("");
 const information = ref<CatalogProduct | null>(null),
   history = ref<
     Array<{
@@ -77,9 +76,6 @@ async function load() {
       };
       await updateEditor(props.tabId, id.value, form.value.nameZh);
     }
-    knownTags.value = (
-      await request<{ tags: string[] }>("/api/admin/catalog/products/facets")
-    ).tags;
     base.value = snapshot();
     dirty.value[props.tabId] = false;
     if (id.value && information.value?.publicationId)
@@ -188,15 +184,6 @@ onMounted(() => {
   load();
 });
 onBeforeUnmount(() => unregister?.());
-watch(changed, async () => {
-  try {
-    knownTags.value = (
-      await request<{ tags: string[] }>("/api/admin/catalog/products/facets")
-    ).tags;
-  } catch {
-    /* 保留当前可用选项，保存错误由主流程展示。 */
-  }
-});
 </script>
 <template>
   <section class="application-editor">
@@ -312,22 +299,16 @@ watch(changed, async () => {
             :value="value" /></el-select
       ></el-form-item>
       <el-form-item label="标签"
-        ><el-select
+        ><PagedPicker
           v-model="form.tags"
-          aria-label="应用标签"
-          multiple
-          filterable
-          :reserve-keyword="false"
-          allow-create
-          default-first-option
+          title="应用标签"
+          endpoint="/api/admin/catalog/tags/options/page"
+          value-key="name"
+          detail-key=""
+          :max="20"
           clearable
-          collapse-tags-tooltip
-          ><el-option
-            v-for="tag in knownTags"
-            :key="tag"
-            :label="tag"
-            :value="tag" /></el-select
-      ></el-form-item>
+          allow-create
+      /></el-form-item>
       <el-form-item label="简介"
         ><el-input
           v-model="form.summaryZh"
@@ -419,9 +400,7 @@ watch(changed, async () => {
               item.created_by_name || "历史未记录"
             }}
           </p>
-          <time>{{
-            businessTime(item.created_at)
-          }}</time>
+          <time>{{ businessTime(item.created_at) }}</time>
           <div>{{ item.id }}</div>
           <small>SHA-256：{{ item.sha256 }}</small>
           <div class="catalog-editor-actions">

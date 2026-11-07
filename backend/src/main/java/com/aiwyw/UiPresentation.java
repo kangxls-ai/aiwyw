@@ -40,7 +40,7 @@ final class UiPresentation {
               String href =
                   c.mode().equals("ARTICLES")
                       ? "/articles"
-                      : c.mode().equals("API") ? "/api-services" : "/apps?section=" + s.id();
+                      : c.mode().equals("API") ? "/api-services" : "/sections/" + s.id();
               nav.append("<a href=\"")
                   .append(escape(href))
                   .append("\">")

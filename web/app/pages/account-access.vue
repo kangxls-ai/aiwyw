@@ -51,7 +51,10 @@ async function submit() {
       password.value = "";
       const target =
         typeof route.query.return === "string" &&
-        /^\/checkout\?slug=/.test(route.query.return)
+        (/^\/checkout\?slug=/.test(route.query.return) ||
+          /^\/api-services\?api=[a-z0-9-]{1,100}&debug=1$/.test(
+            route.query.return,
+          ))
           ? route.query.return
           : "/account";
       await navigateTo(target);

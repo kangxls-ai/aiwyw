@@ -5,7 +5,12 @@ export default defineNuxtPlugin((nuxtApp) => {
   let last = "";
   async function track() {
     const p = route.currentRoute.value;
-    if (!/^\/(?:apps|articles|api-services|support)?$/.test(p.path)) return;
+    if (
+      !/^\/(?:apps|articles|api-services(?:\/[a-z0-9-]+)?|sections\/[a-z0-9-]+|support)?$/.test(
+        p.path,
+      )
+    )
+      return;
     const keyword = String(p.query.q || "").slice(0, 100),
       key = p.fullPath;
     if (last === key) return;

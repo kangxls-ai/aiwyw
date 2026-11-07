@@ -24,6 +24,19 @@ public class RoleController {
         db.queryForList("SELECT * FROM access_role ORDER BY created_at DESC,id"));
   }
 
+  @GetMapping("/api/admin/role-options/page")
+  Map<String, Object> optionsPage(@RequestParam Map<String, String> filters, HttpServletRequest r) {
+    auth.admin(r);
+    return OperationalPage.query(
+        db,
+        "SELECT id,name,created_at FROM access_role",
+        "1=1",
+        List.of(),
+        Map.of("id", "id", "created_at", "created_at"),
+        "CONCAT(name,' ',id)",
+        filters);
+  }
+
   @GetMapping("/api/admin/roles")
   Map<String, Object> list(HttpServletRequest r) {
     auth.admin(r);

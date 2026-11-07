@@ -232,11 +232,26 @@ public class SupportController {
     service.heartbeat(staff);
     var result =
         new HashMap<>(service.conversations(null, staff, q, state, page, pageSize, filters));
-    result.put("agents", service.agents());
     result.put("pollSeconds", service.settings.integer("support.poll_seconds"));
     result.put("self", staff.id());
     result.put("canTransfer", staff.hasRole("ADMIN"));
     return result;
+  }
+
+  @GetMapping("/api/admin/support/agents/page")
+  Map<String, Object> agents(@RequestParam Map<String, String> filters, HttpServletRequest r) {
+    var staff = auth.permission(r, "conversations");
+    if (!staff.hasRole("ADMIN")) throw new Api.Failure(403, "仅管理员转派会话");
+    return OperationalPage.query(
+        service.db,
+        "SELECT u.id,u.nickname,u.created_at FROM app_user u WHERE u.disabled=FALSE AND"
+            + " EXISTS(SELECT 1 FROM access_user_role ur JOIN access_role_menu rm"
+            + " ON rm.role_id=ur.role_id WHERE ur.user_id=u.id AND rm.menu_id='conversations')",
+        "1=1",
+        List.of(),
+        Map.of("id", "id", "created_at", "created_at"),
+        "CONCAT(nickname,' ',id)",
+        filters);
   }
 
   @GetMapping("/api/admin/support/unread")

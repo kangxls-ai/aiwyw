@@ -363,7 +363,7 @@ onMounted(load);
             '查询接口、套餐、Key、订阅与调用记录',
             'Browse APIs, plans, keys, subscriptions and calls',
           ),
-          href: '/api-services',
+          href: '/api-services?manage=1',
         },
         {
           name: t('在线咨询与反馈', 'Support and feedback'),

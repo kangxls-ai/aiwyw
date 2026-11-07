@@ -329,8 +329,12 @@ public class ContentService {
       int size,
       String sort,
       String direction) {
-    if (q == null || q.length() > 100 || page < 1 || page > 1000000 || size < 1 || size > 100)
-      throw new Api.Failure(400, "查询参数不正确");
+    if (q == null
+        || q.length() > 100
+        || page < 1
+        || page > 1000000
+        || size < 1
+        || size > (admin ? 100 : 200)) throw new Api.Failure(400, "查询参数不正确");
     if (!kind.isBlank()) menu(kind);
     List<String> kinds =
         List.of("ARTICLE", "TUTORIAL", "FAQ", "CASE").stream()
@@ -356,9 +360,9 @@ public class ContentService {
       where +=
           admin
               ? " AND d.title_zh LIKE ? ESCAPE '!'"
-              : " AND (p.title_zh LIKE ? ESCAPE '!' OR p.title_en LIKE ? ESCAPE '!')";
+              : " AND CONCAT(p.title_zh,' ',p.title_en,' ',p.summary_zh,' ',p.summary_en,'"
+                  + " ',d.slug) LIKE ? ESCAPE '!'";
       args.add(term);
-      if (!admin) args.add(term);
     }
     String ordering =
         ListOrder.sql(

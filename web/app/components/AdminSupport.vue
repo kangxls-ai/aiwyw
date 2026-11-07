@@ -11,7 +11,7 @@ const props = defineProps<{
   { request, message } = useApi(),
   { activeId, dirty, openEntityEditor } = useManagementTabs();
 const active = computed(() => activeId.value === (props.tabId || props.view)),
-  data = ref<any>({ items: [], total: 0, agents: [] }),
+  data = ref<any>({ items: [], total: 0 }),
   q = ref(""),
   state = ref(""),
   page = ref(1),
@@ -189,16 +189,13 @@ onBeforeUnmount(() => {
         class="admin-table-actions"
         style="margin-bottom: 18px"
       >
-        <el-select
+        <PagedPicker
           v-model="target"
-          placeholder="选择接收客服"
-          style="width: 220px"
-          ><el-option
-            v-for="a in data.agents"
-            :key="a.id"
-            :value="a.id"
-            :label="a.nickname" /></el-select
-        ><el-button @click="transfer">管理员转派</el-button>
+          title="选择接收客服"
+          endpoint="/api/admin/support/agents/page"
+          label-key="nickname"
+          detail-key="id"
+        /><el-button @click="transfer">管理员转派</el-button>
       </div>
       <SupportChat
         ref="chat"

@@ -69,6 +69,19 @@ async function select(page: Page, name: string, label: string) {
     .click();
   await page.getByRole("option", { name: label, exact: true }).click();
 }
+async function pick(page: Page, title: string, labels: string[]) {
+  await page.getByRole("button", { name: title, exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: title, exact: true });
+  for (const label of labels) {
+    await field(dialog, "筛选关键词", { exact: true }).fill(label);
+    await dialog.getByRole("button", { name: "搜索", exact: true }).click();
+    const row = dialog.getByRole("row").filter({
+      has: page.getByRole("cell", { name: label, exact: true }),
+    });
+    await row.locator(".el-radio, .el-checkbox").click();
+  }
+  await dialog.getByRole("button", { name: "确认选择", exact: true }).click();
+}
 async function configuration(page: Page, values: Record<string, string>) {
   const entries = await (await page.request.get("/api/admin/settings")).json();
   const changes = Object.entries(values).map(([key, value]) => ({
@@ -261,15 +274,17 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
       .jQuery(el.closest(".note-editor")!.previousElementSibling)
       .summernote("editor.setLastRange");
   });
-  const tags = editor.getByRole("combobox", { name: "应用标签", exact: true });
+  await editor.getByRole("button", { name: "应用标签", exact: true }).click();
+  const tagPicker = page.getByRole("dialog", { name: "应用标签", exact: true });
   for (const tag of ["办公效率", "文本处理"]) {
-    await tags.fill(tag);
-    await expect(
-      page.getByRole("option", { name: tag, exact: true }),
-    ).toBeVisible();
-    await page.getByRole("option", { name: tag, exact: true }).click();
+    await field(tagPicker, "新标签名称", { exact: true }).fill(tag);
+    await tagPicker
+      .getByRole("button", { name: "加入新标签", exact: true })
+      .click();
   }
-  await tags.press("Escape");
+  await tagPicker
+    .getByRole("button", { name: "确认选择", exact: true })
+    .click();
   await upload(page, "上传应用图标", {
     name: "utility-icon.png",
     mimeType: "image/png",
@@ -520,11 +535,15 @@ test("static catalog, real download, language and mobile", async ({
     page.getByRole("heading", { name: "精选工具", exact: true }),
   ).toBeVisible();
   await page.getByRole("link", { name: "更多", exact: true }).first().click();
-  await page.getByRole("button", { name: "办公效率", exact: true }).click();
+  await expect(page.locator(".directory-pager")).toContainText("100");
+  await page.locator(".directory-pager .el-select__wrapper").click();
+  await page.getByRole("option", { name: "40条/页", exact: true }).click();
+  await expect(page).toHaveURL(/pageSize=40/);
+  await pick(page, "标签筛选", ["办公效率"]);
   await page.reload();
-  await expect(page.locator(".catalog-app-card")).toHaveCount(1);
+  await expect(page.locator(".directory-entry-card")).toHaveCount(1);
   const popup = page.waitForEvent("popup");
-  await page.locator(".catalog-details-link").click();
+  await page.getByRole("link", { name: "查看详情", exact: true }).click();
   const detail = await popup;
   await expect(
     detail.getByRole("heading", { name: "工具使用说明", exact: true }),
@@ -970,7 +989,7 @@ test("compact horizontal forms, server sorting, license replacement and refund r
   expect(created.status()).toBe(200);
   const id = (await created.json()).id;
   await admin.goto("/admin/workspace?view=licenses");
-  await select(admin, "授权策略应用", licenseName);
+  await pick(admin, "授权策略应用", [licenseName]);
   await admin
     .getByRole("button", { name: "保存授权策略", exact: true })
     .click();
@@ -1376,7 +1395,7 @@ test("API configuration, one-time keys, billable debugger and subscription refun
   await expect(planPanel.getByRole("table")).toHaveCount(0);
   await field(planPanel, "API配置名称", { exact: true }).fill("浏览器月度套餐");
   await field(planPanel, "API鼓励值价格", { exact: true }).fill("2.00");
-  await select(admin, "套餐所属API", "浏览器文本API");
+  await pick(admin, "套餐所属API", ["浏览器文本API"]);
   await planPanel.getByRole("button", { name: "保存", exact: true }).click();
   await expect(
     planPanel.getByText("已保存，已有购买和调用条款不被覆盖", { exact: true }),
@@ -1402,7 +1421,7 @@ test("API configuration, one-time keys, billable debugger and subscription refun
       await (await member.request.get("/api/member/wallet")).json()
     ).balance.replace(".", ""),
   );
-  await member.goto("/api-services");
+  await member.goto("/api-services?manage=1");
   const card = member.getByRole("row").filter({ hasText: "浏览器文本API" });
   await card.getByRole("button", { name: "计费设置", exact: true }).click();
   const billing = member.getByRole("dialog", { name: "计费设置", exact: true });
@@ -1420,7 +1439,7 @@ test("API configuration, one-time keys, billable debugger and subscription refun
   await member.getByRole("button", { name: "新增Key", exact: true }).click();
   const dialog = member.getByRole("dialog");
   await field(dialog, "Key名称", { exact: true }).fill("浏览器调用Key");
-  await select(member, "Key API权限", "浏览器文本API");
+  await pick(member, "Key API权限", ["浏览器文本API"]);
   await dialog.getByRole("button", { name: "保存Key", exact: true }).click();
   const token = await field(dialog, "新建API密钥", {
     exact: true,
@@ -1438,8 +1457,7 @@ test("API configuration, one-time keys, billable debugger and subscription refun
     .filter({ hasText: "浏览器文本API" })
     .getByRole("button", { name: "开始调试", exact: true })
     .click();
-  await select(member, "调试Key", "浏览器调用Key");
-  await select(member, "调试API", "浏览器文本API");
+  await pick(member, "调试Key", ["浏览器调用Key"]);
   await field(member, "调试JSON输入", { exact: true }).fill(
     '{"text":"Hello world"}',
   );
@@ -1703,28 +1721,15 @@ test("guest support, private image, claim and transfer, moderated feedback and o
     },
   });
   expect(created.status()).toBe(200);
+  const { id: targetId } = await created.json();
   const agents = await (
-      await admin.request.get("/api/admin/support/conversations")
-    ).json(),
-    target = agents.agents.find((a: any) => a.id !== agents.self);
+    await admin.request.get("/api/admin/support/agents/page?q=" + targetId)
+  ).json();
+  const target = agents.items.find((row: any) => row.id === targetId);
   expect(target).toBeTruthy();
-  const transfer = await admin.request.post(
-    "/api/admin/support/conversations/" + c.id + "/assign",
-    {
-      headers: { "X-AIWYW-Request": "1" },
-      data: {
-        userId: target.id,
-        revision: (
-          await (
-            await admin.request.get(
-              "/api/admin/support/conversations/" + c.id + "/messages",
-            )
-          ).json()
-        ).conversation.revision,
-      },
-    },
-  );
-  expect(transfer.status()).toBe(200);
+  await pick(admin, "选择接收客服", [target.nickname]);
+  await admin.getByRole("button", { name: "管理员转派", exact: true }).click();
+  await expect(admin.getByText("转派已完成，历史记录保留")).toBeVisible();
   await admin.reload();
   await menu(admin, "在线会话");
   await admin
@@ -1968,7 +1973,12 @@ test("consistent typography, managed article navigation, API editor tabs and acc
   await expect(
     nav.getByRole("link", { name: "快捷工具", exact: true }),
   ).toBeVisible();
-  await expect(guest.locator(".directory-section h2")).toHaveText(["使用指南"]);
+  await expect(guest.locator(".directory-section h2").first()).toHaveText(
+    "使用指南",
+  );
+  await expect(
+    guest.locator(".directory-section h2", { hasText: "快捷工具" }),
+  ).toBeVisible();
   await expect(nav.getByRole("link").last()).toHaveCSS("font-size", "14px");
   await guest.screenshot({ path: "test-results/ui-home.png", fullPage: true });
   await nav.getByRole("link", { name: "使用指南", exact: true }).click();
@@ -2350,7 +2360,9 @@ test("new-window details share navigation, managed API visibility and encrypted 
   expect(publishedCase.status()).toBe(200);
   await page.goto("/articles");
   const article = page
-    .locator('.content-grid a[href^="/articles/browser-detail-case"]')
+    .locator(
+      '.content-grid .entry-actions a[href^="/articles/browser-detail-case"]',
+    )
     .first();
   await expect(article).toHaveAttribute("target", "_blank");
   const articlePopup = page.waitForEvent("popup");
@@ -2400,7 +2412,7 @@ test("new-window details share navigation, managed API visibility and encrypted 
   await context.close();
 });
 
-test("manual section picker retains cross-page selection and homepage opens first section", async ({
+test("manual picker retains cross-page selection and homepage shows configured sections", async ({
   browser,
 }) => {
   const context = await browser.newContext({
@@ -2504,13 +2516,25 @@ test("manual section picker retains cross-page selection and homepage opens firs
     await page.request.get("/api/public/catalog?summary=true")
   ).json();
   expect(metadata.products).toEqual([]);
-  await expect(page.locator(".directory-section h2")).toHaveText([
-    metadata.sections[0].titleZh,
-  ]);
+  const configured = await (
+    await page.request.get("/api/admin/catalog/sections")
+  ).json();
+  const titles = configured
+    .filter((row: any) => row.config.enabled)
+    .map((row: any) => row.config.titleZh);
+  await expect(page.locator(".directory-section h2")).toHaveText(titles);
   await page.goto("/?section=disabled-or-missing");
-  await expect(page.locator(".directory-section h2")).toHaveText([
-    metadata.sections[0].titleZh,
-  ]);
+  await expect(page.locator(".directory-section h2")).toHaveText(titles);
+  await page.goto("/api-services");
+  const apiCard = page
+    .locator(".directory-entry-card")
+    .filter({ hasText: "浏览器文本API" });
+  await expect(apiCard).toHaveCSS("width", "460px");
+  await expect(apiCard).toHaveCSS("height", "250px");
+  await expect(
+    apiCard.getByRole("link", { name: "调试", exact: true }),
+  ).toHaveAttribute("href", "/api-services?api=browser-text-api&debug=1");
+  await expect(apiCard.locator('[title="下载数"]')).toHaveCount(0);
   await context.close();
 });
 
@@ -2632,7 +2656,7 @@ test("encouragement daily reward, donation ratio and paged account portals", asy
   ).json();
   expect(donations.items[0].price_fen).toBe("100");
   expect(donations.items[0].points_units).toBe("1000");
-  await member.goto("/api-services");
+  await member.goto("/api-services?manage=1");
   for (const name of [
     "接口与套餐",
     "我的Key",

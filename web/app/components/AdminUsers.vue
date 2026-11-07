@@ -22,7 +22,7 @@ const form = reactive({
   roles: ["USER"],
   disabled: false,
 });
-const roleOptions = ref<any[]>([]);
+const roleLabels = ref<Record<string, string>>({ USER: "普通用户" });
 const listOrder = useListOrder(load, page, "created_at");
 let loadSequence = 0;
 async function load() {
@@ -58,6 +58,7 @@ function edit(row?: any) {
     roles: row?.roles || ["USER"],
     disabled: row?.disabled || false,
   });
+  roleLabels.value = { USER: "普通用户", ...row?.roleLabels };
   dialog.value = true;
 }
 async function removeUnverified(row: any) {
@@ -104,7 +105,6 @@ async function save() {
   }
 }
 onMounted(async () => {
-  roleOptions.value = await request("/api/admin/role-options");
   await load();
   if (props.editor)
     edit(
@@ -210,10 +210,7 @@ onBeforeUnmount(() => unregister?.());
           label="角色"
           ><template #default="{ row }">{{
             (row.roles || [])
-              .map(
-                (id: string) =>
-                  roleOptions.find((r) => r.id === id)?.name || id,
-              )
+              .map((id: string) => row.roleLabels?.[id] || id)
               .join("、")
           }}</template></el-table-column
         ><el-table-column
@@ -275,12 +272,13 @@ onBeforeUnmount(() => unregister?.());
             show-password
             autocomplete="new-password" /></el-form-item
         ><el-form-item label="角色"
-          ><el-select v-model="form.roles" multiple
-            ><el-option
-              v-for="role in roleOptions"
-              :key="role.id"
-              :label="role.name"
-              :value="role.id" /></el-select></el-form-item
+          ><PagedPicker
+            v-model="form.roles"
+            title="选择角色"
+            endpoint="/api/admin/role-options/page"
+            :max="30"
+            detail-key="id"
+            :labels="roleLabels" /></el-form-item
         ><el-form-item label="停用"
           ><el-switch v-model="form.disabled" /></el-form-item></el-form
       ><template #footer

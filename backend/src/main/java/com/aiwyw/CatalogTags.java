@@ -106,6 +106,22 @@ public class CatalogTags {
     return Map.of("items", Commerce.safeRows(items), "total", total, "page", actual);
   }
 
+  /** 编辑应用和栏目需要标签名称，候选接口不授予标签维护权限。 */
+  @GetMapping("/options/page")
+  Map<String, Object> options(@RequestParam Map<String, String> filters, HttpServletRequest r) {
+    var user = auth.staff(r);
+    if (Collections.disjoint(user.menus(), Set.of("applications", "sections", "tags")))
+      throw new Api.Failure(403, "没有标签选择权限");
+    return OperationalPage.query(
+        db,
+        "SELECT id,name,created_at FROM catalog_tag",
+        "1=1",
+        List.of(),
+        Map.of("id", "id", "created_at", "created_at"),
+        "name",
+        filters);
+  }
+
   @PostMapping
   public Map<String, String> create(@RequestBody Input input, HttpServletRequest r) {
     return save(null, input, r);

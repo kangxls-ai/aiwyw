@@ -398,6 +398,18 @@ public class Catalog {
         });
   }
 
+  Map<String, Object> productOptions(Map<String, String> filters) {
+    initialize();
+    return OperationalPage.query(
+        db,
+        "SELECT id,sort_name AS name,slug,status,search_text,created_at FROM catalog_product",
+        "1=1",
+        List.of(),
+        Map.of("id", "id", "created_at", "created_at"),
+        "search_text",
+        filters);
+  }
+
   public List<Section> sections() {
     initialize();
     return db
@@ -426,7 +438,7 @@ public class Catalog {
         || !Set.of("LATEST", "VIEWS", "DOWNLOADS").contains(c.sort())
         || !Set.of(0, 7, 30).contains(c.days())
         || c.limit() < 1
-        || c.limit() > 60
+        || c.limit() > 40
         || c.position() < 0
         || c.position() > 1000) throw new Api.Failure(400, "请检查栏目选品规则、周期、位置和展示数量");
     if (!Set.of(
@@ -704,9 +716,10 @@ public class Catalog {
     List<Product> products = new ArrayList<>();
     Map<String, String> files = new HashMap<>();
     Map<String, String> hashes = new HashMap<>();
+    var allCounts = counts(0);
     for (var row : rows) {
       Product p = decode((String) row.get("snapshot_json"), Product.class);
-      long[] total = counts(p.id(), 0);
+      long[] total = allCounts.getOrDefault(p.id(), new long[2]);
       products.add(
           new Product(
               p.id(),
@@ -721,6 +734,8 @@ public class Catalog {
       files.put(p.slug(), (String) row.get("file_name"));
       hashes.put(p.slug(), (String) row.get("sha256"));
     }
+    Map<Integer, Map<String, long[]>> countsByDays = new HashMap<>();
+    countsByDays.put(0, allCounts);
     List<SectionView> views = new ArrayList<>();
     for (Section s : sections())
       if (s.config().enabled()) {
@@ -738,16 +753,21 @@ public class Catalog {
                         !c.mode().equals("TAG")
                             || c.tags().stream().anyMatch(p.content().tags()::contains))
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-        Map<String, long[]> scores = new HashMap<>();
-        if (!c.sort().equals("LATEST"))
-          for (Product p : selected) scores.put(p.id(), counts(p.id(), c.days()));
+        var scores =
+            c.sort().equals("LATEST")
+                ? Map.<String, long[]>of()
+                : countsByDays.computeIfAbsent(c.days(), this::counts);
+        long[] noScore = new long[2];
         Comparator<Product> comparator =
             c.mode().equals("MANUAL")
                 ? Comparator.comparingInt(p -> c.productIds().indexOf(p.id()))
                 : c.sort().equals("LATEST")
                     ? Comparator.comparingLong(Product::firstPublishedAt).reversed()
                     : Comparator.comparingLong(
-                            (Product p) -> scores.get(p.id())[c.sort().equals("VIEWS") ? 0 : 1])
+                            (Product p) ->
+                                scores
+                                    .getOrDefault(p.id(), noScore)[
+                                    c.sort().equals("VIEWS") ? 0 : 1])
                         .reversed();
         selected.sort(comparator.thenComparing(Product::id));
         // 返回完整选品结果供“更多”分页；首页只截取limit，不把后台选择条件暴露成私有数据。
@@ -760,17 +780,18 @@ public class Catalog {
     return cached;
   }
 
-  private long[] counts(String id, int days) {
+  /** 一个时间范围只查一次聚合，栏目或应用数量增加时不会逐项查询统计。 */
+  private Map<String, long[]> counts(int days) {
     String since =
         days == 0 ? "0000-00-00" : LocalDate.now(REPORT_ZONE).minusDays(days - 1).toString();
-    long[] values = new long[2];
+    Map<String, long[]> values = new HashMap<>();
     db.query(
-        "SELECT metric_type,COUNT(*) AS total FROM catalog_metric WHERE product_id=? AND"
-            + " metric_day>=? GROUP BY metric_type",
+        "SELECT product_id,metric_type,COUNT(*) AS total FROM catalog_metric"
+            + " WHERE metric_day>=? GROUP BY product_id,metric_type",
         r -> {
-          values[r.getString(1).equals("VIEW") ? 0 : 1] = r.getLong(2);
+          var count = values.computeIfAbsent(r.getString("product_id"), id -> new long[2]);
+          count[r.getString("metric_type").equals("VIEW") ? 0 : 1] = r.getLong(3);
         },
-        id,
         since);
     return values;
   }

@@ -9,11 +9,6 @@ const { catalog, deliveryError, load } = useCatalog(),
   { t, toggle, zh } = useLanguage();
 const site = useState<Record<string, string>>("site-settings", () => ({}));
 const route = useRoute();
-const currentSection = computed(() =>
-  catalog.value.sections.some((s) => s.id === route.query.section)
-    ? String(route.query.section)
-    : catalog.value.sections[0]?.id,
-);
 // 所有前台页面复用可维护导航；API显隐来自栏目配置，服务端保证排在末尾。
 if (!catalog.value.sections.length) await load(true);
 const changed = useState("catalog-changed", () => 0);
@@ -41,16 +36,14 @@ onMounted(() => {
               v-for="section in catalog.sections"
               :key="section.id"
               :aria-current="
-                route.path === '/' && currentSection === section.id
+                route.path === '/sections/' + section.id ||
+                route.path === section.href
                   ? 'page'
                   : undefined
               "
               :to="
                 section.kind === 'APPLICATIONS'
-                  ? {
-                      path: '/',
-                      query: { section: section.id },
-                    }
+                  ? '/sections/' + section.id
                   : section.href
               "
               >{{

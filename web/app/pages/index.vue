@@ -1,31 +1,19 @@
 <script setup lang="ts">
 // 首页完全由公开目录接口驱动；空库保持真实空状态，不填充虚构商品和统计。
 definePageMeta({ layout: "catalog" });
-const { catalog, error, load } = useCatalog(),
-  { t } = useLanguage();
-await load(true);
-const route = useRoute();
-const selected = computed(
-  () =>
-    catalog.value.sections.find((s) => s.id === route.query.section) ||
-    catalog.value.sections[0],
-);
+import type { HomeSection } from "~/types/catalog";
+const { t } = useLanguage();
 const { request } = useApi();
 const {
-  data: selection,
-  status: sectionStatus,
-  error: sectionError,
+  data: sections,
+  status,
+  error,
   refresh,
-} = await useAsyncData(
-  "home-section",
-  () =>
-    selected.value
-      ? request<any>(`/api/public/sections/${selected.value.id}/items`, {
-          query: { pageSize: Math.min(selected.value.limit, 60) },
-        })
-      : Promise.resolve({ items: [], total: 0 }),
-  { watch: [selected] },
+} = await useAsyncData("homepage-sections", () =>
+  request<HomeSection[]>("/api/public/home-sections"),
 );
+const changed = useState("catalog-changed", () => 0);
+watch(changed, () => refresh());
 const query = ref("");
 const site = useState<Record<string, string>>("site-settings", () => ({}));
 useHead(() => ({
@@ -87,13 +75,16 @@ async function search() {
         t("精选应用 · 简单好用", "Selected apps · Simply useful")
       }}</span>
     </div>
-    <div v-if="error" class="catalog-empty catalog-error" role="alert">
-      <p>{{ error }}</p>
-      <button @click="load(true)">{{ t("重新加载", "Try again") }}</button>
+    <p v-if="status === 'pending'" role="status" class="catalog-empty">
+      {{ t("正在加载栏目内容…", "Loading…") }}
+    </p>
+    <div v-else-if="error" class="catalog-empty catalog-error" role="alert">
+      <p>{{ t("栏目加载失败，请重试。", "Unable to load sections.") }}</p>
+      <button @click="refresh()">{{ t("重新加载", "Try again") }}</button>
     </div>
-    <template v-else
-      ><section
-        v-for="section in selected ? [selected] : []"
+    <template v-else>
+      <section
+        v-for="section in sections || []"
         :id="section.id"
         :key="section.id"
         class="directory-section"
@@ -114,34 +105,12 @@ async function search() {
             >{{ t("更多", "More") }}<SiteIcon name="arrow"
           /></NuxtLink>
         </div>
-        <p
-          v-if="sectionStatus === 'pending'"
-          role="status"
-          class="catalog-empty"
-        >
-          {{ t("正在加载栏目内容…", "Loading…") }}
-        </p>
-        <div v-else-if="sectionError" class="catalog-empty" role="alert">
-          <p>
-            {{ t("栏目加载失败，请重试。", "Unable to load this section.") }}
-          </p>
-          <button @click="refresh()">{{ t("重试", "Retry") }}</button>
-        </div>
-        <div v-else-if="selection?.items?.length" class="directory-app-grid">
-          <template v-for="item in selection.items" :key="item.ref">
-            <CatalogTile v-if="item.product" :product="item.product" />
-            <a
-              v-else
-              class="section-content-card"
-              :href="item.href"
-              target="_blank"
-              rel="noopener"
-              ><SiteIcon
-                :name="item.kind === 'API' ? 'convert' : 'document'"
-              /><span>{{ t(item.name, item.nameEn || item.name) }}</span
-              ><small>{{ t("查看详情", "View details") }}</small></a
-            >
-          </template>
+        <div v-if="section.items.length" class="directory-card-grid">
+          <DirectoryCard
+            v-for="item in section.items"
+            :key="item.ref"
+            :item="item"
+          />
         </div>
         <p v-else class="catalog-empty">
           {{
@@ -155,34 +124,3 @@ async function search() {
     >
   </main>
 </template>
-
-<style scoped>
-.section-content-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  min-height: 174px;
-  padding: 18px 8px;
-  text-align: center;
-  border: 1px solid #ecebf5;
-  border-radius: 12px;
-  background: white;
-  color: #454064;
-  text-decoration: none;
-}
-.section-content-card:hover {
-  border-color: #bcb2e7;
-  background: #faf9ff;
-}
-.section-content-card > svg {
-  width: 38px;
-  height: 38px;
-  color: #8a76c8;
-}
-.section-content-card small {
-  font-size: 12px;
-  color: #8b90a3;
-}
-</style>

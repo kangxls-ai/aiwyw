@@ -33,8 +33,7 @@ const data = ref<{
     page: number;
     pageSize: number;
   }>({ items: [], total: 0, page: 1, pageSize: 20 }),
-  facets = ref<{ tags: string[]; sections: AdminSection[] }>({
-    tags: [],
+  facets = ref<{ sections: AdminSection[] }>({
     sections: [],
   });
 const error = ref(""),
@@ -75,7 +74,9 @@ async function load() {
     if (sequence !== loadSequence) return;
     data.value = nextData;
     page.value = data.value.page;
-    facets.value = await request("/api/admin/catalog/products/facets");
+    facets.value = await request(
+      "/api/admin/catalog/products/facets?includeTags=false",
+    );
   } catch (e) {
     if (sequence !== loadSequence) return;
     error.value = message(e);
@@ -212,21 +213,15 @@ watch(changed, () => load());
             unlink-panels
         /></el-form-item>
         <el-form-item label="标签（全部匹配）"
-          ><el-select
+          ><PagedPicker
             v-model="selectedTags"
-            placeholder="全部标签"
-            aria-label="标签筛选"
-            multiple
-            filterable
+            title="标签筛选"
+            endpoint="/api/admin/catalog/tags/options/page"
+            value-key="name"
+            detail-key=""
+            :max="20"
             clearable
-            collapse-tags
-            collapse-tags-tooltip
-            ><el-option
-              v-for="tag in facets.tags"
-              :key="tag"
-              :label="tag"
-              :value="tag" /></el-select
-        ></el-form-item>
+        /></el-form-item>
         <div class="full">
           <el-button type="primary" :loading="busy" @click="search"
             >查询</el-button

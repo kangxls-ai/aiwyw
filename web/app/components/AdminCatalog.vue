@@ -16,7 +16,6 @@ const sections = ref<AdminSection[]>([]),
   busy = ref(false),
   error = ref(""),
   notice = ref(""),
-  knownTags = ref<string[]>([]),
   base = ref("");
 const changed = useState("catalog-changed", () => 0);
 const applicationCount = computed(
@@ -50,9 +49,6 @@ watch(
   },
 );
 async function load() {
-  knownTags.value = (
-    await request<{ tags: string[] }>("/api/admin/catalog/products/facets")
-  ).tags;
   sections.value = await request("/api/admin/catalog/sections");
 }
 function open(value?: AdminSection, mode?: string) {
@@ -71,7 +67,11 @@ function open(value?: AdminSection, mode?: string) {
     return;
   id.value = value?.id || null;
   form.value = value
-    ? { ...structuredClone(toRaw(value.config)), revision: value.revision }
+    ? {
+        ...structuredClone(toRaw(value.config)),
+        limit: Math.min(40, value.config.limit),
+        revision: value.revision,
+      }
     : { ...empty(), ...(mode ? { mode } : {}) };
 
   editing.value = true;
@@ -273,13 +273,11 @@ onBeforeUnmount(() => unregister?.());
             :min="0"
             :max="1000"
             controls-position="right" /></el-form-item
-        ><el-form-item
-          v-if="!['ARTICLES', 'API'].includes(form.mode)"
-          label="首页显示数量"
+        ><el-form-item label="首页显示数量"
           ><el-input-number
             v-model="form.limit"
             :min="1"
-            :max="60"
+            :max="40"
             controls-position="right"
         /></el-form-item>
         <el-form-item label="图标"
@@ -348,19 +346,16 @@ onBeforeUnmount(() => unregister?.());
               label="近30天" /><el-option :value="0" label="累计" /></el-select
         ></el-form-item>
         <el-form-item v-if="form.mode === 'TAG'" label="选品标签" class="full"
-          ><el-select
+          ><PagedPicker
             v-model="form.tags"
-            multiple
-            filterable
-            :reserve-keyword="false"
+            title="选择选品标签"
+            endpoint="/api/admin/catalog/tags/options/page"
+            value-key="name"
+            detail-key=""
+            :max="20"
+            clearable
             allow-create
-            default-first-option
-            ><el-option
-              v-for="tag in knownTags"
-              :key="tag"
-              :label="tag"
-              :value="tag" /></el-select
-        ></el-form-item>
+        /></el-form-item>
         <div v-if="form.mode === 'MANUAL'" class="full">
           <h3>人工选品与排序</h3>
           <SelectionPicker v-model="form.productIds" />

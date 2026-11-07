@@ -7,13 +7,23 @@ const { t } = useLanguage(),
   { request } = useApi(),
   route = useRoute();
 const site = useState<Record<string, string>>("site-settings", () => ({}));
-const data = await request<any>("/api/public/apis");
-const api = data.apis.find(
-  (item: any) => item.slug === String(route.params.slug),
-);
+const data = await request<any>("/api/public/api-records/apis", {
+  query: { slug: String(route.params.slug), pageSize: 1 },
+});
+const api = data.items[0];
 if (!api)
   throw createError({ statusCode: 404, statusMessage: "API not found" });
-const plans = data.plans.filter((p: any) => p.api_id === api.id);
+const planPage = ref(1),
+  planSize = 20;
+const { data: planData } = await useAsyncData(
+  "api-detail-plans:" + api.id,
+  () =>
+    request<any>("/api/public/api-records/plans", {
+      query: { apiId: api.id, page: planPage.value, pageSize: planSize },
+    }),
+  { watch: [planPage] },
+);
+const plans = computed(() => planData.value?.items || []);
 const title = computed(() => t(api.name, api.name_en || api.name));
 useHead(() => ({
   title: title.value + " · " + (site.value["site.name"] || "AI万有网"),
@@ -79,12 +89,20 @@ Content-Type: application/json</pre
       <div v-for="plan in plans" :key="plan.id">
         <h3>{{ plan.name }}</h3>
         <p>
-          {{ decimalUnits(plan.price_units) }} {{ t("鼓励值", "encouragement") }} ·
-          {{ plan.quota }} {{ t("次", "calls") }} · {{ plan.days }}
+          {{ decimalUnits(plan.price_units) }}
+          {{ t("鼓励值", "encouragement") }} · {{ plan.quota }}
+          {{ t("次", "calls") }} · {{ plan.days }}
           {{ t("天", "days") }}
         </p>
-      </div></el-card
-    >
+      </div>
+      <el-pagination
+        v-if="planData?.total > planSize"
+        v-model:current-page="planPage"
+        :page-size="planSize"
+        :total="planData.total"
+        layout="prev,pager,next"
+      />
+    </el-card>
   </main>
 </template>
 <style scoped>

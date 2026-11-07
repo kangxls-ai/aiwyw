@@ -531,10 +531,16 @@ class AccountController {
 
   private List<Map<String, Object>> withRoles(List<Map<String, Object>> rows) {
     for (var row : rows) {
-      var roles =
+      var assigned =
           db.queryForList(
-              "SELECT role_id FROM access_user_role WHERE user_id=?", String.class, row.get("id"));
-      row.put("roles", roles.isEmpty() ? List.of(row.get("role_name")) : roles);
+              "SELECT r.id,r.name FROM access_user_role ur JOIN access_role r ON r.id=ur.role_id"
+                  + " WHERE ur.user_id=? ORDER BY r.id",
+              row.get("id"));
+      Map<String, String> labels = new LinkedHashMap<>();
+      for (var role : assigned) labels.put((String) role.get("id"), (String) role.get("name"));
+      row.put(
+          "roles", labels.isEmpty() ? List.of(row.get("role_name")) : List.copyOf(labels.keySet()));
+      row.put("roleLabels", labels);
     }
     return rows;
   }

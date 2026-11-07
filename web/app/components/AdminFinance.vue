@@ -36,7 +36,6 @@ const q = ref(""),
   actual = ref(0),
   reason = ref("");
 const adjustmentDialog = ref(false),
-  adjustUsers = ref<any[]>([]),
   adjusting = ref(false),
   adjustment = reactive({
     userId: "",
@@ -45,15 +44,6 @@ const adjustmentDialog = ref(false),
     reason: "",
     requestKey: "",
   });
-async function loadAdjustUsers(q = "") {
-  try {
-    adjustUsers.value = await request("/api/admin/commerce/adjust-options", {
-      query: { q },
-    });
-  } catch (e) {
-    error.value = message(e);
-  }
-}
 function openAdjustment() {
   Object.assign(adjustment, {
     userId: "",
@@ -63,7 +53,6 @@ function openAdjustment() {
     requestKey: crypto.randomUUID(),
   });
   adjustmentDialog.value = true;
-  loadAdjustUsers();
 }
 async function adjustPoints() {
   adjusting.value = true;
@@ -426,20 +415,12 @@ onMounted(load);
         label-width="140px"
         style="margin-top: 20px"
         ><el-form-item label="目标账户"
-          ><el-select
+          ><PagedPicker
             v-model="adjustment.userId"
-            filterable
-            remote
-            :remote-method="loadAdjustUsers"
-            placeholder="搜索昵称或输入完整账户ID"
-            aria-label="调整鼓励值目标账户"
-            ><el-option
-              v-for="u in adjustUsers"
-              :key="u.id"
-              :value="u.id"
-              :label="
-                u.nickname + ' (' + u.id.slice(0, 8) + ')'
-              " /></el-select></el-form-item
+            title="调整鼓励值目标账户"
+            endpoint="/api/admin/commerce/adjust-options/page"
+            label-key="nickname"
+            detail-key="id" /></el-form-item
         ><el-form-item label="调整鼓励值"
           ><el-input-number
             v-model="adjustment.points"

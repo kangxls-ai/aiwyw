@@ -199,8 +199,8 @@ public class Auth {
     boolean metadata =
         key.equals("applications")
             && r.getMethod().equals("GET")
-            && ((p.endsWith("/options")
-                    && (u.menus().contains("licenses") || u.menus().contains("sections")))
+            && ((p.endsWith("/options") || p.endsWith("/options/page"))
+                    && (u.menus().contains("licenses") || u.menus().contains("sections"))
                 || (p.endsWith("/facets")
                     && (u.menus().contains("sections") || u.menus().contains("tags"))));
     boolean legacy =
