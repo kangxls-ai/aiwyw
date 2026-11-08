@@ -23,14 +23,7 @@ body .member-area {
   line-height: 1.65;
   font-weight: 400;
 }
-body
-  :is(
-    .management-panel-heading,
-    .page-heading,
-    .catalog-page-heading,
-    .directory-intro
-  )
-  h1,
+body :is(.management-panel-heading, .page-heading, .catalog-page-heading) h1,
 body
   :is(
     .api-center,

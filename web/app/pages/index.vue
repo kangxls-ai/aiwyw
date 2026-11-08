@@ -19,9 +19,9 @@ if (import.meta.server && error.value) {
 const changed = useState("catalog-changed", () => 0);
 watch(changed, () => refresh());
 const query = ref("");
-const { site, siteName, siteSlogan } = useSiteBrand();
+const { site, siteName } = useSiteBrand();
 useHead(() => ({
-  title: `${siteName.value} · ${t("工具与应用", "Tools and applications")}`,
+  title: `${siteName.value} · ${t("资源", "Resources")}`,
   meta: [
     {
       name: "description",
@@ -42,29 +42,17 @@ async function search() {
 <template>
   <main class="directory-width directory-main">
     <section class="directory-search-section">
-      <div class="directory-intro">
-        <span v-if="siteSlogan" class="directory-eyebrow">{{
-          siteSlogan
-        }}</span>
-        <h1>
-          {{ t("好用的工具，", "Useful tools,")
-          }}<span>{{ t("都在这里。", "all in one place.") }}</span>
-        </h1>
-      </div>
+      <h1 class="directory-sr">{{ t("资源", "Resources") }}</h1>
       <form class="directory-search" role="search" @submit.prevent="search">
         <SiteIcon name="search" /><label
           class="directory-sr"
           for="catalog-query"
-          >{{
-            t("搜索工具、软件或 API", "Search tools, software or APIs")
-          }}</label
+          >{{ t("搜索资源", "Search resources") }}</label
         ><input
           id="catalog-query"
           v-model="query"
           type="search"
-          :placeholder="
-            t('搜索工具、软件或 API…', 'Search tools, software or APIs…')
-          "
+          :placeholder="t('发现好知识', 'Discover new ideas')"
         /><button class="directory-search-submit" type="submit">
           {{ t("搜索", "Search") }}<SiteIcon name="arrow" />
         </button>
@@ -73,10 +61,10 @@ async function search() {
     <div class="directory-content-heading">
       <span
         ><span class="directory-online-dot" />{{
-          t("发现你的下一款好工具", "Discover your next useful tool")
+          t("发现优质资源", "Discover useful resources")
         }}</span
       ><span>{{
-        t("精选应用 · 简单好用", "Selected apps · Simply useful")
+        t("精选资源 · 便捷查阅", "Selected resources · Easy to browse")
       }}</span>
     </div>
     <p v-if="status === 'pending'" role="status" class="catalog-empty">
