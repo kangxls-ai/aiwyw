@@ -24,5 +24,5 @@ for (const [command, args, env] of [
 }
 process.on('SIGTERM', () => stop())
 process.on('SIGINT', () => stop())
-console.log('AI万有网 本地预览: http://127.0.0.1:3000')
+console.log('微云湾 本地预览: http://127.0.0.1:3000')
 console.log('首次安装: http://127.0.0.1:3000/install （安装码见后端首次启动提示）')

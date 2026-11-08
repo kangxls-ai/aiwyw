@@ -59,9 +59,31 @@ public class Settings {
         "启用双因素认证策略",
         true,
         "开启时管理员或财务任一角色必须验证；管理员可为应急关闭，已绑定密钥保留，恢复开启后重新要求验证");
-    text("site.name", "网站信息", "网站名称", "AI万有网", true, "展示在网站标题和导航");
+    text("site.name", "网站信息", "网站名称", "微云湾", true, "展示在网站标题和导航");
+    text("site.slogan", "网站信息", "网站标语", "以技术为舟，向未来远航", true, "展示在公共页头");
     text("site.domain", "网站信息", "主站域名", "www.aiwyw.com", true, "只填写域名，不含协议与路径");
-    text("site.filing", "网站信息", "备案号", "模拟ICP备00000000号（占位）", true, "页脚居中展示；备案完成后替换为真实号码");
+    text("site.filing", "网站信息", "工信部 ICP 备案号", "", true, "填写工信部下发的完整备案号，留空显示占位");
+    text("site.security_filing", "网站信息", "公安网安备案号", "", true, "填写完整的公安备案号，留空显示占位");
+    image(
+        "site.security_filing_icon",
+        "网站信息",
+        "公安备案编号图标",
+        "",
+        true,
+        "备案完成后上传平台下发的PNG或JPG图标，和公安网安备案号一同展示");
+    DEFINITIONS.add(
+        new Definition(
+            "account.registration_open",
+            "网站信息",
+            "开放用户注册",
+            "boolean",
+            "false",
+            false,
+            true,
+            "关闭时隐藏登录页的注册入口并拒绝新注册；登录、邮箱验证和找回密码仍可使用",
+            0,
+            0,
+            List.of()));
     text("site.description", "网站信息", "网站介绍", "发现好用的工具，让每个想法都能落地。", true, "用于首页介绍与搜索摘要");
     text(
         "site.description_en",
@@ -252,10 +274,19 @@ public class Settings {
   private final JdbcTemplate jdbc;
   private final SecureStore crypto;
   private final TransactionTemplate transaction;
+  private final Database database;
+  private volatile PublicSettings published;
 
-  public Settings(JdbcTemplate jdbc, SecureStore crypto, PlatformTransactionManager manager) {
+  private record PublicSettings(long generation, Map<String, String> values) {}
+
+  public Settings(
+      JdbcTemplate jdbc,
+      SecureStore crypto,
+      PlatformTransactionManager manager,
+      Database database) {
     this.jdbc = jdbc;
     this.crypto = crypto;
+    this.database = database;
     transaction = new TransactionTemplate(manager);
   }
 
@@ -266,6 +297,25 @@ public class Settings {
 
   /** 只补缺失配置，不覆盖运营者已保存值；敏感初值也按密文存储。 */
   public void seed(JdbcTemplate db) {
+    // 仅迁移旧产品名称和演示备案号，保留已填写的真实号码与其他配置。
+    if (db.queryForObject(
+            "SELECT COUNT(*) FROM schema_migration WHERE version='V014_WEIYUNWAN'", Integer.class)
+        == 0) {
+      db.update(
+          "UPDATE system_config SET config_value=?,revision=revision+1,updated_at=? WHERE"
+              + " config_key='site.name' AND config_value=?",
+          "微云湾",
+          System.currentTimeMillis(),
+          "AI万有网");
+      db.update(
+          "UPDATE system_config SET config_value='',revision=revision+1,updated_at=? WHERE"
+              + " config_key='site.filing' AND config_value=?",
+          System.currentTimeMillis(),
+          "模拟ICP备00000000号（占位）");
+      db.update(
+          "INSERT INTO schema_migration VALUES('V014_WEIYUNWAN','微云湾站点品牌与备案占位',?)",
+          System.currentTimeMillis());
+    }
     for (var d : DEFINITIONS)
       if (db.queryForObject(
               "SELECT COUNT(*) FROM system_config WHERE config_key=?", Integer.class, d.key())
@@ -322,13 +372,30 @@ public class Settings {
         .toList();
   }
 
-  /** 仅返回publicValue白名单，不因请求者登录而扩展公开字段。 */
+  /** 公开请求复用提交后的白名单快照；安装时切换数据库会重新读取。 */
   public Map<String, String> publicValues() {
-    Map<String, String> out = new LinkedHashMap<>();
-    DEFINITIONS.stream()
-        .filter(Definition::publicValue)
-        .forEach(d -> out.put(d.key(), value(d.key())));
-    return out;
+    var snapshot = published;
+    long generation = database.generation();
+    if (snapshot == null || snapshot.generation() != generation) return refreshPublic();
+    return snapshot.values();
+  }
+
+  private synchronized Map<String, String> refreshPublic() {
+    long generation = database.generation();
+    var definitions = DEFINITIONS.stream().filter(Definition::publicValue).toList();
+    Map<String, String> values = new LinkedHashMap<>();
+    definitions.forEach(d -> values.put(d.key(), d.initial()));
+    String placeholders = String.join(",", Collections.nCopies(definitions.size(), "?"));
+    jdbc.query(
+        "SELECT config_key, config_value FROM system_config WHERE config_key IN ("
+            + placeholders
+            + ")",
+        rs -> {
+          values.put(rs.getString(1), rs.getString(2));
+        },
+        definitions.stream().map(Definition::key).toArray());
+    published = new PublicSettings(generation, Map.copyOf(values));
+    return published.values();
   }
 
   /** 先校验整批输入，随后事务内比较revision并更新；任一冲突回滚所有修改。敏感值留空表示保持，clear才表示删除。 */
@@ -379,6 +446,7 @@ public class Settings {
           if (bounds && integer("wallet.min_recharge_yuan") > integer("wallet.max_recharge_yuan"))
             throw new Api.Failure(400, "最低捐赠金额不能超过最高捐赠金额");
         });
+    if (keys.stream().anyMatch(key -> definition(key).publicValue())) refreshPublic();
   }
 
   /** 所有类型与安全固定项在服务端校验，绕过前端控件也不能写危险值。 */
@@ -404,9 +472,11 @@ public class Settings {
         if (!d.options().contains(v)) throw new Api.Failure(400, d.label() + "暂不支持此选项");
       }
       case "image" -> {
+        boolean filing = d.key().equals("site.security_filing_icon");
+        String path = filing ? "/api/public/filing-assets/" : "/api/public/assets/";
         if (!v.isEmpty()
-            && !v.equals("/images/mock-payment.svg")
-            && !v.matches("/api/public/assets/[a-f0-9-]{36}\\.png"))
+            && !v.matches(path + "[a-f0-9-]{36}\\.png")
+            && (filing || !v.equals("/images/mock-payment.svg")))
           throw new Api.Failure(400, "请使用图片上传功能");
       }
       default -> {}

@@ -75,6 +75,8 @@ public class Accounts {
   }
 
   public void register(String raw, String password, String ip) {
+    if (!Boolean.parseBoolean(settings.value("account.registration_open")))
+      throw new Api.Failure(403, "网站暂未开放注册");
     String mail = email(raw);
     password(password);
     limit("register-ip", ip);
@@ -156,7 +158,7 @@ public class Accounts {
             + " VALUES(?,?,?,?,'PENDING',0,?,?)",
         UUID.randomUUID().toString(),
         mail,
-        purpose.equals("VERIFY") ? "AI万有网 邮箱验证" : "AI万有网 重置密码",
+        settings.value("site.name") + (purpose.equals("VERIFY") ? " 邮箱验证" : " 重置密码"),
         crypto.encrypt(text + "\n" + url + "\n链接只可使用一次。"),
         now,
         now);

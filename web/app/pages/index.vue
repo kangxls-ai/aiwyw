@@ -12,12 +12,16 @@ const {
 } = await useAsyncData("homepage-sections", () =>
   request<HomeSection[]>("/api/public/home-sections"),
 );
+if (import.meta.server && error.value) {
+  const event = useRequestEvent();
+  if (event) event.context.publicSiteUnavailable = true;
+}
 const changed = useState("catalog-changed", () => 0);
 watch(changed, () => refresh());
 const query = ref("");
-const site = useState<Record<string, string>>("site-settings", () => ({}));
+const { site, siteName, siteSlogan } = useSiteBrand();
 useHead(() => ({
-  title: `${site.value["site.name"] || "AI万有网"} · ${t("工具与应用", "Tools and applications")}`,
+  title: `${siteName.value} · ${t("工具与应用", "Tools and applications")}`,
   meta: [
     {
       name: "description",
@@ -39,8 +43,8 @@ async function search() {
   <main class="directory-width directory-main">
     <section class="directory-search-section">
       <div class="directory-intro">
-        <span class="directory-eyebrow">{{
-          t("为每一个灵感，找到趁手的工具", "Useful tools for every idea")
+        <span v-if="siteSlogan" class="directory-eyebrow">{{
+          siteSlogan
         }}</span>
         <h1>
           {{ t("好用的工具，", "Useful tools,")

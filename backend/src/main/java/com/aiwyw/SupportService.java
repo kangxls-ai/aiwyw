@@ -385,7 +385,7 @@ public class SupportService {
               if (Boolean.TRUE.equals(guest.get("email_optin")))
                 mail(
                     (String) guest.get("email"),
-                    "AI万有网客服回复",
+                    settings.value("site.name") + " 客服回复",
                     "你的咨询已有回复，请使用原浏览器访问 https://"
                         + settings.value("site.domain")
                         + "/support 查看。邮件不包含私有聊天正文。");
@@ -416,7 +416,7 @@ public class SupportService {
             >= settings.integer("support.offline_mail_minutes") * 60000L) {
       mail(
           settings.value("support.inbox"),
-          "AI万有网有新的离线咨询",
+          settings.value("site.name") + " 有新的离线咨询",
           "请登录客服工作台查看会话 " + key + "。邮件不包含用户正文和私有图片。");
       db.update("UPDATE support_conversation SET last_notice_at=? WHERE id=?", now, key);
     }
@@ -569,7 +569,7 @@ public class SupportService {
               System.currentTimeMillis() + settings.integer("support.recovery_minutes") * 60000L);
           mail(
               email,
-              "找回AI万有网游客会话",
+              "找回 " + settings.value("site.name") + " 游客会话",
               "请使用一次性链接核验邮箱并找回原浏览器的游客会话：https://"
                   + settings.value("site.domain")
                   + "/support?recover="

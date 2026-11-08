@@ -1,5 +1,6 @@
 <!-- 正式管理框架只负责导航、页签与布局；权限必须由各服务端接口验证。 -->
 <script setup lang="ts">
+const { site, siteName } = useSiteBrand();
 import {
   adminMenuGroups,
   adminMenuItem,
@@ -152,9 +153,11 @@ onBeforeUnmount(() => {
   <div class="management-workspace" :class="{ compact: collapsed }">
     <header class="management-banner">
       <div class="management-brand">
-        <NuxtLink to="/" class="management-logo">万<span /></NuxtLink>
+        <NuxtLink to="/" class="management-logo" :aria-label="siteName"
+          ><img src="/images/weiyunwan.svg" width="44" height="44" alt=""
+        /></NuxtLink>
         <div>
-          <strong>AI万有网<span>管理工作台</span></strong>
+          <strong>{{ siteName }}<span>管理工作台</span></strong>
           <p>把每一件好工具，认真管理好。</p>
         </div>
       </div>
@@ -261,7 +264,7 @@ onBeforeUnmount(() => {
           </section>
         </nav>
         <div class="management-sidebar-foot">
-          <span /><span>AI万有网 <small>管理工作空间</small></span>
+          <span /><span>{{ siteName }} <small>管理工作空间</small></span>
         </div>
       </aside>
       <div class="management-right">
@@ -327,7 +330,8 @@ onBeforeUnmount(() => {
           <slot />
         </main>
         <footer class="management-footer">
-          <span>AI万有网 · www.aiwyw.com</span
+          <span
+            >{{ siteName }} · {{ site["site.domain"] || "www.aiwyw.com" }}</span
           ><span>配置、操作记录与账户安全</span>
         </footer>
       </div>

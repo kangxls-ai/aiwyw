@@ -176,11 +176,96 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   await page
     .context()
     .storageState({ path: join(directory(), "admin-state.json") });
-  await field(page, "网站名称", { exact: true }).fill("AI万有网 浏览器验证");
+  const publicHeaders = {
+    "Accept-Language": "zh",
+    Cookie: "aiwyw_language=zh",
+  };
+  const guest = await page.context().browser()!.newPage();
+  await guest
+    .context()
+    .addCookies([
+      { name: "aiwyw_language", value: "zh", url: "http://127.0.0.1:3000" },
+    ]);
+  await guest.goto("/account-access?action=register");
+  await expect(
+    guest.getByRole("heading", { name: "登录账户", exact: true }),
+  ).toBeVisible();
+  await expect(
+    guest.getByRole("button", { name: "注册", exact: true }),
+  ).toHaveCount(0);
+  const denied = await guest.request.post("/api/auth/register", {
+    headers: { "X-AIWYW-Request": "1" },
+    data: {
+      email: "closed-registration@example.com",
+      password: "closed-registration-password",
+    },
+  });
+  expect(denied.status()).toBe(403);
+  expect(
+    (
+      await guest.request.post("/api/admin/site/publish", {
+        headers: { "X-AIWYW-Request": "1" },
+      })
+    ).status(),
+  ).toBe(401);
+  const initial = await guest.request.get("/", { headers: publicHeaders });
+  expect(initial.headers()["x-aiwyw-static"]).toMatch(/published|hit/);
+  expect(await initial.text()).toContain("以技术为舟，向未来远航");
+  await guest.close();
+  await field(page, "网站名称", { exact: true }).fill("微云湾 浏览器验证");
   await page.getByRole("button", { name: /保存修改/ }).click();
   await expect(page.locator(".alert[role=status]:visible")).toHaveText(
-    "配置已保存",
+    "配置已保存，首页与登录页已发布",
   );
+  for (const path of ["/", "/login", "/account-access"]) {
+    const snapshot = await page.request.get(path, { headers: publicHeaders });
+    expect(snapshot.headers()["x-aiwyw-static"]).toBe("hit");
+    expect(await snapshot.text()).toContain("微云湾 浏览器验证");
+  }
+  const tokenPage = await page.request.get(
+    "/account-access?action=verify&token=browser-only",
+  );
+  expect(tokenPage.headers()["x-aiwyw-static"]).toBeUndefined();
+  const iconUpload = await page.request.post("/api/admin/assets/filing", {
+    headers: { "X-AIWYW-Request": "1" },
+    multipart: {
+      file: {
+        name: "filing-icon.png",
+        mimeType: "image/png",
+        buffer: await QRCode.toBuffer("filing icon fixture"),
+      },
+    },
+  });
+  expect(iconUpload.status()).toBe(200);
+  const icon = (await iconUpload.json()).url;
+  expect((await page.request.get(icon)).status()).toBe(404);
+  await configuration(page, {
+    "account.registration_open": "true",
+    "site.filing": "示例ICP备12345678号-1",
+    "site.security_filing": "示例公网安备12345678901234号",
+    "site.security_filing_icon": icon,
+  });
+  const publishedLogin = await page.request.get("/login", {
+    headers: publicHeaders,
+  });
+  expect(await publishedLogin.text()).toContain(
+    "/account-access?action=register",
+  );
+  const publishedHome = await page.request.get("/", { headers: publicHeaders });
+  const publishedHomeHtml = await publishedHome.text();
+  expect(publishedHomeHtml).toContain("https://beian.miit.gov.cn/");
+  expect(publishedHomeHtml).toContain(
+    "https://beian.mps.gov.cn/#/query/webSearch?code=12345678901234",
+  );
+  expect(publishedHomeHtml).toContain(icon);
+  expect((await page.request.get(icon)).status()).toBe(200);
+  expect(publishedHomeHtml).toContain("示例公网安备12345678901234号");
+  await configuration(page, {
+    "site.filing": "",
+    "site.security_filing": "",
+    "site.security_filing_icon": "",
+  });
+  expect((await page.request.get(icon)).status()).toBe(404);
   await field(page, "网站名称", { exact: true }).fill("尚未保存");
   await page
     .getByRole("button", { name: "关闭配置管理页签", exact: true })
@@ -192,7 +277,7 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   await expect(field(page, "网站名称", { exact: true })).toHaveValue(
     "尚未保存",
   );
-  await field(page, "网站名称", { exact: true }).fill("AI万有网 浏览器验证");
+  await field(page, "网站名称", { exact: true }).fill("微云湾 浏览器验证");
   await page
     .locator(".settings-groups")
     .getByRole("button", { name: "邮件服务", exact: true })
@@ -2356,7 +2441,7 @@ test("new-window details share navigation, managed API visibility and encrypted 
   ).toBeVisible();
   await expect(detail.locator(".public-breadcrumb")).toContainText("API 服务");
   const footer = detail.locator(".directory-footer");
-  await expect(footer).toContainText("模拟ICP备00000000号");
+  await expect(footer).toContainText("工信部 ICP 备案号待填写");
   await expect(
     footer.locator('a[href="/account"],a[href="/articles"],a[href="/support"]'),
   ).toHaveCount(0);
@@ -2405,7 +2490,21 @@ test("new-window details share navigation, managed API visibility and encrypted 
     articlePage.locator(".public-breadcrumb [aria-current='page']"),
   ).not.toBeEmpty();
   await expect(articlePage.locator(".directory-footer")).toContainText(
-    "模拟ICP备00000000号",
+    "工信部 ICP 备案号待填写",
+  );
+  for (const selector of [
+    ".published-article > h1",
+    ".published-article > h1 + p",
+    ".published-article > time",
+  ]) {
+    await expect(articlePage.locator(selector)).toHaveCSS(
+      "text-align",
+      "center",
+    );
+  }
+  await expect(articlePage.locator(".public-site-header")).toHaveCSS(
+    "position",
+    "sticky",
   );
   await articlePage.close();
   const sections = await (

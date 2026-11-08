@@ -3,6 +3,7 @@ package com.aiwyw;
 import static com.aiwyw.ContentHtml.escape;
 
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** 文件快照先校验再加公共视觉资源，不修改已发布文件、业务条款或脚本CSP摘要，也不增加详情查询。 */
@@ -25,7 +26,18 @@ final class UiPresentation {
     String original = html;
     html =
         decorate(html)
-            .replace("</head>", "<link rel=\"stylesheet\" href=\"/site-shell.css?v=1\"></head>");
+            .replace("</head>", "<link rel=\"stylesheet\" href=\"/site-shell.css?v=2\"></head>");
+    String brand = escape(site.getOrDefault("site.name", "微云湾"));
+    String slogan = site.getOrDefault("site.slogan", "以技术为舟，向未来远航");
+    // 原快照的标题保留内容名称，站点后缀使用当前公开品牌。
+    html =
+        Pattern.compile("(<title>[^<]* · )[^<]*</title>")
+            .matcher(html)
+            .replaceFirst("$1" + Matcher.quoteReplacement(brand) + "</title>");
+    html =
+        html.replace(
+            "</head>",
+            "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/images/weiyunwan.svg\"></head>");
     // 类型来自已发布对象，不能让教程正文中的HTML示例决定页面外壳类型。
     boolean product = Set.of("TOOL", "SOFTWARE", "RESOURCE", "API", "DOCUMENT").contains(kind);
     boolean en = "en".equals(language);
@@ -59,12 +71,12 @@ final class UiPresentation {
                 + "</a>";
     String header =
         "<header class=\"public-site-header\"><div class=\"public-site-width"
-            + " public-site-header-inner\"><a class=\"public-site-brand\" href=\"/\"><span"
-            + " class=\"public-site-logo\">万</span><span>"
-            + escape(site.getOrDefault("site.name", "AI万有网"))
-            + "<small>"
-            + dual("发现工具的更多可能", "Discover useful tools")
-            + "</small></span></a><nav class=\"public-site-nav\" aria-label=\"首页导航\">"
+            + " public-site-header-inner\"><a class=\"public-site-brand\" href=\"/\"><img"
+            + " class=\"public-site-logo\" src=\"/images/weiyunwan.svg\" width=\"48\" height=\"48\""
+            + " alt=\"\"><span>"
+            + brand
+            + (slogan.isBlank() ? "" : "<small>" + escape(slogan) + "</small>")
+            + "</span></a><nav class=\"public-site-nav\" aria-label=\"首页导航\">"
             + nav
             + "</nav>"
             + toggle
@@ -121,13 +133,29 @@ final class UiPresentation {
       html =
           html.replaceFirst(
               "(?s)<article><nav>.*?</nav>",
-              java.util.regex.Matcher.quoteReplacement("<article>" + crumbs));
-    String filing = site.getOrDefault("site.filing", "").trim();
-    if (filing.isBlank()) filing = "模拟ICP备00000000号（占位）";
+              java.util.regex.Matcher.quoteReplacement(
+                  "<article class=\"published-article\">" + crumbs));
+    String securityFiling = site.getOrDefault("site.security_filing", "");
+    String securityIcon = site.getOrDefault("site.security_filing_icon", "");
+    var securityNumber = Pattern.compile("(?<![0-9])[0-9]{14}(?![0-9])").matcher(securityFiling);
+    String securityLink =
+        "https://beian.mps.gov.cn/"
+            + (securityNumber.find() ? "#/query/webSearch?code=" + securityNumber.group() : "");
     String footer =
-        "<footer class=\"directory-footer public-site-width\"><p class=\"site-filing\">"
-            + escape(filing)
-            + "</p><span>"
+        "<footer class=\"directory-footer public-site-width\"><div class=\"site-filings\">"
+            + filing(
+                site.get("site.filing"),
+                "https://beian.miit.gov.cn/",
+                "工信部 ICP 备案号待填写",
+                "MIIT ICP filing pending",
+                "")
+            + filing(
+                securityFiling,
+                securityLink,
+                "公安网安备案号待填写",
+                "Public security filing pending",
+                securityIcon)
+            + "</div><span>"
             + escape(site.getOrDefault("site.domain", "www.aiwyw.com"))
             + "</span></footer>";
     if (product)
@@ -167,6 +195,18 @@ final class UiPresentation {
         }
     }
     return html;
+  }
+
+  private static String filing(String value, String url, String zh, String en, String icon) {
+    if (value == null || value.isBlank()) return "<span>" + dual(zh, en) + "</span>";
+    return "<a href=\""
+        + url
+        + "\" target=\"_blank\" rel=\"noopener noreferrer\">"
+        + (icon.isBlank()
+            ? ""
+            : "<img src=\"" + escape(icon) + "\" width=\"16\" height=\"16\" alt=\"\">")
+        + escape(value.trim())
+        + "</a>";
   }
 
   private static String dual(String zh, String en) {

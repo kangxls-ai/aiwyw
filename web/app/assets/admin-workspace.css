@@ -49,7 +49,8 @@
   justify-content: space-between;
   padding: 20px 36px;
   gap: 30px;
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 20;
 }
 .management-brand {
@@ -63,21 +64,12 @@
   border-radius: 14px;
   display: grid;
   place-items: center;
-  background: linear-gradient(140deg, #8d7bf5, #6960e7);
-  color: white !important;
   box-shadow: 0 6px 18px #8c7ee427;
-  font-weight: 650;
-  font-size: 28px;
-  position: relative;
 }
-.management-logo > span {
-  width: 5px;
-  height: 5px;
-  position: absolute;
-  right: 7px;
-  bottom: 9px;
-  border-radius: 50%;
-  background: #d8d5ff;
+.management-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 .management-brand strong {
   font-size: 21px;

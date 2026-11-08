@@ -197,8 +197,9 @@ onBeforeRouteLeave(
       t("还有未发送的消息，确认离开？", "Leave with an unsent message?"),
     ),
 );
+const { siteName } = useSiteBrand();
 useHead(() => ({
-  title: t("客服与反馈 · AI万有网", "Support and feedback · AI万有网"),
+  title: t("客服与反馈", "Support and feedback") + " · " + siteName.value,
   meta: [{ name: "referrer", content: "no-referrer" }],
 }));
 </script>

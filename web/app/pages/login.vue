@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /** 登录表单不自行判断角色或MFA成功，依据服务器会话跳转；密码和动态码不得缓存。 */
-definePageMeta({ layout: false });
-import "~/assets/catalog-base.css";
+definePageMeta({ layout: "catalog" });
 import "~/assets/element-admin.css";
 import "~/assets/auth.css";
+const { siteName, siteSlogan, registrationOpen } = useSiteBrand();
+useHead(() => ({ title: "登录 · " + siteName.value }));
 const changedPassword = useRoute().query.changed === "1";
 const { request, message } = useApi();
 const email = ref(""),
@@ -44,16 +45,12 @@ async function login() {
 }
 </script>
 <template>
-  <div class="login-page directory-preview auth-page">
+  <div class="login-page auth-page">
     <div class="login-story">
-      <NuxtLink to="/" class="directory-brand"
-        ><span class="directory-brand-logo">万<span /></span
-        ><span>AI万有网<small>发现工具的更多可能</small></span></NuxtLink
-      >
       <div>
-        <div class="eyebrow">YOUR CREATIVE WORKSPACE</div>
-        <h1>好工具的背后，<br />是认真创造的你。</h1>
-        <p>管理商品、服务与每一次连接。</p>
+        <div class="eyebrow">{{ siteName }}</div>
+        <h1>{{ siteSlogan || siteName }}</h1>
+        <p>管理应用、内容与服务。</p>
       </div>
       <span class="login-decoration">✳</span>
     </div>
@@ -105,10 +102,12 @@ async function login() {
       </el-form>
       <nav class="auth-actions" aria-label="账户入口">
         <NuxtLink to="/account-access">用户登录</NuxtLink>
-        <NuxtLink to="/account-access?action=register">注册</NuxtLink>
+        <NuxtLink v-if="registrationOpen" to="/account-access?action=register"
+          >注册</NuxtLink
+        >
         <NuxtLink to="/account-access?action=forgot">找回密码</NuxtLink>
       </nav>
-      <p class="field-help">普通用户可使用账户入口注册、验证邮箱及找回密码。</p>
+      <p class="field-help">账户入口支持邮箱验证与找回密码。</p>
     </div>
   </div>
 </template>

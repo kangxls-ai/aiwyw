@@ -7,6 +7,7 @@
   color: #343c53;
 }
 .auth-page.login-page {
+  min-height: calc(100vh - 175px);
   background: #f8f9fd;
 }
 .auth-page .login-story {

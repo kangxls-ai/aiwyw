@@ -4,7 +4,8 @@ const route = useRoute(),
   { t } = useLanguage();
 const manage = computed(() => route.query.manage === "1" || !!route.query.api);
 const title = computed(() => t("API 服务", "API services"));
-useHead(() => ({ title: title.value + " · AI万有网" }));
+const { siteName } = useSiteBrand();
+useHead(() => ({ title: title.value + " · " + siteName.value }));
 </script>
 <template>
   <ApiWorkspace v-if="manage" />

@@ -6,7 +6,7 @@ import { decimalUnits } from "~/utils/commerce";
 const { t } = useLanguage(),
   { request } = useApi(),
   route = useRoute();
-const site = useState<Record<string, string>>("site-settings", () => ({}));
+const { site, siteName } = useSiteBrand();
 const data = await request<any>("/api/public/api-records/apis", {
   query: { slug: String(route.params.slug), pageSize: 1 },
 });
@@ -26,7 +26,7 @@ const { data: planData } = await useAsyncData(
 const plans = computed(() => planData.value?.items || []);
 const title = computed(() => t(api.name, api.name_en || api.name));
 useHead(() => ({
-  title: title.value + " · " + (site.value["site.name"] || "AI万有网"),
+  title: title.value + " · " + siteName.value,
   meta: [
     {
       name: "description",

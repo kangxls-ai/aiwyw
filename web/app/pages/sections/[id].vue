@@ -12,7 +12,8 @@ const title = computed(() =>
     ? t(section.value.titleZh, section.value.titleEn || section.value.titleZh)
     : t("栏目", "Section"),
 );
-useHead(() => ({ title: title.value + " · AI万有网" }));
+const { siteName } = useSiteBrand();
+useHead(() => ({ title: title.value + " · " + siteName.value }));
 </script>
 <template>
   <DirectoryListing

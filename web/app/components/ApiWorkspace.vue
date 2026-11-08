@@ -397,7 +397,7 @@ async function refund(row: any) {
 const debug = reactive({
     keyId: "",
     slug: "",
-    input: '{"text":"Hello AI万有网"}',
+    input: '{"text":"Hello 微云湾"}',
     requestKey: "",
   }),
   output = ref(""),
@@ -435,7 +435,10 @@ watch(active, () => {
   filters.dates = null;
   listRecords();
 });
-useHead(() => ({ title: t("API 服务 · AI万有网", "API services · AI万有网") }));
+const { siteName } = useSiteBrand();
+useHead(() => ({
+  title: t("API 服务", "API services") + " · " + siteName.value,
+}));
 </script>
 <template>
   <main class="directory-width api-center">

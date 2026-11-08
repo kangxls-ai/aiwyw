@@ -69,7 +69,7 @@ main{max-width:1160px;margin:36px auto;padding:0 20px}.back{display:block;margin
 .hero{display:flex;gap:28px;align-items:center;min-height:240px}.app-icon{width:96px;height:96px;flex-shrink:0;border-radius:24px;background:#eee9ff;display:grid;place-items:center;overflow:hidden}.app-icon img{width:100%%;height:100%%;object-fit:cover}.letter{font-size:44px;color:#7866ed}.info{flex:1}h1{font-size:30px;line-height:1.3;margin:0 0 15px}h2{font-size:22px}p{color:#68748b}.version{font-size:13px;color:#818ba0}#download{background:#7866ed;color:white;border:0;border-radius:9px;padding:13px 22px;white-space:nowrap}#download:disabled{opacity:.6}.price{color:#7866ed;text-align:center;margin-bottom:10px}.notice{display:none;color:#a5643f;font-weight:600}[data-product-status=UNLISTED] .notice{display:block}[data-product-status=UNLISTED] #download{display:none}
 .body{overflow-wrap:anywhere}.body img{max-width:100%%;height:auto}.body pre{overflow-x:auto;padding:15px;background:#f5f6fa}.body table{border-collapse:collapse;width:100%%}.body td,.body th{border:1px solid #dfe4ee;padding:8px 12px}.body blockquote{border-left:3px solid #b8aaef;padding-left:18px;color:#68748b}.tags{display:flex;gap:8px;flex-wrap:wrap}.tags span{background:#f1edff;padding:2px 9px;border-radius:5px;font-size:12px;color:#786baf}#delivery-status{display:block;color:#a33b4c;max-width:250px;font-size:13px}footer{max-width:1120px;margin:30px auto;padding:20px;color:#818ba0;font-size:12px}
 [data-language=zh] .en,[data-language=en] .zh{display:none}@media(max-width:650px){header{padding:18px 20px}.hero{flex-wrap:wrap;padding:24px;gap:20px}.app-icon{width:68px;height:68px}.info{min-width:180px}.action{width:100%%}#download{width:100%%}h1{font-size:25px}.body{padding:22px}main{margin-top:24px}}
-</style></head><body><header><a class="brand" href="/"><span>万</span>%s</a><button id="language" aria-label="切换语言">中文 / English</button></header>
+</style></head><body><header><a class="brand" href="/"><img src="/images/weiyunwan.svg" width="40" height="40" alt="">%s</a><button id="language" aria-label="切换语言">中文 / English</button></header>
 <main><a class="back" href="/apps"><span class="zh">← 所有应用</span><span class="en">← All applications</span></a>
 <section class="hero"><div class="app-icon">%s</div><div class="info"><h1><span class="zh">%s</span><span class="en">%s</span></h1><p class="zh">%s</p><p class="en">%s</p><div class="tags">%s</div><p class="version">%s · %s</p><div class="notice"><span class="zh">此应用已下架，已购资源请在我的资源访问。</span><span class="en">Unlisted. Existing customers can access their resources in their account.</span></div></div>
 <div class="action"><div class="price">%s <span class="zh">鼓励值</span><span class="en">encouragement</span></div><button id="download"><span class="zh">%s</span><span class="en">%s</span></button><span id="delivery-status" role="status"></span></div></section>
@@ -79,12 +79,12 @@ main{max-width:1160px;margin:36px auto;padding:0 20px}.back{display:block;margin
             escape(product.status()),
             escape(product.slug()),
             name,
-            escape(settings.getOrDefault("site.name", "AI万有网")),
+            escape(settings.getOrDefault("site.name", "微云湾")),
             escape(p.summaryZh()),
             escape(canonical),
             escape(canonical),
             escape(canonical),
-            escape(settings.getOrDefault("site.name", "AI万有网")),
+            escape(settings.getOrDefault("site.name", "微云湾")),
             icon,
             name,
             english,
@@ -102,7 +102,7 @@ main{max-width:1160px;margin:36px auto;padding:0 20px}.back{display:block;margin
                 : p.pricePoints().signum() == 0 ? "Download" : "Redeem and download",
             p.bodyZh(),
             p.bodyEn().isBlank() ? p.bodyZh() : p.bodyEn(),
-            escape(settings.getOrDefault("site.name", "AI万有网")),
+            escape(settings.getOrDefault("site.name", "微云湾")),
             escape(settings.getOrDefault("site.domain", "www.aiwyw.com")),
             SCRIPT);
   }

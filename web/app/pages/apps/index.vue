@@ -19,7 +19,8 @@ const endpoint = computed(() =>
     ? "/api/public/sections/" + section.value.id + "/items"
     : "/api/public/directory/applications",
 );
-useHead(() => ({ title: title.value + " · AI万有网" }));
+const { siteName } = useSiteBrand();
+useHead(() => ({ title: title.value + " · " + siteName.value }));
 </script>
 <template>
   <DirectoryListing

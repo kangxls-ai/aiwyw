@@ -2,4 +2,4 @@
 . (Join-Path $PSScriptRoot 'local-common.ps1')
 Initialize-LocalTools
 Stop-LocalRuntime
-Write-Host 'AI万有网本地服务已停止，数据已保留。'
+Write-Host '微云湾本地服务已停止，数据已保留。'

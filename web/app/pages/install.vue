@@ -67,7 +67,12 @@ async function install() {
 <template>
   <div class="install-page">
     <NuxtLink to="/" class="brand"
-      ><span class="brand-mark">万</span>AI万有网</NuxtLink
+      ><img
+        src="/images/weiyunwan.svg"
+        width="38"
+        height="38"
+        alt=""
+      />微云湾</NuxtLink
     >
     <div class="install-card">
       <div class="eyebrow">WELCOME ABOARD</div>

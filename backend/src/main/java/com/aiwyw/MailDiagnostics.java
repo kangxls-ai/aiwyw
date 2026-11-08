@@ -121,7 +121,7 @@ class MailDiagnostics {
           var message = new SimpleMailMessage();
           message.setFrom(settings.value("mail.from"));
           message.setTo(recipient);
-          message.setSubject("AI万有网 邮件配置测试");
+          message.setSubject(settings.value("site.name") + " 邮件配置测试");
           message.setText("这是管理员手动触发的测试邮件。网站使用SMTP投递注册验证、密码找回等邮件。");
           sender.send(message);
         }

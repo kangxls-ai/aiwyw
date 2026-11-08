@@ -11,14 +11,19 @@ export default defineNuxtConfig({
   css: ["~/assets/main.css"],
   routeRules: {
     "/apps": { ssr: true },
+    "/login": { headers: { "cache-control": "private, no-store" } },
+    "/account-access": { headers: { "cache-control": "private, no-store" } },
     "/preview/**": { redirect: { to: "/", statusCode: 301 } },
     "/preview/admin": { redirect: { to: "/admin", statusCode: 301 } },
     "/products/markdo": { redirect: { to: "/apps/markdo", statusCode: 301 } },
   },
   app: {
     head: {
-      link: [{ rel: "stylesheet", href: "/ui-theme.css?v=2" }],
-      title: "AI万有网",
+      link: [
+        { rel: "stylesheet", href: "/ui-theme.css?v=2" },
+        { rel: "icon", type: "image/svg+xml", href: "/images/weiyunwan.svg" },
+      ],
+      title: "微云湾",
       htmlAttrs: { lang: "zh-CN" },
       meta: [
         { name: "viewport", content: "width=device-width,initial-scale=1" },

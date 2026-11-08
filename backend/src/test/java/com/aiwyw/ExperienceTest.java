@@ -203,7 +203,7 @@ class ExperienceTest {
     String html = response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
     assertTrue(html.contains("public-site-header"));
     assertTrue(html.contains("public-breadcrumb"));
-    assertTrue(html.contains("模拟ICP备00000000号"));
+    assertTrue(html.contains("工信部 ICP 备案号待填写"));
     assertTrue(html.contains("aria-current=\"page\""));
     assertFalse(html.contains("实用工具，触手可及"));
     assertEquals(hash, catalog.hash(catalog.page(slug)));

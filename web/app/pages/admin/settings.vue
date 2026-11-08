@@ -22,6 +22,7 @@ interface Entry {
   revision: number;
 }
 const { request, message } = useApi();
+const { site } = useSiteBrand();
 const entries = ref<Entry[]>([]),
   values = reactive<Record<string, string>>({}),
   clears = reactive<Record<string, boolean>>({});
@@ -31,6 +32,7 @@ const group = ref(String(route.query.group || "网站信息")),
   notice = ref(""),
   loading = ref(true),
   saving = ref(false),
+  publishing = ref(false),
   filter = ref("");
 const groups = computed(() => [
   ...new Set(entries.value.map((e) => e.definition.group)),
@@ -65,7 +67,7 @@ watch(
   { immediate: true },
 );
 const titles: Record<string, string> = {
-  网站信息: "让用户更好地认识你的商店。",
+  网站信息: "维护站点名称、备案和注册开关。保存公开配置后会发布首页与登录页。",
   首发商品: "维护 markdo 的展示资料，准备好后再发布。",
   捐赠收款: "当前仅使用模拟捐赠，真实付款码可预先上传保存。",
   邮件服务:
@@ -94,6 +96,7 @@ async function save() {
   saving.value = true;
   error.value = "";
   notice.value = "";
+  const publish = changes.value.some((e) => e.definition.publicValue);
   try {
     await request("/api/admin/settings", {
       method: "PUT",
@@ -108,12 +111,28 @@ async function save() {
     });
     await load();
     notice.value = "配置已保存";
+    if (publish) await publishSite(true);
     return true;
   } catch (e) {
     error.value = message(e);
     return false;
   } finally {
     saving.value = false;
+  }
+}
+async function publishSite(afterSave = false) {
+  publishing.value = true;
+  error.value = "";
+  try {
+    await request("/api/admin/site/publish", { method: "POST" });
+    site.value = await request<Record<string, string>>("/api/public/site");
+    notice.value = afterSave
+      ? "配置已保存，首页与登录页已发布"
+      : "首页与登录页已发布";
+  } catch (e) {
+    error.value = "页面发布失败，请重试。" + message(e);
+  } finally {
+    publishing.value = false;
   }
 }
 async function reload() {
@@ -131,7 +150,11 @@ async function uploadFile(file: File | undefined, key: string) {
   try {
     const body = new FormData();
     body.append("file", file);
-    const result = await request<{ url: string }>("/api/admin/assets/payment", {
+    const url =
+      key === "site.security_filing_icon"
+        ? "/api/admin/assets/filing"
+        : "/api/admin/assets/payment";
+    const result = await request<{ url: string }>(url, {
       method: "POST",
       body,
     });
@@ -142,8 +165,8 @@ async function uploadFile(file: File | undefined, key: string) {
   }
 }
 const preview = (url: string) =>
-  url.startsWith("/api/public/assets/")
-    ? url.replace("/api/public/assets/", "/api/admin/assets/")
+  /^\/api\/public\/(?:filing-)?assets\//.test(url)
+    ? url.replace("/api/public/", "/api/admin/")
     : url;
 const readiness = ref<any>(null),
   readinessBusy = ref(false);
@@ -259,6 +282,13 @@ onBeforeUnmount(() => unregister?.());
       <div class="heading-actions">
         <el-button :loading="readinessBusy" @click="checkProduction"
           >生产上线检查</el-button
+        >
+        <el-button
+          v-if="group === '网站信息'"
+          :disabled="!!changes.length || saving || loading"
+          :loading="publishing"
+          @click="publishSite()"
+          >发布首页与登录页</el-button
         >
         <el-button :disabled="saving || loading" @click="reload"
           >重新加载</el-button

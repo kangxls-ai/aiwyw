@@ -11,8 +11,9 @@ const title = computed(() =>
     ? t(section.value.titleZh, section.value.titleEn || section.value.titleZh)
     : t("文章与教程", "Articles and tutorials"),
 );
+const { siteName } = useSiteBrand();
 useHead(() => ({
-  title: title.value + " · AI万有网",
+  title: title.value + " · " + siteName.value,
   meta: [
     {
       name: "description",

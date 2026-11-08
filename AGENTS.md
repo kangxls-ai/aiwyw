@@ -1,6 +1,6 @@
 # Project development rules
 
-- Follow the confirmed AI万有网 requirements in `docs/REQUIREMENTS.md` and the implementation status in `docs/DEVELOPMENT.md`.
+- Follow the confirmed 微云湾 requirements in `docs/REQUIREMENTS.md` and the implementation status in `docs/DEVELOPMENT.md`.
 - Target Java 17, Spring Boot, Nuxt with Vue 3 and production MySQL. Local H2 is for development and tests only.
 - Put operational settings in System Management → Configuration Management. Register typed definitions in `Settings`, validate server-side, persist values in the database, encrypt secrets and never return their plaintext or write them to audit logs. Do not ask users to edit YAML, JSON or environment files for business configuration.
 - Startup database credentials and the encryption key must be created by the installation flow, not checked into source. Preserve backups and do not silently switch databases or delete user data.

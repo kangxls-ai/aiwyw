@@ -6,7 +6,14 @@ import "~/assets/element-admin.css";
 const { t } = useLanguage(),
   { request, message } = useApi(),
   route = useRoute();
-const action = ref(String(route.query.action || "login")),
+const { siteName, registrationOpen } = useSiteBrand();
+function accountAction(value: unknown) {
+  if (value === "register" && registrationOpen.value) return value;
+  if (value === "forgot" || value === "verify" || value === "reset")
+    return value;
+  return "login";
+}
+const action = ref(accountAction(route.query.action)),
   email = ref(""),
   password = ref(""),
   code = ref(""),
@@ -18,9 +25,9 @@ const action = ref(String(route.query.action || "login")),
   ),
   busy = ref(false);
 watch(
-  () => route.query.action,
-  (value) => {
-    action.value = String(value || "login");
+  () => [route.query.action, registrationOpen.value] as const,
+  ([value]) => {
+    action.value = accountAction(value);
     error.value = "";
   },
 );
@@ -34,6 +41,7 @@ const titles = computed(
       reset: t("设置新密码", "Set a new password"),
     })[action.value] || t("登录账户", "Sign in"),
 );
+useHead(() => ({ title: titles.value + " · " + siteName.value }));
 async function submit() {
   busy.value = true;
   error.value = "";
@@ -168,6 +176,7 @@ async function submit() {
         >{{ t("登录", "Sign in") }}</el-button
       ><el-button
         text
+        v-if="registrationOpen"
         :class="{ active: action === 'register' }"
         :aria-current="action === 'register' ? 'page' : undefined"
         @click="action = 'register'"

@@ -14,10 +14,12 @@ public class AuthController {
   private final Auth auth;
   private final Database database;
   private final Commerce wallet;
+  private final Settings settings;
 
-  public AuthController(Auth auth, Database database, Commerce wallet) {
+  public AuthController(Auth auth, Database database, Commerce wallet, Settings settings) {
     this.auth = auth;
     this.wallet = wallet;
+    this.settings = settings;
     this.database = database;
   }
 
@@ -81,15 +83,21 @@ public class AuthController {
   public Map<String, String> enroll(HttpServletRequest r) {
     var u = auth.user(r, false);
     String secret = auth.enroll(u);
+    String issuer =
+        URLEncoder.encode(settings.value("site.name"), StandardCharsets.UTF_8).replace("+", "%20");
     return Map.of(
         "secret",
         secret,
         "uri",
-        "otpauth://totp/AIWYW:"
+        "otpauth://totp/"
+            + issuer
+            + ":"
             + URLEncoder.encode(u.email(), StandardCharsets.UTF_8)
             + "?secret="
             + secret
-            + "&issuer=AIWYW&algorithm=SHA1&digits=6&period=30");
+            + "&issuer="
+            + issuer
+            + "&algorithm=SHA1&digits=6&period=30");
   }
 
   @PostMapping("/mfa/confirm")

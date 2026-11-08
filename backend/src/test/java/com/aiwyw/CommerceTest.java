@@ -188,10 +188,31 @@ class CommerceTest {
             user));
   }
 
+  private void registerForTest(String email, String password, String ip) {
+    var original =
+        settings.list().stream()
+            .filter(entry -> entry.definition().key().equals("account.registration_open"))
+            .findFirst()
+            .orElseThrow();
+    settings.save(
+        List.of(
+            new Settings.Change("account.registration_open", "true", original.revision(), false)),
+        "test-operator");
+    try {
+      accounts.register(email, password, ip);
+    } finally {
+      settings.save(
+          List.of(
+              new Settings.Change(
+                  "account.registration_open", original.value(), original.revision() + 1, false)),
+          "test-operator");
+    }
+  }
+
   @Test
   void registrationVerificationResetReplayAndSessionRevocation() throws Exception {
     String email = key() + "@example.com";
-    accounts.register(email, "original-test-password-9283", "register-" + key());
+    registerForTest(email, "original-test-password-9283", "register-" + key());
     String id = db.queryForObject("SELECT id FROM app_user WHERE email=?", String.class, email);
     assertNull(
         db.queryForObject("SELECT email_verified_at FROM app_user WHERE id=?", Long.class, id));
@@ -217,7 +238,7 @@ class CommerceTest {
                     "SELECT body_enc FROM mail_outbox WHERE recipient=? AND subject=?",
                     String.class,
                     email,
-                    "AI万有网 重置密码"))
+                    "微云湾 重置密码"))
             .split("token=")[1]
             .split("\\s")[0];
     assertThrows(Api.Failure.class, () -> accounts.consume(reset, "VERIFY", null));
@@ -978,7 +999,7 @@ class CommerceTest {
                 .cookie(cookie(admin.id(), "ADMIN", true)))
         .andExpect(status().isOk());
     String mail = key() + "@example.com";
-    accounts.register(mail, "nickname-test-password-123", "nick-" + key());
+    registerForTest(mail, "nickname-test-password-123", "nick-" + key());
     String id = db.queryForObject("SELECT id FROM app_user WHERE email=?", String.class, mail),
         name = db.queryForObject("SELECT nickname FROM app_user WHERE id=?", String.class, id);
     assertTrue(name.matches("(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]+"));
