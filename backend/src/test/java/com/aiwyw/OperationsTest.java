@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.MockMvc;
 /** 独立目录/可选独立MySQL库。内置API做真实计算；失败/阻塞上游以受控测试替身验证事务，不冒充云商联调。 */
 @SpringBootTest
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(StaffMockMvc.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OperationsTest {
   static final Path directory;
@@ -104,11 +105,12 @@ class OperationsTest {
 
   Cookie cookie(String u) {
     String token = crypto.token();
-    db.update(
-        "INSERT INTO app_session VALUES(?,?,?,TRUE)",
-        crypto.digest(token),
-        u,
-        System.currentTimeMillis() + 3600000L);
+    for (boolean staff : new boolean[] {false, true})
+      db.update(
+          "INSERT INTO app_session VALUES(?,?,?,TRUE)",
+          crypto.digest((staff ? "staff:" : "") + token),
+          u,
+          System.currentTimeMillis() + 3600000L);
     return new Cookie("AIWYW_SESSION", token);
   }
 

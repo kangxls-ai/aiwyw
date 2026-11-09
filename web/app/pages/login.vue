@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { staffPath } = useStaffPaths();
 /** 登录表单不自行判断角色或MFA成功，依据服务器会话跳转；密码和动态码不得缓存。 */
 definePageMeta({ layout: "catalog" });
 import "~/assets/element-admin.css";
@@ -34,8 +35,8 @@ async function login() {
       !s.menus?.length
         ? "/account"
         : s.mfaRequired && !s.mfaVerified
-          ? "/admin/security"
-          : "/admin",
+          ? staffPath("/admin/security")
+          : staffPath("/admin"),
     );
   } catch (e) {
     error.value = message(e);

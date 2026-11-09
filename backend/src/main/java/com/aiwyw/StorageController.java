@@ -112,16 +112,11 @@ public class StorageController {
   }
 
   @GetMapping("/api/public/media/{id}")
-  public ResponseEntity<?> image(@PathVariable String id, HttpServletRequest req) {
+  public ResponseEntity<?> image(@PathVariable String id) {
     var file = storage.stored(id, true);
     if (!file.asset().purpose().equals("IMAGE")) throw new Api.Failure(404, "图片不存在");
-    if (!file.asset().publicVisible())
-      try {
-        auth.editor(req);
-      } catch (Api.Failure denied) {
-        throw new Api.Failure(404, "图片尚未发布");
-      }
-    return content(file, file.asset().publicVisible());
+    if (!file.asset().publicVisible()) throw new Api.Failure(404, "图片尚未发布");
+    return content(file, true);
   }
 
   @GetMapping("/api/public/downloads/{token}")

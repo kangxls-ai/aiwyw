@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 /** 大目录分页、混合发布快照与生产约束；所有文件和数据均在独立临时目录。 */
 @SpringBootTest
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(StaffMockMvc.class)
 class ReleasePreparationTest {
   static final Path root;
 
@@ -74,11 +75,12 @@ class ReleasePreparationTest {
         System.currentTimeMillis(),
         "上线检查账户");
     db.update("INSERT INTO access_user_role VALUES(?,'ADMIN')", id);
-    db.update(
-        "INSERT INTO app_session VALUES(?,?,?,TRUE)",
-        crypto.digest(token),
-        id,
-        System.currentTimeMillis() + 60000);
+    for (boolean staff : new boolean[] {false, true})
+      db.update(
+          "INSERT INTO app_session VALUES(?,?,?,TRUE)",
+          crypto.digest((staff ? "staff:" : "") + token),
+          id,
+          System.currentTimeMillis() + 60000);
     var cookie = new jakarta.servlet.http.Cookie("AIWYW_SESSION", token);
     mvc.perform(get("/api/admin/production/readiness").cookie(cookie))
         .andExpect(status().isOk())

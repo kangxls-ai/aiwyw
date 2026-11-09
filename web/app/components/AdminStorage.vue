@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { staffApi } = useStaffPaths();
 /** 配置与文件元数据分开授权；保存配置不移动历史文件，秘密留空保留且不回显。 */
 import type { StorageAsset, StoragePage } from "~/types/storage";
 interface Entry {
@@ -338,8 +339,8 @@ watch(changed, load);
               ><div class="application-table-name">
                 <el-image
                   v-if="row.purpose === 'IMAGE' && row.status === 'READY'"
-                  :src="row.previewUrl"
-                  :preview-src-list="[row.previewUrl]"
+                  :src="staffApi(row.previewUrl)"
+                  :preview-src-list="[staffApi(row.previewUrl)]"
                   fit="contain"
                   style="width: 40px; height: 40px"
                 /><span>{{ row.originalName }}</span>
@@ -387,7 +388,7 @@ watch(changed, load);
             ><template #default="{ row }"
               ><a
                 v-if="row.status === 'READY'"
-                :href="row.previewUrl"
+                :href="staffApi(row.previewUrl)"
                 target="_blank"
                 rel="noopener"
                 >{{ row.purpose === "IMAGE" ? "预览" : "下载" }}</a

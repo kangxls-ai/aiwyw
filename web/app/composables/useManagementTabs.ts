@@ -32,9 +32,10 @@ export function useManagementTabs() {
     closeBusy = useState("management-close-busy", () => false),
     closeError = useState("management-close-error", () => "");
   const route = useRoute();
+  const { staffPath } = useStaffPaths();
   function descriptor(): ManagementTab {
     if (
-      route.path === "/admin/workspace" &&
+      staffRelative(route.path) === "/admin/workspace" &&
       route.query.view === "entity-edit"
     ) {
       const type = String(route.query.type || ""),
@@ -71,7 +72,7 @@ export function useManagementTabs() {
       };
     }
     if (
-      route.path === "/admin/workspace" &&
+      staffRelative(route.path) === "/admin/workspace" &&
       route.query.view === "active-users"
     ) {
       const from = String(route.query.from || ""),
@@ -87,7 +88,10 @@ export function useManagementTabs() {
         description: "与所选统计窗口一致的活跃账户",
       };
     }
-    if (route.path === "/admin/workspace" && route.query.view === "api-edit") {
+    if (
+      staffRelative(route.path) === "/admin/workspace" &&
+      route.query.view === "api-edit"
+    ) {
       const editor = String(route.query.editor || "");
       if (!/^[a-f0-9-]{36}$/.test(editor)) return adminMenuItem("apis");
       const api = route.query.api ? String(route.query.api) : null;
@@ -103,7 +107,7 @@ export function useManagementTabs() {
       };
     }
     if (
-      route.path === "/admin/workspace" &&
+      staffRelative(route.path) === "/admin/workspace" &&
       route.query.view === "application-edit"
     ) {
       const editor = String(route.query.editor || route.query.product || "");
@@ -121,13 +125,13 @@ export function useManagementTabs() {
       };
     }
     return adminMenuItem(
-      route.path === "/admin"
+      staffRelative(route.path) === "/admin"
         ? "dashboard"
-        : route.path === "/admin/settings"
+        : staffRelative(route.path) === "/admin/settings"
           ? "settings"
-          : route.path === "/admin/audit"
+          : staffRelative(route.path) === "/admin/audit"
             ? "audit"
-            : route.path === "/admin/security"
+            : staffRelative(route.path) === "/admin/security"
               ? "security"
               : String(route.query.view || "dashboard"),
     );
@@ -143,7 +147,7 @@ export function useManagementTabs() {
   );
   async function open(id: string) {
     const item = tabs.value.find((t) => t.id === id) || adminMenuItem(id);
-    await navigateTo(item.route);
+    await navigateTo(staffPath(staffRelative(item.route)));
   }
   async function openEditor(product?: {
     id: string;
@@ -162,7 +166,7 @@ export function useManagementTabs() {
     const editor = crypto.randomUUID(),
       id = `editor-${editor}`;
     const target = {
-      path: "/admin/workspace",
+      path: staffPath("/admin/workspace"),
       query: {
         view: "application-edit",
         editor,
@@ -190,7 +194,7 @@ export function useManagementTabs() {
     item.productId = productId;
     item.label = `编辑：${name}`;
     item.route = useRouter().resolve({
-      path: "/admin/workspace",
+      path: staffPath("/admin/workspace"),
       query: {
         view: "application-edit",
         editor: item.editorId,
@@ -222,7 +226,7 @@ export function useManagementTabs() {
     if (old) return navigateTo(old.route);
     const editor = crypto.randomUUID();
     const target = {
-      path: "/admin/workspace",
+      path: staffPath("/admin/workspace"),
       query: {
         view: "entity-edit",
         type,
@@ -258,7 +262,7 @@ export function useManagementTabs() {
     tab.entityId = objectId;
     tab.label = `编辑：${name}`;
     tab.route = useRouter().resolve({
-      path: "/admin/workspace",
+      path: staffPath("/admin/workspace"),
       query: {
         view: "entity-edit",
         type: tab.entityType,
@@ -270,7 +274,7 @@ export function useManagementTabs() {
   }
   async function openActiveUsers(from: string, until: string) {
     await navigateTo({
-      path: "/admin/workspace",
+      path: staffPath("/admin/workspace"),
       query: { view: "active-users", from, until },
     });
   }
@@ -282,7 +286,7 @@ export function useManagementTabs() {
     if (existing) return navigateTo(existing.route);
     const editor = crypto.randomUUID();
     const target = {
-      path: "/admin/workspace",
+      path: staffPath("/admin/workspace"),
       query: { view: "api-edit", editor, ...(api ? { api: api.id } : {}) },
     };
     tabs.value.push({
@@ -303,7 +307,7 @@ export function useManagementTabs() {
     item.apiId = apiId;
     item.label = `编辑API：${name}`;
     item.route = useRouter().resolve({
-      path: "/admin/workspace",
+      path: staffPath("/admin/workspace"),
       query: { view: "api-edit", editor: item.editorId, api: apiId },
     }).fullPath;
     if (activeId.value === id) await navigateTo(item.route, { replace: true });
@@ -317,13 +321,18 @@ export function useManagementTabs() {
           ...tabs.value.slice(0, current).reverse(),
           ...tabs.value.slice(current + 1),
         ].find((t) => !selected.has(t.id)) || adminMenuItem("dashboard");
-      if ((await navigateTo(neighbor.route)) === false) return false;
+      if (
+        (await navigateTo(staffPath(staffRelative(neighbor.route)))) === false
+      )
+        return false;
     }
     for (const item of tabs.value.filter((t) => selected.has(t.id))) {
       delete dirty.value[item.id];
       saves.delete(item.id);
-      if (!item.route.startsWith("/admin/workspace"))
-        revisions.value[item.route] = (revisions.value[item.route] || 0) + 1;
+      if (!staffRelative(item.route).startsWith("/admin/workspace")) {
+        const href = staffPath(staffRelative(item.route));
+        revisions.value[href] = (revisions.value[href] || 0) + 1;
+      }
     }
     tabs.value = tabs.value.filter((t) => !selected.has(t.id));
     return true;

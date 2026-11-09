@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { staffPath } = useStaffPaths();
 import type { CatalogProduct, AdminSection } from "~/types/catalog";
 import "~/assets/catalog.css";
 defineOptions({ name: "AdminDashboard" });
@@ -41,7 +42,9 @@ onMounted(() =>
         <h1>工作台</h1>
         <p class="muted">管理应用、内容与站点运营。</p>
       </div>
-      <NuxtLink class="button primary" to="/admin/workspace?view=applications"
+      <NuxtLink
+        class="button primary"
+        :to="staffPath('/admin/workspace?view=applications')"
         >应用管理 →</NuxtLink
       >
     </div>
@@ -75,11 +78,13 @@ onMounted(() =>
     <div class="catalog-editor-card">
       <h2>常用入口</h2>
       <div class="catalog-editor-actions">
-        <NuxtLink class="button secondary" to="/admin/workspace?view=sections"
+        <NuxtLink
+          class="button secondary"
+          :to="staffPath('/admin/workspace?view=sections')"
           >首页栏目</NuxtLink
-        ><NuxtLink class="button secondary" to="/admin/settings"
+        ><NuxtLink class="button secondary" :to="staffPath('/admin/settings')"
           >配置管理</NuxtLink
-        ><NuxtLink class="button secondary" to="/admin/audit"
+        ><NuxtLink class="button secondary" :to="staffPath('/admin/audit')"
           >操作记录</NuxtLink
         >
       </div>

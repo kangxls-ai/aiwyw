@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { staffPath } = useStaffPaths();
 import "~/assets/catalog.css";
 import "~/assets/storage-editor.css";
 import "~/assets/element-admin.css";
@@ -19,11 +20,11 @@ onMounted(async () => {
     if (
       user.value.mfaRequired &&
       !user.value.mfaVerified &&
-      route.path !== "/admin/security"
+      staffRelative(route.path) !== "/admin/security"
     )
-      await navigateTo("/admin/security");
+      await navigateTo(staffPath("/admin/security"));
   } catch {
-    await navigateTo("/login");
+    await navigateTo(staffPath("/login"));
   }
 });
 async function logout() {
@@ -33,7 +34,7 @@ async function logout() {
     user.value = null;
     useState("admin-session-generation", () => 0).value++;
     clear();
-    await navigateTo("/login");
+    await navigateTo(staffPath("/login"));
   } catch {
     error.value = "退出未完成，请重试";
   }
@@ -49,8 +50,8 @@ onMounted(() => {
   window.addEventListener("beforeunload", unload);
   removeGuard = useRouter().beforeEach((to, from) => {
     if (
-      from.path.startsWith("/admin") &&
-      !to.path.startsWith("/admin") &&
+      staffRelative(from.path).startsWith("/admin") &&
+      !staffRelative(to.path).startsWith("/admin") &&
       Object.values(dirty.value).some(Boolean)
     )
       return window.confirm("还有未保存的编辑内容，确定离开后台？");

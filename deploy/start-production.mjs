@@ -89,6 +89,7 @@ try {
       env: {
         ...process.env,
         NODE_ENV: "production",
+        AIWYW_SERVER_DATA_DIR: data,
         NITRO_HOST: "127.0.0.1",
         NITRO_PORT: "3000",
         HOST: "127.0.0.1",

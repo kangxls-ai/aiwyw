@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { staffPath } = useStaffPaths();
 /** 个人凭据只在组件内存中编辑；改密成功撤销全部会话，按原入口返回登录，不保存到浏览器存储。 */
 const { request, message } = useApi(),
   { t } = useLanguage(),
@@ -64,8 +65,8 @@ async function changePassword() {
     await request("/api/auth/logout", { method: "POST" });
     useState<any>("admin-user").value = null;
     await navigateTo(
-      route.path.startsWith("/admin")
-        ? "/login?changed=1"
+      staffRelative(route.path).startsWith("/admin")
+        ? staffPath("/login?changed=1")
         : "/account-access?changed=1",
     );
   } catch (e) {

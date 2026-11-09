@@ -15,11 +15,14 @@ public class AuthController {
   private final Database database;
   private final Commerce wallet;
   private final Settings settings;
+  private final StaffEntry staffEntry;
 
-  public AuthController(Auth auth, Database database, Commerce wallet, Settings settings) {
+  public AuthController(
+      Auth auth, Database database, Commerce wallet, Settings settings, StaffEntry staffEntry) {
     this.auth = auth;
     this.wallet = wallet;
     this.settings = settings;
+    this.staffEntry = staffEntry;
     this.database = database;
   }
 
@@ -34,11 +37,12 @@ public class AuthController {
 
   /** HttpOnly/SameSite保护身份令牌；生产HTTPS设置Secure。反向代理必须清洗不可信转发头。 */
   private String cookie(String value, HttpServletRequest r, boolean clear) {
-    return ResponseCookie.from("AIWYW_SESSION", value)
+    boolean staff = StaffEntry.authorized(r);
+    return ResponseCookie.from(staff ? StaffEntry.COOKIE : "AIWYW_SESSION", value)
         .httpOnly(true)
         .secure(secure(r))
         .sameSite("Strict")
-        .path("/")
+        .path(staff ? staffEntry.path() : "/")
         .maxAge(clear ? 0 : 86400)
         .build()
         .toString();
@@ -48,8 +52,15 @@ public class AuthController {
   /** 系统安装锁定后才允许登录，错误信息不透露账户是否存在。 */
   public ResponseEntity<?> login(@RequestBody Login input, HttpServletRequest r) {
     if (!database.installed()) throw new Api.Failure(409, "请先完成安装");
-    String token = auth.login(input.email(), input.password(), input.code(), r.getRemoteAddr());
-    reward(auth.userToken(token, false));
+    boolean staff = StaffEntry.authorized(r);
+    String token =
+        auth.login(
+            input.email(),
+            input.password(),
+            input.code(),
+            (String) r.getAttribute("aiwyw.source-ip"),
+            staff);
+    reward(auth.userToken(token, false, staff));
     return ResponseEntity.ok()
         .header(HttpHeaders.SET_COOKIE, cookie(token, r, false))
         .body(Map.of("success", true));

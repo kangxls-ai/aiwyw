@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 /** 直接验证业务不变量和HTTP权限，不以“按钮存在”替代真实数据库事务验证。 */
 @SpringBootTest
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(StaffMockMvc.class)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CatalogTest {
@@ -111,12 +112,13 @@ class CatalogTest {
         crypto.password("test-account-long-password"),
         role,
         System.currentTimeMillis());
-    db.update(
-        "INSERT INTO app_session(token_hash,user_id,expires_at,mfa_verified) VALUES(?,?,?,?)",
-        crypto.digest(token),
-        id,
-        System.currentTimeMillis() + 60000,
-        mfa);
+    for (boolean staff : new boolean[] {false, true})
+      db.update(
+          "INSERT INTO app_session(token_hash,user_id,expires_at,mfa_verified) VALUES(?,?,?,?)",
+          crypto.digest((staff ? "staff:" : "") + token),
+          id,
+          System.currentTimeMillis() + 60000,
+          mfa);
     return new Cookie("AIWYW_SESSION", token);
   }
 

@@ -24,7 +24,7 @@ const { request, message } = useApi();
 const { t: translate } = useLanguage();
 const route = useRoute();
 const t = (cn: string, en: string) =>
-  route.path.startsWith("/admin") ? cn : translate(cn, en);
+  staffRelative(route.path).startsWith("/admin") ? cn : translate(cn, en);
 const visible = ref(false),
   q = ref(""),
   page = ref(1),

@@ -1,16 +1,22 @@
 <script setup lang="ts">
+const { staffPath } = useStaffPaths();
 const legacyRoute = useRoute();
 if (legacyRoute.query.view === "email")
-  await navigateTo("/admin/settings?group=" + encodeURIComponent("邮件服务"), {
-    replace: true,
-  });
+  await navigateTo(
+    staffPath("/admin/settings?group=" + encodeURIComponent("邮件服务")),
+    {
+      replace: true,
+    },
+  );
 /** 工作区按已打开页签显式保留组件；关闭即卸载，避免多应用编辑被单一表单或缓存上限覆盖。 */
 defineOptions({ name: "AdminWorkspace" });
 definePageMeta({ layout: "admin" });
 import { adminMenuItem } from "~/data/adminNavigation";
 const { tabs, activeId } = useManagementTabs();
 const workspaces = computed(() =>
-  tabs.value.filter((t) => t.route.startsWith("/admin/workspace")),
+  tabs.value.filter((t) =>
+    staffRelative(t.route).startsWith("/admin/workspace"),
+  ),
 );
 const view = (tab: { route: string }) =>
   new URL(tab.route, "http://localhost").searchParams.get("view") || "";

@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 /** 每次独立数据目录；验证来源、删除边界、统计窗口和旧授权迁移，不更换真实安装主密钥。 */
 @SpringBootTest
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(StaffMockMvc.class)
 class ManagementTest {
   static final Path root;
 
@@ -85,11 +86,12 @@ class ManagementTest {
 
   Cookie session(String id) {
     String token = crypto.token();
-    db.update(
-        "INSERT INTO app_session VALUES(?,?,?,TRUE)",
-        crypto.digest(token),
-        id,
-        System.currentTimeMillis() + 3600000);
+    for (boolean staff : new boolean[] {false, true})
+      db.update(
+          "INSERT INTO app_session VALUES(?,?,?,TRUE)",
+          crypto.digest((staff ? "staff:" : "") + token),
+          id,
+          System.currentTimeMillis() + 3600000);
     return new Cookie("AIWYW_SESSION", token);
   }
 
@@ -125,7 +127,7 @@ class ManagementTest {
                 .header("X-AIWYW-Request", "1")
                 .with(
                     r -> {
-                      r.setRemoteAddr("198.51.100.21");
+                      r.addHeader("X-Forwarded-For", "198.51.100.21");
                       return r;
                     })
                 .contentType("application/json")

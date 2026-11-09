@@ -1,6 +1,7 @@
 import type { StorageAsset } from "~/types/storage";
 /** 所有上传入口调用同一个服务端适配器；客户端不持有S3密钥，也不自行决定物理存储位置。 */
 export function useAssetUpload() {
+  const { staffApi } = useStaffPaths();
   const busy = ref(false),
     progress = ref(0),
     error = ref(""),
@@ -18,7 +19,7 @@ export function useAssetUpload() {
       return await new Promise<StorageAsset>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         current = xhr;
-        xhr.open("POST", "/api/admin/storage/assets");
+        xhr.open("POST", staffApi("/api/admin/storage/assets"));
         xhr.setRequestHeader("X-AIWYW-Request", "1");
         xhr.responseType = "json";
         xhr.upload.onprogress = (e) => {

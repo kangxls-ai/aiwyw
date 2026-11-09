@@ -82,15 +82,23 @@ async function pick(page: Page, title: string, labels: string[]) {
   }
   await dialog.getByRole("button", { name: "确认选择", exact: true }).click();
 }
+function staff(path: string) {
+  return (
+    "/" + readFileSync(join(directory(), "staff-entry"), "utf8").trim() + path
+  );
+}
+
 async function configuration(page: Page, values: Record<string, string>) {
-  const entries = await (await page.request.get("/api/admin/settings")).json();
+  const entries = await (
+    await page.request.get(staff("/api/admin/settings"))
+  ).json();
   const changes = Object.entries(values).map(([key, value]) => ({
     key,
     value,
     revision: entries.find((e: any) => e.definition.key === key).revision,
     clear: false,
   }));
-  const result = await page.request.put("/api/admin/settings", {
+  const result = await page.request.put(staff("/api/admin/settings"), {
     headers: { "X-AIWYW-Request": "1" },
     data: { changes },
   });
@@ -157,6 +165,42 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   await expect(page.getByText("连接测试成功")).toBeVisible();
   await page.getByRole("button", { name: /完成安装/ }).click();
   await expect(page.getByRole("heading", { name: "安装已完成" })).toBeVisible();
+  expect((await page.request.get("/login")).status()).toBe(404);
+  expect((await page.request.get("/admin/settings")).status()).toBe(404);
+  expect(
+    (
+      await page.request.get("/api/admin/settings", {
+        headers: { "X-AIWYW-Staff-Entry": staff("").slice(1) },
+      })
+    ).status(),
+  ).toBe(404);
+  expect(
+    (
+      await page.request.get("/00000000000040008000000000000000/login")
+    ).status(),
+  ).toBe(404);
+  expect(
+    (
+      await page.request.get("http://127.0.0.1:18080/api/admin/settings")
+    ).status(),
+  ).toBe(404);
+  expect(
+    (
+      await page.request.get("/AAAAAAAAAAAA4AAA8AAAAAAAAAAAAAAA/login")
+    ).status(),
+  ).toBe(404);
+  const directLogin = await page.request.post("/api/auth/login", {
+    headers: {
+      "X-AIWYW-Request": "1",
+      "X-AIWYW-Staff-Entry": staff("").slice(1),
+    },
+    data: {
+      email: "browser-admin@example.com",
+      password: "browser-test-admin-password-9182",
+      code: "",
+    },
+  });
+  expect(directLogin.status()).toBe(401);
   await page.getByRole("link", { name: /前往登录/ }).click();
   await field(page, "邮箱", { exact: true }).fill("browser-admin@example.com");
   await field(page, "密码", { exact: true }).fill(
@@ -164,7 +208,18 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   );
   await page.getByRole("button", { name: /登录后台/ }).click();
   await expect(page).toHaveURL(/admin\/security$/);
-  expect((await page.request.get("/api/admin/settings")).status()).toBe(403);
+  expect((await page.request.get(staff("/api/admin/settings"))).status()).toBe(
+    403,
+  );
+  const blockedPublish = await page.request.post(
+    staff("/api/admin/content/blocked/publish"),
+    {
+      headers: { "X-AIWYW-Request": "1" },
+      data: { revision: 1 },
+    },
+  );
+  expect(blockedPublish.status()).toBe(403);
+  expect((await page.request.get("/api/auth/session")).status()).toBe(401);
   await page.getByRole("button", { name: "开始绑定" }).click();
   const secret = (await page.locator(".secret-code").innerText()).trim();
   await field(page, "6位动态码").fill(otp(secret));
@@ -203,7 +258,7 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   expect(denied.status()).toBe(403);
   expect(
     (
-      await guest.request.post("/api/admin/site/publish", {
+      await guest.request.post(staff("/api/admin/site/publish"), {
         headers: { "X-AIWYW-Request": "1" },
       })
     ).status(),
@@ -215,9 +270,9 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   await field(page, "网站名称", { exact: true }).fill("微云湾 浏览器验证");
   await page.getByRole("button", { name: /保存修改/ }).click();
   await expect(page.locator(".alert[role=status]:visible")).toHaveText(
-    "配置已保存，首页与登录页已发布",
+    "配置已保存，首页与用户登录页已发布",
   );
-  for (const path of ["/", "/login", "/account-access"]) {
+  for (const path of ["/", "/account-access"]) {
     const snapshot = await page.request.get(path, { headers: publicHeaders });
     expect(snapshot.headers()["x-aiwyw-static"]).toBe("hit");
     expect(await snapshot.text()).toContain("微云湾 浏览器验证");
@@ -226,16 +281,19 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
     "/account-access?action=verify&token=browser-only",
   );
   expect(tokenPage.headers()["x-aiwyw-static"]).toBeUndefined();
-  const iconUpload = await page.request.post("/api/admin/assets/filing", {
-    headers: { "X-AIWYW-Request": "1" },
-    multipart: {
-      file: {
-        name: "filing-icon.png",
-        mimeType: "image/png",
-        buffer: await QRCode.toBuffer("filing icon fixture"),
+  const iconUpload = await page.request.post(
+    staff("/api/admin/assets/filing"),
+    {
+      headers: { "X-AIWYW-Request": "1" },
+      multipart: {
+        file: {
+          name: "filing-icon.png",
+          mimeType: "image/png",
+          buffer: await QRCode.toBuffer("filing icon fixture"),
+        },
       },
     },
-  });
+  );
   expect(iconUpload.status()).toBe(200);
   const icon = (await iconUpload.json()).url;
   expect((await page.request.get(icon)).status()).toBe(404);
@@ -245,9 +303,11 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
     "site.security_filing": "示例公网安备12345678901234号",
     "site.security_filing_icon": icon,
   });
-  const publishedLogin = await page.request.get("/login", {
+  const publishedLogin = await page.request.get(staff("/login"), {
     headers: publicHeaders,
   });
+  expect(publishedLogin.headers()["cache-control"]).toContain("no-store");
+  expect(publishedLogin.headers()["referrer-policy"]).toBe("no-referrer");
   expect(await publishedLogin.text()).toContain(
     "/account-access?action=register",
   );
@@ -290,7 +350,7 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
     "",
   );
   expect(
-    await (await page.request.get("/api/admin/settings")).text(),
+    await (await page.request.get(staff("/api/admin/settings"))).text(),
   ).not.toContain("isolated-mail-password");
   const port = JSON.parse(
     readFileSync(join(directory(), "inbox.json"), "utf8"),
@@ -304,7 +364,7 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
     "mail.security": "TLS",
     "account.link_origin": "http://127.0.0.1:3000",
   });
-  const smtpCheck = await page.request.post("/api/admin/mail/check", {
+  const smtpCheck = await page.request.post(staff("/api/admin/mail/check"), {
     headers: { "X-AIWYW-Request": "1" },
     data: { protocol: "SMTP" },
   });
@@ -542,7 +602,7 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   for (let i = 0; i < 11; i++) {
     expect(
       (
-        await page.request.post("/api/admin/catalog/products", {
+        await page.request.post(staff("/api/admin/catalog/products"), {
           headers: { "X-AIWYW-Request": "1" },
           data: content("paging-" + i, "分页应用" + i),
         })
@@ -664,6 +724,13 @@ test("static catalog, real download, language and mobile", async ({
     detail.getByRole("heading", { name: "工具使用说明", exact: true }),
   ).toBeVisible();
   await expect(detail.locator(".body .zh img")).toHaveCount(1);
+  await expect(detail.locator(".body .zh img")).toHaveAttribute(
+    "src",
+    /^\/api\/public\/media\//,
+  );
+  expect(await detail.locator("body").innerHTML()).not.toContain(
+    staff("").slice(1),
+  );
   await expect(detail.locator("section.screenshots")).toHaveCount(0);
   await expect(detail.locator(".public-site-header")).toBeVisible();
   await expect(detail.locator(".public-breadcrumb")).toContainText("首页");
@@ -739,7 +806,7 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
   const memberNickname = (
     await (await member.request.get("/api/member/profile")).json()
   ).user.nickname;
-  await admin.goto("/admin/workspace?view=recharge");
+  await admin.goto(staff("/admin/workspace?view=recharge"));
   await expect(
     admin
       .locator(".el-table:visible")
@@ -763,22 +830,27 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
   const body = {
     ...content("paid-utility", "付费浏览器工具", 25),
     downloadUrl: (
-      await (await admin.request.get("/api/admin/catalog/products")).json()
+      await (
+        await admin.request.get(staff("/api/admin/catalog/products"))
+      ).json()
     ).find((p: any) => p.slug === "browser-utility").content.downloadUrl,
   };
-  const created = await admin.request.post("/api/admin/catalog/products", {
-    headers: { "X-AIWYW-Request": "1" },
-    data: body,
-  });
+  const created = await admin.request.post(
+    staff("/api/admin/catalog/products"),
+    {
+      headers: { "X-AIWYW-Request": "1" },
+      data: body,
+    },
+  );
   expect(created.status()).toBe(200);
   const id = (await created.json()).id;
   const draft = await (
-    await admin.request.get("/api/admin/catalog/products/" + id)
+    await admin.request.get(staff("/api/admin/catalog/products/") + id)
   ).json();
   expect(
     (
       await admin.request.post(
-        "/api/admin/catalog/products/" + id + "/publish",
+        staff("/api/admin/catalog/products/") + id + "/publish",
         {
           headers: { "X-AIWYW-Request": "1" },
           data: { revision: draft.revision },
@@ -808,7 +880,7 @@ test("TLS verification mail, simulated recharge, redemption, delivery and full r
     .getByRole("dialog")
     .getByRole("button", { name: "提交", exact: true })
     .click();
-  await admin.goto("/admin/workspace?view=refunds");
+  await admin.goto(staff("/admin/workspace?view=refunds"));
   await expect(
     admin
       .locator(".el-table:visible")
@@ -879,7 +951,7 @@ test("content draft isolation, static bilingual publishing and SEO discovery", a
     { name: "aiwyw_language", value: "zh", url: "http://127.0.0.1:3000" },
   ]);
   const admin = await context.newPage();
-  await admin.goto("/admin/workspace?view=articles");
+  await admin.goto(staff("/admin/workspace?view=articles"));
   await admin.getByRole("button", { name: "新增内容", exact: true }).click();
   await field(admin, "内容中文标题", { exact: true }).fill("markdo 使用教程");
   await field(admin, "内容英文标题", { exact: true }).fill("markdo tutorial");
@@ -897,7 +969,9 @@ test("content draft isolation, static bilingual publishing and SEO discovery", a
   await expect(admin.getByText("草稿已保存", { exact: true })).toBeVisible();
   const draft = (
     await (
-      await admin.request.get("/api/admin/content?scope=articles&q=markdo")
+      await admin.request.get(
+        staff("/api/admin/content?scope=articles&q=markdo"),
+      )
     ).json()
   ).items.find((r: any) => r.slug === "markdo-tutorial");
   const publicContext = await browser.newContext({ javaScriptEnabled: false });
@@ -1000,8 +1074,11 @@ test("content draft isolation, static bilingual publishing and SEO discovery", a
     ).text(),
   ).not.toContain("/articles/markdo-tutorial");
   expect(
-    (await (await admin.request.get("/api/admin/content/" + draft.id)).json())
-      .state,
+    (
+      await (
+        await admin.request.get(staff("/api/admin/content/") + draft.id)
+      ).json()
+    ).state,
   ).toBe("UNLISTED");
   await publicContext.close();
   await context.close();
@@ -1027,16 +1104,19 @@ test("compact horizontal forms, server sorting, license replacement and refund r
     licenseName = "授权浏览器工具-" + runId,
     licenseSlug = "licensed-browser-" + runId;
   for (let i = 0; i < 23; i++) {
-    const result = await admin.request.post("/api/admin/catalog/products", {
-      headers,
-      data: content(
-        "sort-" + runId + "-" + String(i).padStart(2, "0"),
-        titlePrefix + String(i).padStart(2, "0"),
-      ),
-    });
+    const result = await admin.request.post(
+      staff("/api/admin/catalog/products"),
+      {
+        headers,
+        data: content(
+          "sort-" + runId + "-" + String(i).padStart(2, "0"),
+          titlePrefix + String(i).padStart(2, "0"),
+        ),
+      },
+    );
     expect(result.status()).toBe(200);
   }
-  await admin.goto("/admin/workspace?view=applications");
+  await admin.goto(staff("/admin/workspace?view=applications"));
   await field(admin, "名称或关键字", { exact: true }).fill(titlePrefix);
   await admin.getByRole("button", { name: "查询", exact: true }).click();
   await expect(admin.locator(".el-pagination")).toContainText("23");
@@ -1096,16 +1176,19 @@ test("compact horizontal forms, server sorting, license replacement and refund r
   // 单独新页面进入授权管理，避免关闭未保存介绍时的确认流程影响本次授权场景。
   admin.once("dialog", (dialog) => dialog.accept());
   await admin.reload();
-  const created = await admin.request.post("/api/admin/catalog/products", {
-    headers,
-    data: {
-      ...content(licenseSlug, licenseName, 10),
-      deliveryMode: "LICENSE",
+  const created = await admin.request.post(
+    staff("/api/admin/catalog/products"),
+    {
+      headers,
+      data: {
+        ...content(licenseSlug, licenseName, 10),
+        deliveryMode: "LICENSE",
+      },
     },
-  });
+  );
   expect(created.status()).toBe(200);
   const id = (await created.json()).id;
-  await admin.goto("/admin/workspace?view=licenses");
+  await admin.goto(staff("/admin/workspace?view=licenses"));
   await pick(admin, "授权策略应用", [licenseName]);
   await admin
     .getByRole("button", { name: "保存授权策略", exact: true })
@@ -1114,12 +1197,12 @@ test("compact horizontal forms, server sorting, license replacement and refund r
     admin.getByText("策略已保存；请重新发布应用后生效", { exact: true }),
   ).toBeVisible();
   const draft = await (
-    await admin.request.get("/api/admin/catalog/products/" + id)
+    await admin.request.get(staff("/api/admin/catalog/products/") + id)
   ).json();
   expect(
     (
       await admin.request.post(
-        "/api/admin/catalog/products/" + id + "/publish",
+        staff("/api/admin/catalog/products/") + id + "/publish",
         { headers, data: { revision: draft.revision } },
       )
     ).status(),
@@ -1214,7 +1297,7 @@ test("compact horizontal forms, server sorting, license replacement and refund r
   expect(
     (
       await admin.request.post(
-        "/api/admin/commerce/refunds/" + order + "/review",
+        staff("/api/admin/commerce/refunds/") + order + "/review",
         {
           headers,
           data: {
@@ -1255,7 +1338,7 @@ test("nickname, role menu union and administrator MFA emergency policy", async (
       storageState: join(directory(), "admin-state.json"),
     }),
     admin = await context.newPage();
-  await admin.goto("/admin/workspace?view=roles");
+  await admin.goto(staff("/admin/workspace?view=roles"));
   await admin.getByRole("button", { name: "新增角色", exact: true }).click();
   const editor = workspace(admin);
   await field(editor, "角色名称", { exact: true }).fill("目录查看员");
@@ -1269,9 +1352,9 @@ test("nickname, role menu union and administrator MFA emergency policy", async (
     admin.getByRole("row").filter({ hasText: "目录查看员" }),
   ).toBeVisible();
   const role = (
-    await (await admin.request.get("/api/admin/roles")).json()
+    await (await admin.request.get(staff("/api/admin/roles"))).json()
   ).items.find((r: any) => r.name === "目录查看员");
-  const create = await admin.request.post("/api/admin/accounts", {
+  const create = await admin.request.post(staff("/api/admin/accounts"), {
     headers: { "X-AIWYW-Request": "1" },
     data: {
       email: "multi-role@example.com",
@@ -1287,38 +1370,42 @@ test("nickname, role menu union and administrator MFA emergency policy", async (
     .addCookies([
       { name: "aiwyw_language", value: "zh", url: "http://127.0.0.1:3000" },
     ]);
-  await member.goto("/login");
+  await member.goto(staff("/login"));
   await field(member, "邮箱", { exact: true }).fill("multi-role@example.com");
   await field(member, "密码", { exact: true }).fill("multi-role-password-123");
   await member.getByRole("button", { name: /登录后台/ }).click();
   await expect(member).toHaveURL(/admin\/security/);
   expect(
-    (await member.request.get("/api/admin/catalog/products")).status(),
+    (await member.request.get(staff("/api/admin/catalog/products"))).status(),
   ).toBe(403);
   await configuration(admin, { "security.mfa_required": "false" });
   await member.reload();
   expect(
-    (await member.request.get("/api/admin/catalog/products")).status(),
+    (await member.request.get(staff("/api/admin/catalog/products"))).status(),
   ).toBe(200);
-  expect((await member.request.get("/api/admin/settings")).status()).toBe(403);
-  const session = await (await member.request.get("/api/auth/session")).json();
+  expect(
+    (await member.request.get(staff("/api/admin/settings"))).status(),
+  ).toBe(403);
+  const session = await (
+    await member.request.get(staff("/api/auth/session"))
+  ).json();
   expect(session.roles).toContain("FINANCE");
   expect(session.nickname).toMatch(/^(?=.*[a-zA-Z])(?=.*[0-9])[a-zA-Z0-9]+$/);
   expect(
     (
-      await member.request.put("/api/member/nickname", {
+      await member.request.put(staff("/api/member/nickname"), {
         headers: { "X-AIWYW-Request": "1" },
         data: { nickname: "工具收藏家" },
       })
     ).status(),
   ).toBe(200);
-  await member.goto("/admin/workspace?view=applications");
+  await member.goto(staff("/admin/workspace?view=applications"));
   await expect(member.locator(".management-banner")).toContainText(
     "工具收藏家",
   );
   await configuration(admin, { "security.mfa_required": "true" });
   expect(
-    (await member.request.get("/api/admin/catalog/products")).status(),
+    (await member.request.get(staff("/api/admin/catalog/products"))).status(),
   ).toBe(403);
   await member.close();
   await context.close();
@@ -1332,7 +1419,7 @@ test("profile nickname and password, asymmetric menu tree and light authenticati
     storageState: join(directory(), "admin-state.json"),
   });
   const admin = await adminContext.newPage();
-  await admin.goto("/admin/workspace?view=roles");
+  await admin.goto(staff("/admin/workspace?view=roles"));
   await admin.getByRole("button", { name: "新增角色", exact: true }).click();
   const editor = workspace(admin),
     parent = editor
@@ -1358,7 +1445,7 @@ test("profile nickname and password, asymmetric menu tree and light authenticati
     admin.getByRole("row").filter({ hasText: "树形授权验收" }),
   ).toBeVisible();
   const saved = (
-    await (await admin.request.get("/api/admin/roles")).json()
+    await (await admin.request.get(staff("/api/admin/roles"))).json()
   ).items.find((r: any) => r.name === "树形授权验收");
   expect(saved.menus.sort()).toEqual(["applications", "group:products"].sort());
   const member = await browser.newPage();
@@ -1379,7 +1466,7 @@ test("profile nickname and password, asymmetric menu tree and light authenticati
       fullPage: true,
     });
   }
-  await member.goto("/login");
+  await member.goto(staff("/login"));
   await expect(member.locator(".directory-brand-logo")).toBeVisible();
   expect(
     await member
@@ -1484,7 +1571,7 @@ test("API configuration, one-time keys, billable debugger and subscription refun
   const admin = await context.newPage(),
     errors: string[] = [];
   admin.on("pageerror", (e) => errors.push(e.message));
-  await admin.goto("/admin/workspace?view=apis");
+  await admin.goto(staff("/admin/workspace?view=apis"));
   const apiList = admin.locator('[data-workspace="apis"]');
   await apiList.getByRole("button", { name: "新增API", exact: true }).click();
   const apiPanel = admin.locator('[data-workspace^="api-editor-"]:visible');
@@ -1502,9 +1589,9 @@ test("API configuration, one-time keys, billable debugger and subscription refun
   await expect(
     apiPanel.getByText("已保存，已有购买和调用条款不被覆盖", { exact: true }),
   ).toBeVisible();
-  const api = (await (await admin.request.get("/api/admin/apis")).json()).find(
-    (a: any) => a.slug === "browser-text-api",
-  );
+  const api = (
+    await (await admin.request.get(staff("/api/admin/apis"))).json()
+  ).find((a: any) => a.slug === "browser-text-api");
   await menu(admin, "套餐与订阅");
   const planList = admin.locator('[data-workspace="plans"]');
   await planList.getByRole("button", { name: "新增套餐", exact: true }).click();
@@ -1517,7 +1604,9 @@ test("API configuration, one-time keys, billable debugger and subscription refun
   await expect(
     planPanel.getByText("已保存，已有购买和调用条款不被覆盖", { exact: true }),
   ).toBeVisible();
-  const plans = await (await admin.request.get("/api/admin/api-plans")).json(),
+  const plans = await (
+      await admin.request.get(staff("/api/admin/api-plans"))
+    ).json(),
     plan = plans.find((p: any) => p.name === "浏览器月度套餐");
   const member = await browser.newPage();
   member.on("pageerror", (e) => errors.push(e.message));
@@ -1651,7 +1740,7 @@ test("API configuration, one-time keys, billable debugger and subscription refun
   await expect(
     member.getByText("退款申请已提交", { exact: true }),
   ).toBeVisible();
-  await admin.goto("/admin/workspace?view=refunds");
+  await admin.goto(staff("/admin/workspace?view=refunds"));
   const refundPanel = admin.locator('[data-workspace="refunds"]');
   await expect(
     refundPanel.getByRole("heading", { name: "API套餐退款", exact: true }),
@@ -1681,7 +1770,7 @@ test("API configuration, one-time keys, billable debugger and subscription refun
     await (await member.request.get("/api/member/api")).json()
   ).keys.find((k: any) => k.name === "浏览器调用Key");
   const revoke = await admin.request.post(
-    "/api/admin/api-keys/" + key.id + "/revoke",
+    staff("/api/admin/api-keys/") + key.id + "/revoke",
     { headers: { "X-AIWYW-Request": "1" }, data: { revision: key.revision } },
   );
   expect(revoke.status()).toBe(200);
@@ -1799,7 +1888,7 @@ test("guest support, private image, claim and transfer, moderated feedback and o
       )
     ).status(),
   ).toBe(404);
-  await admin.goto("/admin/workspace?view=conversations");
+  await admin.goto(staff("/admin/workspace?view=conversations"));
   await admin
     .getByRole("row")
     .filter({ hasText: "浏览器游客咨询" })
@@ -1828,7 +1917,7 @@ test("guest support, private image, claim and transfer, moderated feedback and o
     path: "test-results/support-admin.png",
     fullPage: true,
   });
-  const created = await admin.request.post("/api/admin/accounts", {
+  const created = await admin.request.post(staff("/api/admin/accounts"), {
     headers: { "X-AIWYW-Request": "1" },
     data: {
       email: "support-browser@example.com",
@@ -1840,7 +1929,9 @@ test("guest support, private image, claim and transfer, moderated feedback and o
   expect(created.status()).toBe(200);
   const { id: targetId } = await created.json();
   const agents = await (
-    await admin.request.get("/api/admin/support/agents/page?q=" + targetId)
+    await admin.request.get(
+      staff("/api/admin/support/agents/page?q=") + targetId,
+    )
   ).json();
   const target = agents.items.find((row: any) => row.id === targetId);
   expect(target).toBeTruthy();
@@ -1879,7 +1970,7 @@ test("guest support, private image, claim and transfer, moderated feedback and o
     data: { kind: "PRIVATE", body: "私密意见：只允许客服查看。" },
   });
   expect(privateResult.status()).toBe(200);
-  await admin.goto("/admin/workspace?view=messages");
+  await admin.goto(staff("/admin/workspace?view=messages"));
   await admin
     .getByRole("row")
     .filter({ hasText: "公开留言：希望补充更多工具。" })
@@ -1921,7 +2012,7 @@ test("guest support, private image, claim and transfer, moderated feedback and o
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await admin.goto("/admin/workspace?view=statistics");
+  await admin.goto(staff("/admin/workspace?view=statistics"));
   await expect(
     admin.getByRole("heading", { name: "运营统计", exact: true }),
   ).toBeVisible();
@@ -1939,7 +2030,7 @@ test("guest support, private image, claim and transfer, moderated feedback and o
     admin.getByRole("row").filter({ hasText: "浏览器文本API" }),
   ).toBeVisible();
   const csv = await admin.request.get(
-    "/api/admin/statistics/export?mode=SIMULATED",
+    staff("/api/admin/statistics/export?mode=SIMULATED"),
   );
   expect(csv.status()).toBe(200);
   expect(await csv.text()).toContain("API_CALL");
@@ -1983,7 +2074,7 @@ test("consistent typography, managed article navigation, API editor tabs and acc
   const admin = await context.newPage(),
     errors: string[] = [];
   admin.on("pageerror", (e) => errors.push(e.message));
-  await admin.goto("/admin/workspace?view=apis");
+  await admin.goto(staff("/admin/workspace?view=apis"));
   const list = admin.locator('[data-workspace="apis"]');
   await list.getByRole("button", { name: "新增API", exact: true }).click();
   const first = admin.locator('[data-workspace^="api-editor-"]:visible');
@@ -2178,7 +2269,7 @@ test("merged applications, object provenance, independent creation, pending acco
   const admin = await context.newPage(),
     errors: string[] = [];
   admin.on("pageerror", (e) => errors.push(e.message));
-  await admin.goto("/admin/workspace?view=versions");
+  await admin.goto(staff("/admin/workspace?view=versions"));
   await expect(admin).toHaveURL(/view=applications/);
   await expect(
     admin
@@ -2196,8 +2287,10 @@ test("merged applications, object provenance, independent creation, pending acco
   await expect(
     workspace(admin).getByRole("columnheader", { name: "创建人", exact: true }),
   ).toBeVisible();
-  const actor = await (await admin.request.get("/api/auth/session")).json();
-  const tag = await admin.request.post("/api/admin/catalog/tags", {
+  const actor = await (
+    await admin.request.get(staff("/api/auth/session"))
+  ).json();
+  const tag = await admin.request.post(staff("/api/admin/catalog/tags"), {
     headers: {
       "X-AIWYW-Request": "1",
       "X-Forwarded-For": "203.0.113.99",
@@ -2214,14 +2307,17 @@ test("merged applications, object provenance, independent creation, pending acco
   const tags = (
     await (
       await admin.request.get(
-        "/api/admin/catalog/tags?q=" + encodeURIComponent("浏览器来源验收标签"),
+        staff("/api/admin/catalog/tags?q=") +
+          encodeURIComponent("浏览器来源验收标签"),
       )
     ).json()
   ).items;
   expect(tags[0].id).toBe(tagId);
   expect(tags[0].created_by_id).toBe(actor.id);
   expect(Number(tags[0].created_at)).toBeGreaterThan(0);
-  const logs = await (await admin.request.get("/api/admin/audit")).json();
+  const logs = await (
+    await admin.request.get(staff("/api/admin/audit"))
+  ).json();
   const audit = logs.find((r: any) => r.config_key === "catalog:" + tagId);
   expect(audit).toBeTruthy();
   expect(audit.source_ip).toMatch(/^(127\.0\.0\.1|::1|0:0:0:0:0:0:0:1)$/);
@@ -2345,11 +2441,11 @@ test("merged applications, object provenance, independent creation, pending acco
     ).status(),
   ).toBe(200);
   const report = await (
-    await admin.request.get("/api/admin/statistics")
+    await admin.request.get(staff("/api/admin/statistics"))
   ).json();
   const drill = await (
     await admin.request.get(
-      "/api/admin/statistics/active-users?" +
+      staff("/api/admin/statistics/active-users?") +
         new URLSearchParams({ from: report.from, until: report.until }),
     )
   ).json();
@@ -2393,7 +2489,7 @@ test("new-window details share navigation, managed API visibility and encrypted 
   const admin = await context.newPage(),
     errors: string[] = [];
   admin.on("pageerror", (error) => errors.push(error.message));
-  await admin.goto("/admin/workspace?view=apis");
+  await admin.goto(staff("/admin/workspace?view=apis"));
   await workspace(admin)
     .getByRole("button", { name: "新增API", exact: true })
     .click();
@@ -2419,7 +2515,7 @@ test("new-window details share navigation, managed API visibility and encrypted 
     panel.getByText("已保存，已有购买和调用条款不被覆盖", { exact: true }),
   ).toBeVisible();
   await expect(field(panel, "真实服务请求头", { exact: true })).toHaveValue("");
-  const apis = await (await admin.request.get("/api/admin/apis")).json();
+  const apis = await (await admin.request.get(staff("/api/admin/apis"))).json();
   const api = apis.find((a: any) => a.slug === "browser-proxy-api");
   expect(api.request_method).toBe("GET");
   expect(api.headers_set).toBe(true);
@@ -2454,7 +2550,7 @@ test("new-window details share navigation, managed API visibility and encrypted 
   });
   await detail.close();
   // 旧场景会下架其教程；本场景自行发布案例，不能依赖其他用例残留的已发布数据。
-  const createdCase = await admin.request.post("/api/admin/content", {
+  const createdCase = await admin.request.post(staff("/api/admin/content"), {
     headers: { "X-AIWYW-Request": "1" },
     data: {
       slug: "browser-detail-case",
@@ -2471,7 +2567,7 @@ test("new-window details share navigation, managed API visibility and encrypted 
   expect(createdCase.status()).toBe(200);
   const caseId = (await createdCase.json()).id;
   const publishedCase = await admin.request.post(
-    "/api/admin/content/" + caseId + "/publish",
+    staff("/api/admin/content/") + caseId + "/publish",
     { headers: { "X-AIWYW-Request": "1" }, data: { revision: 1 } },
   );
   expect(publishedCase.status()).toBe(200);
@@ -2508,13 +2604,13 @@ test("new-window details share navigation, managed API visibility and encrypted 
   );
   await articlePage.close();
   const sections = await (
-    await admin.request.get("/api/admin/catalog/sections")
+    await admin.request.get(staff("/api/admin/catalog/sections"))
   ).json();
   const nav = sections.find((s: any) => s.config.mode === "API");
   expect(nav).toBeTruthy();
   const saveNav = async (enabled: boolean, revision: number) => {
     const response = await admin.request.put(
-      "/api/admin/catalog/sections/" + nav.id,
+      staff("/api/admin/catalog/sections/") + nav.id,
       {
         headers: { "X-AIWYW-Request": "1" },
         data: { ...nav.config, enabled, position: 0, revision },
@@ -2555,16 +2651,19 @@ test("manual picker retains cross-page selection and homepage shows configured s
   ]);
   const page = await context.newPage();
   for (let i = 0; i < 21; i++) {
-    const response = await page.request.post("/api/admin/catalog/products", {
-      headers: { "X-AIWYW-Request": "1" },
-      data: content(
-        "paged-picker-" + i,
-        "跨页选品" + String(i).padStart(2, "0"),
-      ),
-    });
+    const response = await page.request.post(
+      staff("/api/admin/catalog/products"),
+      {
+        headers: { "X-AIWYW-Request": "1" },
+        data: content(
+          "paged-picker-" + i,
+          "跨页选品" + String(i).padStart(2, "0"),
+        ),
+      },
+    );
     expect(response.status()).toBe(200);
   }
-  await page.goto("/admin/workspace?view=sections");
+  await page.goto(staff("/admin/workspace?view=sections"));
   await page
     .getByRole("row")
     .filter({ hasText: "精选工具" })
@@ -2648,7 +2747,7 @@ test("manual picker retains cross-page selection and homepage shows configured s
   ).json();
   expect(metadata.products).toEqual([]);
   const configured = await (
-    await page.request.get("/api/admin/catalog/sections")
+    await page.request.get(staff("/api/admin/catalog/sections"))
   ).json();
   const titles = configured
     .filter((row: any) => row.config.enabled)
@@ -2707,16 +2806,19 @@ test("encouragement daily reward, donation ratio and paged account portals", asy
   expect(daily.items[0].delta_units).toBe("100");
   const nonce = Date.now();
   for (let i = 0; i < 23; i++) {
-    const response = await admin.request.post("/api/admin/commerce/adjust", {
-      headers: { "X-AIWYW-Request": "1" },
-      data: {
-        userId: profile.user.id,
-        points: 1,
-        validDays: 0,
-        reason: "账户分页验证" + i,
-        requestKey: "account-paged-" + nonce + "-" + i,
+    const response = await admin.request.post(
+      staff("/api/admin/commerce/adjust"),
+      {
+        headers: { "X-AIWYW-Request": "1" },
+        data: {
+          userId: profile.user.id,
+          points: 1,
+          validDays: 0,
+          reason: "账户分页验证" + i,
+          requestKey: "account-paged-" + nonce + "-" + i,
+        },
       },
-    });
+    );
     expect(response.status()).toBe(200);
   }
   for (const name of [
@@ -2810,7 +2912,7 @@ test("encouragement daily reward, donation ratio and paged account portals", asy
     .locator(".el-tab-pane:visible .el-table")
     .all())
     await expect(table.getByRole("columnheader").last()).toHaveText("操作");
-  const article = await admin.request.post("/api/admin/content", {
+  const article = await admin.request.post(staff("/api/admin/content"), {
     headers: { "X-AIWYW-Request": "1" },
     data: {
       slug: "free-encouragement-article",
@@ -2828,7 +2930,7 @@ test("encouragement daily reward, donation ratio and paged account portals", asy
   const id = (await article.json()).id;
   expect(
     (
-      await admin.request.post(`/api/admin/content/${id}/publish`, {
+      await admin.request.post(staff(`/api/admin/content/${id}/publish`), {
         headers: { "X-AIWYW-Request": "1" },
         data: { revision: 1 },
       })

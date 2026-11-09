@@ -9,6 +9,7 @@ const emit = defineEmits<{
   "update:modelValue": [value: string];
   busy: [value: boolean];
 }>();
+const { draftImage } = useStaffPaths();
 const { request } = useApi(),
   { busy, progress, error, upload, cancel } = useAssetUpload();
 const library = ref(false),
@@ -59,9 +60,9 @@ async function change(file: File | undefined) {
     <div class="asset-control-preview">
       <el-image
         v-if="purpose === 'IMAGE' && modelValue"
-        :src="modelValue"
+        :src="draftImage(modelValue)"
         :alt="label"
-        :preview-src-list="[modelValue]"
+        :preview-src-list="[draftImage(modelValue)]"
         fit="contain"
         style="width: 72px; height: 72px"
       />

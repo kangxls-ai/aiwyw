@@ -49,10 +49,12 @@ run("java", [
   ...inbox.javaOptions,
   "-jar",
   resolve("backend/target/aiwyw-server-0.1.0-SNAPSHOT.jar"),
+  "--server.address=127.0.0.1",
   "--server.port=18080",
   `--aiwyw.data-dir=${process.env.AIWYW_E2E_DIR}`,
 ]);
 run(process.execPath, [resolve("web/.output/server/index.mjs")], {
+  AIWYW_SERVER_DATA_DIR: process.env.AIWYW_E2E_DIR,
   HOST: "127.0.0.1",
   PORT: "3000",
 });

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { staffApi } = useStaffPaths();
 /** 增量游标、发送幂等键及旧请求代数，避免切换会话后的迟到响应串入当前会话。图片始终走私有授权地址。 */
 import { ElMessageBox } from "element-plus";
 import { businessTime } from "~/utils/commerce";
@@ -217,11 +218,11 @@ defineExpose({ draft, conversation, refresh: () => load(true) });
         <p v-if="item.body">{{ item.body }}</p>
         <a
           v-if="item.asset_id"
-          :href="'/api/support/assets/' + item.asset_id"
+          :href="staffApi('/api/support/assets/' + item.asset_id)"
           target="_blank"
           rel="noopener"
           ><img
-            :src="'/api/support/assets/' + item.asset_id"
+            :src="staffApi('/api/support/assets/' + item.asset_id)"
             :alt="t('会话图片', 'Conversation image')"
         /></a>
       </article>
@@ -246,7 +247,7 @@ defineExpose({ draft, conversation, refresh: () => load(true) });
       />
       <div v-if="asset" class="pending-image">
         <img
-          :src="'/api/support/assets/' + asset"
+          :src="staffApi('/api/support/assets/' + asset)"
           :alt="t('待发送图片', 'Pending image')"
         /><el-button :disabled="sending" @click="asset = ''">{{
           t("移除", "Remove")

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { staffApi } = useStaffPaths();
 import { ElMessage, ElMessageBox } from "element-plus";
 /** 审核表单不直接改余额，服务器在核销/退款事务里写批次、流水与审计。 */
 import {
@@ -306,7 +307,7 @@ onMounted(load);
             ><p>{{ row.declaration || row.review_note || row.reason }}</p>
             <a
               v-if="row.evidence_id"
-              :href="'/api/member/evidence/' + row.evidence_id"
+              :href="staffApi('/api/member/evidence/' + row.evidence_id)"
               target="_blank"
               rel="noopener"
               >查看付款截图</a

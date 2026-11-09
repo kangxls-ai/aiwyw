@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 /** 独立安装验证公开外壳、旧快照兼容、备注码幂等和代理配置的私密边界。 */
 @SpringBootTest
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(StaffMockMvc.class)
 class ExperienceTest {
   static final Path root;
 

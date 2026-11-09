@@ -24,6 +24,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 /** 独立安装验证奖励原子性、跨日、并发、历史快照及账户分页隐私，不连接用户真实库。 */
 @SpringBootTest
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(StaffMockMvc.class)
 class EncouragementTest {
   static final Path root;
 

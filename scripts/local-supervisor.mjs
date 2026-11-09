@@ -34,7 +34,7 @@ const backend = spawn(java, [...javaOptions, '-Daiwyw.local-supervisor=true', '-
   '--server.shutdown=graceful', '--spring.lifecycle.timeout-per-shutdown-phase=15s'],
 { cwd: repo, windowsHide: true, stdio: ['pipe', out, err] })
 const web = spawn(process.execPath, [join(release, 'web', 'server', 'index.mjs')],
-  { cwd: repo, windowsHide: true, env: { ...process.env, HOST: '127.0.0.1', PORT: '3000' }, stdio: ['ignore', out, err] })
+  { cwd: repo, windowsHide: true, env: { ...process.env, HOST: '127.0.0.1', PORT: '3000', AIWYW_SERVER_DATA_DIR: resolve(repo, 'backend/data') }, stdio: ['ignore', out, err] })
 state.backendPid = backend.pid
 state.webPid = web.pid
 state.status = 'running'

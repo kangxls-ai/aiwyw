@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(StaffMockMvc.class)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class FoundationTest {
   static Path directory;
@@ -74,6 +75,8 @@ class FoundationTest {
         pass);
   }
 
+  @Autowired StaffEntry staffEntry;
+
   @Test
   @Order(1)
   void installationRequiresTokenAndCsrf() throws Exception {
@@ -106,12 +109,13 @@ class FoundationTest {
     var r =
         mvc.perform(
                 write(
-                    "POST",
-                    "/api/auth/login",
-                    Map.of("email", "admin@example.com", "password", pass, "code", "")))
+                        "POST",
+                        "/api/auth/login",
+                        Map.of("email", "admin@example.com", "password", pass, "code", ""))
+                    .header(StaffEntry.HEADER, staffEntry.path().substring(1)))
             .andExpect(status().isOk())
             .andReturn();
-    session = r.getResponse().getCookie("AIWYW_SESSION");
+    session = r.getResponse().getCookie(StaffEntry.COOKIE);
     assertNotNull(session);
     assertTrue(session.isHttpOnly());
     assertTrue(r.getResponse().getHeader("Set-Cookie").contains("SameSite=Strict"));
@@ -234,11 +238,12 @@ class FoundationTest {
         "operator@example.com",
         crypto.password(pass),
         System.currentTimeMillis());
-    jdbc.update(
-        "INSERT INTO app_session(token_hash,user_id,expires_at,mfa_verified) VALUES(?,?,?,TRUE)",
-        crypto.digest(token),
-        id,
-        System.currentTimeMillis() + 60000);
+    for (boolean staff : new boolean[] {false, true})
+      jdbc.update(
+          "INSERT INTO app_session(token_hash,user_id,expires_at,mfa_verified) VALUES(?,?,?,TRUE)",
+          crypto.digest((staff ? "staff:" : "") + token),
+          id,
+          System.currentTimeMillis() + 60000);
     mvc.perform(get("/api/admin/settings").cookie(new Cookie("AIWYW_SESSION", token)))
         .andExpect(status().isForbidden());
   }
@@ -289,15 +294,16 @@ class FoundationTest {
   void totpCannotBeReplayed() throws Exception {
     mvc.perform(
             write(
-                "POST",
-                "/api/auth/login",
-                Map.of(
-                    "email",
-                    "admin@example.com",
-                    "password",
-                    pass,
-                    "code",
-                    crypto.totp(secret, verifiedStep))))
+                    "POST",
+                    "/api/auth/login",
+                    Map.of(
+                        "email",
+                        "admin@example.com",
+                        "password",
+                        pass,
+                        "code",
+                        crypto.totp(secret, verifiedStep)))
+                .header(StaffEntry.HEADER, staffEntry.path().substring(1)))
         .andExpect(status().isUnauthorized());
   }
 
@@ -341,8 +347,77 @@ class FoundationTest {
             jdbc.queryForObject(
                 "SELECT config_value FROM system_config WHERE config_key='mail.password'",
                 String.class)));
-    mvc.perform(write("POST", "/api/auth/logout", Map.of()).cookie(session))
+    mvc.perform(
+            write("POST", "/api/auth/logout", Map.of())
+                .cookie(session)
+                .header(StaffEntry.HEADER, staffEntry.path().substring(1)))
         .andExpect(status().isOk());
     mvc.perform(get("/api/admin/settings").cookie(session)).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  @Order(13)
+  void accountLockSurvivesSourceChangesAndDoesNotExtendOnRetry() throws Exception {
+    String id = UUID.randomUUID().toString(), email = "account-lock@example.com";
+    String password = "isolated-lock-test-password";
+    jdbc.update(
+        "INSERT INTO"
+            + " app_user(id,email,password_hash,role_name,mfa_enabled,last_totp_step,created_at)"
+            + " VALUES(?,?,?,'OPERATOR',FALSE,-1,?)",
+        id,
+        email,
+        crypto.password(password),
+        System.currentTimeMillis());
+    for (int attempt = 1; attempt <= 5; attempt++) {
+      mvc.perform(
+              write(
+                      "POST",
+                      "/api/auth/login",
+                      Map.of("email", email, "password", "wrong", "code", ""))
+                  .header("X-Forwarded-For", "198.51.100.1"))
+          .andExpect(status().isUnauthorized());
+    }
+    assertEquals(
+        0,
+        jdbc.queryForObject(
+            "SELECT COUNT(*) FROM account_login_guard WHERE user_id=?", Integer.class, id));
+    for (int attempt = 1; attempt <= 5; attempt++) {
+      mvc.perform(
+              write(
+                      "POST",
+                      "/api/auth/login",
+                      Map.of(
+                          "email",
+                          " " + email.toUpperCase(Locale.ROOT) + " ",
+                          "password",
+                          "wrong",
+                          "code",
+                          ""))
+                  .header(StaffEntry.HEADER, staffEntry.path().substring(1))
+                  .header("X-Forwarded-For", "198.51.100." + attempt))
+          .andExpect(status().is(attempt == 5 ? 429 : 401));
+    }
+    long until =
+        jdbc.queryForObject(
+            "SELECT locked_until FROM account_login_guard WHERE user_id=?", Long.class, id);
+    assertTrue(until > System.currentTimeMillis());
+    var attempt =
+        write("POST", "/api/auth/login", Map.of("email", email, "password", password, "code", ""))
+            .header(StaffEntry.HEADER, staffEntry.path().substring(1))
+            .header("X-Forwarded-For", "198.51.100.10");
+    mvc.perform(attempt).andExpect(status().isTooManyRequests());
+    assertEquals(
+        until,
+        jdbc.queryForObject(
+            "SELECT locked_until FROM account_login_guard WHERE user_id=?", Long.class, id));
+    jdbc.update(
+        "UPDATE account_login_guard SET locked_until=? WHERE user_id=?",
+        System.currentTimeMillis() - 1,
+        id);
+    mvc.perform(attempt).andExpect(status().isOk());
+    assertEquals(
+        0,
+        jdbc.queryForObject(
+            "SELECT COUNT(*) FROM account_login_guard WHERE user_id=?", Integer.class, id));
   }
 }

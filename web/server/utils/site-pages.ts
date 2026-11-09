@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { H3Event } from "h3";
 
-export const publicPagePaths = ["/", "/login", "/account-access"] as const;
+export const publicPagePaths = ["/", "/account-access"] as const;
 type PageSlot = { key: string; epoch: number };
 type PageFile = { path: string; expires: number };
 

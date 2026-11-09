@@ -14,8 +14,8 @@ const children = []
 let stopping = false
 function stop(code = 0) { if (stopping) return; stopping = true; for (const child of children) child.kill('SIGTERM'); setTimeout(() => process.exit(code), 300) }
 for (const [command, args, env] of [
-  ['java', [...javaOptions, '-jar', jar, `--aiwyw.data-dir=${resolve('backend/data')}`], process.env],
-  [process.execPath, [web], { ...process.env, HOST: '127.0.0.1', PORT: '3000' }],
+  ['java', [...javaOptions, '-jar', jar, '--server.address=127.0.0.1', `--aiwyw.data-dir=${resolve('backend/data')}`], process.env],
+  [process.execPath, [web], { ...process.env, HOST: '127.0.0.1', PORT: '3000', AIWYW_SERVER_DATA_DIR: resolve('backend/data') }],
 ]) {
   const child = spawn(command, args, { stdio: 'inherit', env, windowsHide: true })
   children.push(child)

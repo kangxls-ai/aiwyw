@@ -14,6 +14,7 @@ const host = ref<HTMLElement | null>(null),
   loading = ref(true),
   inserting = ref(false);
 const { upload, busy, progress } = useAssetUpload();
+const { draftImage } = useStaffPaths();
 let editor: any = null,
   active = true,
   syncing = false,
@@ -25,7 +26,7 @@ const safeUrl = (url: string) =>
     !url.includes("\\")) ||
   /^https:\/\//i.test(url);
 /** 进入contenteditable前先净化粘贴和导入内容，避免等提交服务器后才处理脚本。 */
-function clean(html: string) {
+function clean(html: string, preview = false) {
   const result = DOMPurify.sanitize(html, {
     FORBID_TAGS: [
       "iframe",
@@ -49,6 +50,14 @@ function clean(html: string) {
     for (const attr of ["href", "src"]) {
       const value = node.getAttribute(attr);
       if (value && !safeUrl(value)) node.removeAttribute(attr);
+      else if (value && attr === "src" && node.tagName === "IMG") {
+        // 编辑时走私有预览，提交或发布时只保存公共媒体路径。
+        const canonical = value.replace(
+          /^\/[0-9a-f]{32}\/api\/admin\/storage\/assets\/([0-9a-f-]{36})\/content$/,
+          "/api/public/media/$1",
+        );
+        node.setAttribute("src", preview ? draftImage(canonical) : canonical);
+      }
     }
     const css = node.getAttribute("style");
     if (css) {
@@ -97,7 +106,7 @@ async function files(values: FileList | File[]) {
         const asset = await upload(file, "IMAGE");
         if (editor) {
           editor.summernote("restoreRange");
-          editor.summernote("insertImage", asset.url);
+          editor.summernote("insertImage", draftImage(asset.url));
           editor.summernote("saveRange");
         }
       } catch (e) {
@@ -112,7 +121,7 @@ function selected(asset: StorageAsset) {
   library.value = false;
   if (editor) {
     editor.summernote("restoreRange");
-    editor.summernote("insertImage", asset.url);
+    editor.summernote("insertImage", draftImage(asset.url));
   }
 }
 async function boot() {
@@ -165,7 +174,7 @@ async function boot() {
         },
         onImageUpload: (values: File[]) => files(values),
         onImageLinkInsert: (url: string) => {
-          if (safeUrl(url)) editor.summernote("insertImage", url);
+          if (safeUrl(url)) editor.summernote("insertImage", draftImage(url));
           else error.value = "图片地址必须是HTTPS链接或站内资源";
         },
         onPaste: (event: ClipboardEvent) => {
@@ -180,12 +189,12 @@ async function boot() {
           const html = clipboard.getData("text/html");
           if (html) {
             event.preventDefault();
-            editor.summernote("pasteHTML", clean(html));
+            editor.summernote("pasteHTML", clean(html, true));
           }
         },
       },
     });
-    editor.summernote("code", clean(props.modelValue));
+    editor.summernote("code", clean(props.modelValue, true));
     editor
       .next(".note-editor")
       .find(".note-editable")
@@ -213,7 +222,7 @@ watch(
   (value) => {
     if (editor && clean(editor.summernote("code")) !== value) {
       syncing = true;
-      editor.summernote("code", clean(value));
+      editor.summernote("code", clean(value, true));
       syncing = false;
     }
   },

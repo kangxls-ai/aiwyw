@@ -168,6 +168,17 @@ public class Database {
         "CREATE TABLE IF NOT EXISTS config_audit (id VARCHAR(36) PRIMARY KEY,user_id VARCHAR(36)"
             + " NOT NULL,config_key VARCHAR(100) NOT NULL,revision BIGINT NOT NULL,action_name"
             + " VARCHAR(40) NOT NULL,created_at BIGINT NOT NULL)");
+    // 和账户行锁一起使用，使跨来源密码失败计数与锁定期限在重启后仍有效。
+    j.execute(
+        """
+        CREATE TABLE IF NOT EXISTS account_login_guard (
+          user_id VARCHAR(36) PRIMARY KEY COMMENT '受保护账户ID',
+          failures INT NOT NULL COMMENT '当前窗口内的密码失败次数',
+          window_until BIGINT NOT NULL COMMENT '计数窗口结束UTC毫秒',
+          locked_until BIGINT NOT NULL COMMENT '禁止新登录至UTC毫秒，0表示未锁',
+          FOREIGN KEY(user_id) REFERENCES app_user(id) ON DELETE CASCADE
+        )
+        """);
     CatalogSchema.migrate(j);
     SchemaComments.migrate(d, j);
     StorageSchema.migrate(j);

@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
 /** 独立数据库的财务不变量测试；不连接用户实际钱包或邮件服务，测试邮件仅在私有发信箱检查。 */
 @SpringBootTest
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(StaffMockMvc.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CommerceTest {
   static final Path directory;
@@ -96,12 +97,13 @@ class CommerceTest {
           System.currentTimeMillis(),
           System.currentTimeMillis());
     String token = crypto.token();
-    db.update(
-        "INSERT INTO app_session(token_hash,user_id,expires_at,mfa_verified) VALUES(?,?,?,?)",
-        crypto.digest(token),
-        id,
-        System.currentTimeMillis() + 3600000,
-        mfa);
+    for (boolean staff : new boolean[] {false, true})
+      db.update(
+          "INSERT INTO app_session(token_hash,user_id,expires_at,mfa_verified) VALUES(?,?,?,?)",
+          crypto.digest((staff ? "staff:" : "") + token),
+          id,
+          System.currentTimeMillis() + 3600000,
+          mfa);
     return new Cookie("AIWYW_SESSION", token);
   }
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { staffPath } = useStaffPaths();
 /** MFA密钥仅在未绑定时展示；绑定结果由服务器核验，不能仅设置客户端状态绕过权限。 */
 defineOptions({ name: "AdminSecurity" });
 import "~/assets/auth.css";
@@ -60,7 +61,9 @@ async function confirm() {
         <p>
           当前按管理员配置使用密码登录。恢复策略后，管理员和财务角色会重新要求验证，已绑定的验证器资料仍保留。
         </p>
-        <NuxtLink v-if="user?.menus?.includes('settings')" to="/admin/settings"
+        <NuxtLink
+          v-if="user?.menus?.includes('settings')"
+          :to="staffPath('/admin/settings')"
           >进入配置管理</NuxtLink
         ></template
       ><template v-else-if="user?.mfaVerified || done"
@@ -69,7 +72,7 @@ async function confirm() {
         <p class="muted">
           后续登录需填写验证器的6位动态码。请妥善保存验证器备份。
         </p>
-        <NuxtLink to="/admin/settings" type="primary"
+        <NuxtLink :to="staffPath('/admin/settings')" type="primary"
           >进入配置管理 →</NuxtLink
         ></template
       ><template v-else

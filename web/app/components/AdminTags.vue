@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { staffPath } = useStaffPaths();
 import { ElMessage, ElMessageBox } from "element-plus";
 /** 独立标签目录，筛选分页由后端执行；改名有版本冲突保护，引用中的标签不能直接删除。 */
 const props = defineProps<{
@@ -103,7 +104,7 @@ async function remove(row: any) {
 }
 async function applications(row: any) {
   await navigateTo({
-    path: "/admin/workspace",
+    path: staffPath("/admin/workspace"),
     query: { view: "applications", tag: row.name },
   });
 }

@@ -14,16 +14,19 @@ public class WebSecurity extends OncePerRequestFilter {
   private final com.fasterxml.jackson.databind.ObjectMapper json;
   private final SupportController support;
   private final Settings settings;
+  private final StaffEntry staffEntry;
 
   public WebSecurity(
       Auth auth,
       com.fasterxml.jackson.databind.ObjectMapper json,
       SupportController support,
-      Settings settings) {
+      Settings settings,
+      StaffEntry staffEntry) {
     this.auth = auth;
     this.json = json;
     this.support = support;
     this.settings = settings;
+    this.staffEntry = staffEntry;
   }
 
   @Override
@@ -31,9 +34,21 @@ public class WebSecurity extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest req, HttpServletResponse res, FilterChain chain)
       throws ServletException, IOException {
+    // 使用容器归一后的匹配路径检查；拒绝未通过独立入口的后台调用，包括编码别名。
+    String path = req.getServletPath();
+    if (path.isEmpty())
+      path =
+          org.springframework.web.util.UrlPathHelper.defaultInstance.getPathWithinApplication(req);
+    if (StaffEntry.scoped(path) && !staffEntry.authorize(req) && StaffEntry.mandatory(path)) {
+      res.setHeader("Cache-Control", "no-store");
+      res.setStatus(404);
+      return;
+    }
+    if (StaffEntry.authorized(req)) res.setHeader("Referrer-Policy", "no-referrer");
     req.setAttribute("aiwyw.source-ip", RequestIp.resolve(req, settings));
     res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    if (!StaffEntry.authorized(req))
+      res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("X-Frame-Options", "DENY");
     if (req.getRequestURI().startsWith("/api/")) res.setHeader("Cache-Control", "no-store");
     // 程序化API只接受Bearer Key，从不读取Cookie身份，因此不使用浏览器CSRF头约定。

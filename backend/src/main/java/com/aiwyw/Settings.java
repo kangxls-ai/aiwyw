@@ -241,7 +241,15 @@ public class Settings {
     number("account.verify_minutes", "账号与安全", "邮箱验证链接有效分钟", 60, 5, 1440, "一次性链接；重发后旧链接失效");
     number("account.reset_minutes", "账号与安全", "密码重置链接有效分钟", 30, 5, 120, "重置后撤销全部会话");
     number("security.session_hours", "账号与安全", "后台登录有效小时数", 8, 1, 24, "下次创建登录会话时生效");
-    number("security.login_attempts", "账号与安全", "15分钟内登录失败上限", 5, 3, 20, "按来源及账号限制，成功后清除");
+    number(
+        "security.login_attempts",
+        "账号与安全",
+        "登录失败锁定阈值",
+        5,
+        3,
+        20,
+        "15分钟内跨来源累计密码或动态码错误；成功登录清除计数，锁定期间的重试不会延长期限");
+    number("security.login_lock_minutes", "账号与安全", "登录失败锁定分钟数", 15, 1, 120, "仅阻止新登录，不撤销已有会话");
     bool("release.approval_required", "发布与运行", "生产发布需管理员批准", true, "CI生产环境另设环境审批保护");
   }
 

@@ -2,9 +2,12 @@ package com.aiwyw;
 
 import java.net.URI;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /** 运营富文本的服务端白名单。禁止脚本、事件属性、iframe与危险CSS和URL协议。 浏览器编辑器不是安全边界，导入HTML也必须经过这里；静态页只输出净化结果。 */
 public final class ContentHtml {
+  private static final Pattern PRIVATE_ENTRY =
+      Pattern.compile("^/[0-9a-f]{32}/(?:login|admin|api)(?:[/?#]|$)");
   private static final org.owasp.html.PolicyFactory POLICY =
       new org.owasp.html.HtmlPolicyBuilder()
           .allowElements(
@@ -102,12 +105,15 @@ public final class ContentHtml {
     if (value.length() > 2000
         || value.chars().anyMatch(c -> c <= 32 || c == '\\' || c == '"' || c == '<' || c == '>'))
       return false;
-    if (value.startsWith("/") && !value.startsWith("//")) return !value.contains("..");
+    if (value.startsWith("/") && !value.startsWith("//"))
+      return !value.contains("..") && !PRIVATE_ENTRY.matcher(value).find();
     try {
       URI uri = URI.create(value);
       return "https".equalsIgnoreCase(uri.getScheme())
           && uri.getHost() != null
-          && uri.getUserInfo() == null;
+          && uri.getUserInfo() == null
+          && uri.getPath() != null
+          && !PRIVATE_ENTRY.matcher(uri.getPath()).find();
     } catch (IllegalArgumentException badUrl) {
       return false;
     }

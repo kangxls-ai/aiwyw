@@ -11,11 +11,17 @@ export default defineNuxtConfig({
   css: ["~/assets/main.css"],
   routeRules: {
     "/apps": { ssr: true },
-    "/login": { headers: { "cache-control": "private, no-store" } },
     "/account-access": { headers: { "cache-control": "private, no-store" } },
     "/preview/**": { redirect: { to: "/", statusCode: 301 } },
-    "/preview/admin": { redirect: { to: "/admin", statusCode: 301 } },
     "/products/markdo": { redirect: { to: "/apps/markdo", statusCode: 301 } },
+  },
+  hooks: {
+    "pages:extend"(pages) {
+      for (const page of pages) {
+        if (/^\/(?:admin(?:\/|$)|login$)/.test(page.path))
+          page.path = "/:staffEntry([0-9a-f]{32})" + page.path;
+      }
+    },
   },
   app: {
     head: {

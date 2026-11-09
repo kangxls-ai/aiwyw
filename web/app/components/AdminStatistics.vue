@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { staffApi } = useStaffPaths();
 /** 报表请求和CSV共享日期/账本参数；金额展示实际批次捐赠成本分摊，明确不等于财务确认收入。 */
 import {
   adminDateShortcuts,
@@ -87,7 +88,9 @@ onMounted(load);
         <div class="full">
           <el-button type="primary" :loading="busy" @click="load"
             >查询统计</el-button
-          ><a class="button secondary" :href="exportUrl">导出收入CSV</a>
+          ><a class="button secondary" :href="staffApi(exportUrl)"
+            >导出收入CSV</a
+          >
         </div></el-form
       ></el-card
     >

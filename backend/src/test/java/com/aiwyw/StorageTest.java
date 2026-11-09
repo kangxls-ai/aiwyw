@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
 /** 真实数据库/文件系统验证权限、内容校验、引用保护和短期交付，所有资料在临时目录。 */
 @SpringBootTest
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(StaffMockMvc.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class StorageTest {
@@ -87,12 +88,13 @@ class StorageTest {
         crypto.password("test-only-storage-password"),
         role,
         System.currentTimeMillis());
-    db.update(
-        "INSERT INTO app_session(token_hash,user_id,expires_at,mfa_verified) VALUES(?,?,?,?)",
-        crypto.digest(token),
-        id,
-        System.currentTimeMillis() + 3600000,
-        mfa);
+    for (boolean staff : new boolean[] {false, true})
+      db.update(
+          "INSERT INTO app_session(token_hash,user_id,expires_at,mfa_verified) VALUES(?,?,?,?)",
+          crypto.digest((staff ? "staff:" : "") + token),
+          id,
+          System.currentTimeMillis() + 3600000,
+          mfa);
     return new Cookie("AIWYW_SESSION", token);
   }
 

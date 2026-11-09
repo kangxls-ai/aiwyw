@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { staffPath } = useStaffPaths();
 import { ElMessage, ElMessageBox } from "element-plus";
 /** 后台权限由服务端角色与MFA决定，变更会撤销该用户的所有会话，不提供明文密码查询。 */
 const props = defineProps<{
@@ -94,7 +95,7 @@ async function save() {
       // 修改本人角色后服务器已撤销旧会话，明确返回登录页，避免把成功保存显示成查询失败。
       await request("/api/auth/logout", { method: "POST" });
       useState<any>("admin-user").value = null;
-      await navigateTo("/login");
+      await navigateTo(staffPath("/login"));
       return;
     }
     await load();

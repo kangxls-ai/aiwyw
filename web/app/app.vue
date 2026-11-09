@@ -17,8 +17,8 @@ const revisions = useState<Record<string, number>>(
   () => ({}),
 );
 const pageKey = (target: any) =>
-  target.path.startsWith("/admin")
-    ? `${sessionGeneration.value}:${target.path === "/admin/workspace" ? target.path : target.fullPath}:${revisions.value[target.path === "/admin/workspace" ? target.path : target.fullPath] || 0}`
+  staffRelative(target.path).startsWith("/admin")
+    ? `${sessionGeneration.value}:${staffRelative(target.path) === "/admin/workspace" ? target.path : target.fullPath}:${revisions.value[staffRelative(target.path) === "/admin/workspace" ? target.path : target.fullPath] || 0}`
     : target.path;
 </script>
 <template>

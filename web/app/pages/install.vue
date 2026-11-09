@@ -5,7 +5,8 @@ const { request, message } = useApi();
 const busy = ref(false),
   error = ref(""),
   notice = ref(""),
-  installed = ref(false);
+  installed = ref(false),
+  staffLoginPath = ref("");
 const production = ref(false);
 const token = ref(""),
   email = ref(""),
@@ -49,13 +50,14 @@ async function install() {
   busy.value = true;
   error.value = "";
   try {
-    await request("/api/install", {
+    const result = await request<{ staffLoginPath: string }>("/api/install", {
       method: "POST",
       headers: { "X-Install-Token": token.value },
       body: { connection, email: email.value, password: password.value },
     });
     password.value = "";
     token.value = "";
+    staffLoginPath.value = result.staffLoginPath;
     installed.value = true;
   } catch (e) {
     error.value = message(e);
@@ -81,7 +83,10 @@ async function install() {
       <div v-if="installed" class="success-panel">
         <h2>安装已完成</h2>
         <p>请登录并绑定验证器，进入管理后台。</p>
-        <NuxtLink to="/login" class="button primary">前往登录 →</NuxtLink>
+        <a v-if="staffLoginPath" :href="staffLoginPath" class="button primary"
+          >前往登录 →</a
+        >
+        <p v-else>请使用安装完成时保存的专属后台地址。</p>
       </div>
       <el-form
         label-position="right"

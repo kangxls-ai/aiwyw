@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { staffPath, staffApi } = useStaffPaths();
 /** 配置表单基于服务器定义生成；敏感留空保持，明确勾选才清除。带revision整批保存，冲突时不能直接覆盖他人更改。 */
 defineOptions({ name: "AdminSettings" });
 definePageMeta({ layout: "admin" });
@@ -67,7 +68,8 @@ watch(
   { immediate: true },
 );
 const titles: Record<string, string> = {
-  网站信息: "维护站点名称、备案和注册开关。保存公开配置后会发布首页与登录页。",
+  网站信息:
+    "维护站点名称、备案和注册开关。保存公开配置后会发布首页与用户登录页。",
   首发商品: "维护 markdo 的展示资料，准备好后再发布。",
   捐赠收款: "当前仅使用模拟捐赠，真实付款码可预先上传保存。",
   邮件服务:
@@ -84,8 +86,8 @@ async function load() {
       clears[e.definition.key] = false;
     }
   } catch (e: any) {
-    if (e.status === 401) await navigateTo("/login");
-    else if (e.status === 403) await navigateTo("/admin/security");
+    if (e.status === 401) await navigateTo(staffPath("/login"));
+    else if (e.status === 403) await navigateTo(staffPath("/admin/security"));
     else error.value = message(e);
   } finally {
     loading.value = false;
@@ -127,8 +129,8 @@ async function publishSite(afterSave = false) {
     await request("/api/admin/site/publish", { method: "POST" });
     site.value = await request<Record<string, string>>("/api/public/site");
     notice.value = afterSave
-      ? "配置已保存，首页与登录页已发布"
-      : "首页与登录页已发布";
+      ? "配置已保存，首页与用户登录页已发布"
+      : "首页与用户登录页已发布";
   } catch (e) {
     error.value = "页面发布失败，请重试。" + message(e);
   } finally {
@@ -166,7 +168,7 @@ async function uploadFile(file: File | undefined, key: string) {
 }
 const preview = (url: string) =>
   /^\/api\/public\/(?:filing-)?assets\//.test(url)
-    ? url.replace("/api/public/", "/api/admin/")
+    ? staffApi(url.replace("/api/public/", "/api/admin/"))
     : url;
 const readiness = ref<any>(null),
   readinessBusy = ref(false);
@@ -250,7 +252,7 @@ async function testRedis() {
 }
 onBeforeRouteLeave(
   (to) =>
-    to.path.startsWith("/admin") ||
+    staffRelative(to.path).startsWith("/admin") ||
     !changes.value.length ||
     window.confirm("还有未保存的配置，确定离开吗？"),
 );
@@ -288,7 +290,7 @@ onBeforeUnmount(() => unregister?.());
           :disabled="!!changes.length || saving || loading"
           :loading="publishing"
           @click="publishSite()"
-          >发布首页与登录页</el-button
+          >发布首页与用户登录页</el-button
         >
         <el-button :disabled="saving || loading" @click="reload"
           >重新加载</el-button
@@ -354,10 +356,13 @@ onBeforeUnmount(() => unregister?.());
     >
     <div v-loading="loading" class="settings-layout">
       <aside class="settings-groups">
-        <NuxtLink to="/admin/workspace?view=sections">首页栏目 →</NuxtLink
-        ><NuxtLink to="/admin/workspace?view=storage">存储管理 →</NuxtLink
-        ><NuxtLink to="/admin/workspace?view=packages">捐赠档位 →</NuxtLink
-        ><NuxtLink to="/admin/workspace?view=licenses"
+        <NuxtLink :to="staffPath('/admin/workspace?view=sections')"
+          >首页栏目 →</NuxtLink
+        ><NuxtLink :to="staffPath('/admin/workspace?view=storage')"
+          >存储管理 →</NuxtLink
+        ><NuxtLink :to="staffPath('/admin/workspace?view=packages')"
+          >捐赠档位 →</NuxtLink
+        ><NuxtLink :to="staffPath('/admin/workspace?view=licenses')"
           >软件授权与换机 →</NuxtLink
         ><el-input
           v-model="filter"

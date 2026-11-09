@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { staffApi } = useStaffPaths();
 import type { StorageAsset, StoragePage } from "~/types/storage";
 const props = defineProps<{ purpose: "IMAGE" | "DOWNLOAD" }>();
 const emit = defineEmits<{ selected: [asset: StorageAsset]; close: [] }>();
@@ -74,7 +75,7 @@ onMounted(() => {
         @click="emit('selected', asset)"
         ><el-image
           v-if="purpose === 'IMAGE'"
-          :src="asset.previewUrl"
+          :src="staffApi(asset.previewUrl)"
           fit="contain"
         /><SiteIcon v-else name="folder" /><strong>{{
           asset.originalName

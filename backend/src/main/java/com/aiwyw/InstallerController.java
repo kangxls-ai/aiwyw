@@ -15,11 +15,14 @@ public class InstallerController {
   private final Database db;
   private final Settings settings;
   private final SecureStore crypto;
+  private final StaffEntry staffEntry;
 
-  public InstallerController(Database db, Settings settings, SecureStore crypto) {
+  public InstallerController(
+      Database db, Settings settings, SecureStore crypto, StaffEntry staffEntry) {
     this.db = db;
     this.settings = settings;
     this.crypto = crypto;
+    this.staffEntry = staffEntry;
   }
 
   public record InstallRequest(
@@ -67,7 +70,7 @@ public class InstallerController {
 
   @PostMapping
   /** 对空目标库建表，事务内种子配置与管理员；引导资料成功持久化后才激活连接池，失败关闭新池。 */
-  public synchronized Map<String, Boolean> install(
+  public synchronized Map<String, Object> install(
       @RequestHeader(value = "X-Install-Token", required = false) String token,
       @Valid @RequestBody InstallRequest req)
       throws Exception {
@@ -105,7 +108,7 @@ public class InstallerController {
       db.finish(req.connection());
       db.activate(pool);
       activated = true;
-      return Map.of("installed", true);
+      return Map.of("installed", true, "staffLoginPath", staffEntry.path() + "/login");
     } finally {
       if (!activated) pool.close();
     }
