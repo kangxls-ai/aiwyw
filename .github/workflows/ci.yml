@@ -70,11 +70,12 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: mvn -B -ntp -f backend/pom.xml package -DskipTests
-      - run: npm run build
+      - run: mvn -B -ntp -f backend/pom.xml clean package -Pdeployment -DskipTests
+      - run: npm run build:static
       - run: node scripts/package-production.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: production-linux
           path: .local/production/*.tar.gz
+          include-hidden-files: true
           retention-days: 30

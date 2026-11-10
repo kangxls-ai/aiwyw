@@ -16,7 +16,7 @@ final class StaffEntry {
   private final String value;
 
   StaffEntry(SecureStore store) throws Exception {
-    Path file = store.root.resolve("staff-entry");
+    Path file = store.security.resolve("staff-entry");
     if (!Files.exists(file)) {
       try {
         Files.writeString(

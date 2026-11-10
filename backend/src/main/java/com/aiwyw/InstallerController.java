@@ -26,7 +26,7 @@ public class InstallerController {
   }
 
   public record InstallRequest(
-      @NotNull Database.ConnectionSpec connection,
+      Database.ConnectionSpec connection,
       @Email @NotBlank String email,
       @Size(min = 12, max = 128) String password) {}
 
@@ -40,8 +40,7 @@ public class InstallerController {
         "0.1.0",
         "requiresToken",
         !db.installed(),
-        "production",
-        db.production());
+        "production", db.production(), "externalDatabase", db.configuredConnection()!=null);
   }
 
   /** 同时检查安装锁和常量时间安装码校验，避免远程抢先初始化。 */
@@ -54,8 +53,9 @@ public class InstallerController {
   /** 临时连接验证数据库权限与TLS，连接池在请求结束立即关闭，不改变当前数据库。 */
   public Map<String, Boolean> test(
       @RequestHeader(value = "X-Install-Token", required = false) String token,
-      @RequestBody Database.ConnectionSpec spec) {
+      @RequestBody(required = false) Database.ConnectionSpec requested) {
     verify(token);
+    Database.ConnectionSpec spec = connection(requested);
     db.requireProductionEngine(spec);
     try (var pool = db.connect(spec);
         var connection = pool.getConnection()) {
@@ -77,8 +77,9 @@ public class InstallerController {
     verify(token);
     if (req.password() == null || req.password().isBlank())
       throw new Api.Failure(400, "管理员密码至少12位");
-    db.requireProductionEngine(req.connection());
-    var pool = db.connect(req.connection());
+    var spec=connection(req.connection());
+    db.requireProductionEngine(spec);
+    var pool = db.connect(spec);
     boolean activated = false;
     try {
       Database.schema(pool);
@@ -105,7 +106,7 @@ public class InstallerController {
               String.class,
               req.email().trim().toLowerCase(Locale.ROOT));
       j.update("INSERT INTO access_user_role VALUES(?,'ADMIN')", installedAdmin);
-      db.finish(req.connection());
+      db.finish(spec);
       db.activate(pool);
       activated = true;
       return Map.of("installed", true, "staffLoginPath", staffEntry.path() + "/login");
@@ -113,4 +114,11 @@ public class InstallerController {
       if (!activated) pool.close();
     }
   }
+  private Database.ConnectionSpec connection(Database.ConnectionSpec requested) {
+    var configured=db.configuredConnection();
+    if(configured!=null) return configured;
+    if(requested==null) throw new Api.Failure(400,"请填写数据库连接");
+    return requested;
+  }
+
 }

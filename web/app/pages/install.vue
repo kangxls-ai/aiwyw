@@ -6,6 +6,7 @@ const busy = ref(false),
   error = ref(""),
   notice = ref(""),
   installed = ref(false),
+  externalDatabase = ref(false),
   staffLoginPath = ref("");
 const production = ref(false);
 const token = ref(""),
@@ -23,6 +24,7 @@ onMounted(async () => {
   try {
     const s = await request("/api/install/status");
     installed.value = s.installed;
+    externalDatabase.value = !!s.externalDatabase;
     production.value = s.production;
     if (s.production) connection.engine = "MYSQL";
   } catch (e) {
@@ -53,7 +55,11 @@ async function install() {
     const result = await request<{ staffLoginPath: string }>("/api/install", {
       method: "POST",
       headers: { "X-Install-Token": token.value },
-      body: { connection, email: email.value, password: password.value },
+      body: {
+        connection: externalDatabase.value ? null : connection,
+        email: email.value,
+        password: password.value,
+      },
     });
     password.value = "";
     token.value = "";
@@ -105,58 +111,64 @@ async function install() {
             placeholder="从服务首次启动提示中复制"
         /></el-form-item>
         <div class="form-section-title">01 数据库</div>
-        <el-form-item label="数据库类型"
-          ><el-select v-model="connection.engine" aria-label="数据库类型">
-            <el-option
-              v-if="!production"
-              value="H2"
-              label="本地数据库 · 开发与体验"
-            />
-            <el-option value="MYSQL" label="MySQL · 生产环境" /> </el-select
-        ></el-form-item>
-        <p v-if="connection.engine === 'H2'" class="field-help">
-          本地模式仅用于开发和体验，数据保存在服务数据目录。正式部署请在首次安装时选择空的
-          MySQL 数据库。
+        <p v-if="externalDatabase" class="field-help">
+          正在使用 config/application.properties 中的 MySQL 连接。安装码位于
+          security/install.token。
         </p>
-        <template v-else
-          ><div class="form-grid">
-            <el-form-item label="主机"
-              ><el-input v-model="connection.host" required /></el-form-item
-            ><el-form-item label="端口"
-              ><el-input-number
-                v-model="connection.port"
-                :min="1"
-                :max="65535"
-                required /></el-form-item
-            ><el-form-item label="数据库名"
+        <template v-else>
+          <el-form-item label="数据库类型"
+            ><el-select v-model="connection.engine" aria-label="数据库类型">
+              <el-option
+                v-if="!production"
+                value="H2"
+                label="本地数据库 · 开发与体验"
+              />
+              <el-option value="MYSQL" label="MySQL · 生产环境" /> </el-select
+          ></el-form-item>
+          <p v-if="connection.engine === 'H2'" class="field-help">
+            本地模式仅用于开发和体验，数据保存在服务数据目录。正式部署请在首次安装时选择空的
+            MySQL 数据库。
+          </p>
+          <template v-else
+            ><div class="form-grid">
+              <el-form-item label="主机"
+                ><el-input v-model="connection.host" required /></el-form-item
+              ><el-form-item label="端口"
+                ><el-input-number
+                  v-model="connection.port"
+                  :min="1"
+                  :max="65535"
+                  required /></el-form-item
+              ><el-form-item label="数据库名"
+                ><el-input
+                  v-model="connection.database"
+                  required
+                  pattern="[a-zA-Z0-9_]+" /></el-form-item
+              ><el-form-item label="账号"
+                ><el-input
+                  v-model="connection.username"
+                  required
+                  autocomplete="off"
+              /></el-form-item>
+            </div>
+            <el-form-item label="数据库密码"
               ><el-input
-                v-model="connection.database"
-                required
-                pattern="[a-zA-Z0-9_]+" /></el-form-item
-            ><el-form-item label="账号"
-              ><el-input
-                v-model="connection.username"
-                required
-                autocomplete="off"
+                v-model="connection.password"
+                type="password"
+                autocomplete="new-password"
             /></el-form-item>
-          </div>
-          <el-form-item label="数据库密码"
-            ><el-input
-              v-model="connection.password"
-              type="password"
-              autocomplete="new-password"
-          /></el-form-item>
-          <p class="field-help">
-            MySQL 连接要求 TLS。数据库需提前创建并授予当前账号建表权限。
-          </p></template
-        ><el-button
-          class="button secondary"
-          native-type="button"
-          :disabled="busy || !token"
-          @click="testConnection"
-        >
-          测试数据库连接
-        </el-button>
+            <p class="field-help">
+              MySQL 连接要求 TLS。数据库需提前创建并授予当前账号建表权限。
+            </p></template
+          ><el-button
+            class="button secondary"
+            native-type="button"
+            :disabled="busy || !token"
+            @click="testConnection"
+          >
+            测试数据库连接
+          </el-button>
+        </template>
         <div class="form-section-title">02 管理员账户</div>
         <el-form-item label="邮箱"
           ><el-input

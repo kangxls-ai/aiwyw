@@ -1,5 +1,9 @@
 // 公开详情交由后端已发布的静态文件响应；Nuxt不在每次访问时重新查询商品。
+const staticDelivery = process.env.AIWYW_STATIC_BUILD === "1";
 export default defineNuxtConfig({
+  ssr: !staticDelivery,
+  runtimeConfig: { public: { staticDelivery } },
+  nitro: { prerender: { crawlLinks: false, routes: ["/"] } },
   compatibilityDate: "2026-11-03",
   devtools: { enabled: false },
   modules: ["@element-plus/nuxt"],
@@ -10,7 +14,7 @@ export default defineNuxtConfig({
   },
   css: ["~/assets/main.css"],
   routeRules: {
-    "/apps": { ssr: true },
+    "/apps": { ssr: !staticDelivery },
     "/account-access": { headers: { "cache-control": "private, no-store" } },
     "/preview/**": { redirect: { to: "/", statusCode: 301 } },
     "/products/markdo": { redirect: { to: "/apps/markdo", statusCode: 301 } },

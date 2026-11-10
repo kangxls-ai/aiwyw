@@ -74,7 +74,7 @@ public class OperationsStats {
         source = MeteredApi.text(b.source(), 200, false).toLowerCase(Locale.ROOT);
     if (!Set.of("PAGE", "SEARCH").contains(kind)
         || !path.matches(
-            "/(?:apps(?:/[a-z0-9-]+)?|articles(?:/[a-z0-9-]+)?|api-services(?:/[a-z0-9-]+)?|sections/[a-z0-9-]+|support)?")
+            "/(?:apps(?:/[a-z0-9-]+)?|articles(?:/[a-z0-9-]+)?|api-services(?:/[a-z0-9-]+)?|sections/[a-z0-9-]+|series(?:/[a-z0-9-]+)?|support)?")
         || (kind.equals("SEARCH") && keyword.isBlank())) throw new Api.Failure(400, "事件格式不正确");
     if (kind.equals("PAGE")) keyword = "";
     if (source.isBlank() || source.equals(settings.value("site.domain"))) source = "DIRECT";

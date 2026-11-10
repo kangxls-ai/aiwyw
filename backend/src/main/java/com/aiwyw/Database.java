@@ -34,7 +34,8 @@ public class Database {
   }
 
   private volatile boolean installed;
-  private final String installToken;
+  private String installToken = "";
+  private final ConnectionSpec configured;
   private SwitchingSource source;
   // 安装切库后递增，业务缓存必须检测代数，防止返回安装前开发库的数据。
   private volatile long generation;
@@ -44,43 +45,63 @@ public class Database {
   }
 
   public Database(SecureStore store, ObjectMapper json) throws Exception {
+    this(store,json,new org.springframework.core.env.StandardEnvironment());
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired
+  public Database(SecureStore store, ObjectMapper json, org.springframework.core.env.Environment env) {
     this.store = store;
     this.json = json;
-    installed = Files.exists(store.root.resolve("bootstrap.enc"));
-    Path token = store.root.resolve("install.token");
-    if (!installed && !Files.exists(token)) {
-      Files.writeString(token, store.token(), StandardOpenOption.CREATE_NEW);
-      store.protect(token);
-    }
-    installToken = installed ? "" : Files.readString(token).trim();
-    if (!installed) System.out.println("AIWYW first installation token: " + installToken);
+    String host=env.getProperty("aiwyw.database.host","");
+    boolean required=env.getProperty("aiwyw.database.external-required",Boolean.class,false);
+    if (required && host.isBlank()) throw new IllegalStateException("Set aiwyw.database.host in config/application.properties");
+    configured=host.isBlank() ? null : new ConnectionSpec("MYSQL",host,
+        env.getProperty("aiwyw.database.port",Integer.class,3306),
+        env.getProperty("aiwyw.database.name",""),env.getProperty("aiwyw.database.username",""),
+        env.getProperty("aiwyw.database.password",""));
+  }
+
+  ConnectionSpec configuredConnection() {
+    return configured;
   }
 
   @Bean
-  /** 构造连接池并执行幂等建表/注释迁移；引导资料损坏应停止启动而不是换空库。 */
+  /** 外置连接优先；连接失败立即停止，旧安装资料仅供开发版或升级前版本读取。 */
   public DataSource dataSource() throws Exception {
-    HikariDataSource delegate;
-    if (installed)
-      delegate =
-          connect(
-              json.readValue(
-                  store.decrypt(Files.readString(store.root.resolve("bootstrap.enc"))),
-                  ConnectionSpec.class));
-    else delegate = connect(new ConnectionSpec("H2", "", 0, "", "", ""));
-    source = new SwitchingSource(delegate);
-    if (production() && installed) {
-      var j = new JdbcTemplate(source);
-      if (j.queryForObject(
-              "SELECT COUNT(*) FROM schema_migration WHERE version LIKE 'LOCAL!_REVIEW!_%' ESCAPE"
-                  + " '!'",
-              Long.class)
-          > 0) {
-        delegate.close();
-        throw new IllegalStateException("生产模式拒绝使用本地合成验收数据库，请安装到新MySQL库");
+    Path legacy=store.security.resolve("bootstrap.enc");
+    installed=configured==null && Files.exists(legacy);
+    HikariDataSource delegate = configured!=null ? connect(configured) : installed
+        ? connect(json.readValue(store.decrypt(Files.readString(legacy)),ConnectionSpec.class))
+        : connect(new ConnectionSpec("H2","",0,"","",""));
+    try {
+      var j=new JdbcTemplate(delegate);
+      if (production() && (configured!=null || installed)) {
+        try (var c=delegate.getConnection();
+             var tables=c.getMetaData().getTables(c.getCatalog(),null,"schema_migration",null)) {
+          if (tables.next() && j.queryForObject(
+              "SELECT COUNT(*) FROM schema_migration WHERE version LIKE 'LOCAL!_REVIEW!_%' ESCAPE '!'",Long.class)>0)
+            throw new IllegalStateException("生产模式拒绝使用本地合成验收数据库，请安装到新MySQL库");
+        }
       }
+      schema(delegate);
+      if(configured!=null)
+        installed=j.queryForObject("SELECT COUNT(*) FROM app_user",Long.class)>0;
+      if(!installed) {
+        Path token=store.security.resolve("install.token");
+        if(!Files.exists(token)) {
+          Files.writeString(token,store.token(),StandardOpenOption.CREATE_NEW);
+          store.protect(token);
+        }
+        installToken=Files.readString(token).trim();
+        if(configured==null) System.out.println("AIWYW first installation token: "+installToken);
+        else System.out.println("AIWYW first installation: read security/install.token");
+      }
+      source=new SwitchingSource(delegate);
+      return source;
+    } catch(Exception e) {
+      delegate.close();
+      throw e;
     }
-    schema(source);
-    return source;
   }
 
   public boolean installed() {
@@ -117,6 +138,7 @@ public class Database {
 
   /** 只接收受限主机和库名；生产MySQL强制TLS，连接超时有上限。 */
   public HikariDataSource connect(ConnectionSpec spec) {
+    if (spec == null) throw new Api.Failure(400,"请填写数据库连接");
     if (installed) requireProductionEngine(spec);
     HikariDataSource d = new HikariDataSource();
     if ("MYSQL".equals(spec.engine())) {
@@ -199,17 +221,22 @@ public class Database {
 
   /** 先写加密待定文件再原子更名；成功后锁安装入口并删除一次性安装码。 */
   public synchronized void finish(ConnectionSpec spec) throws Exception {
+    if (configured != null) {
+      installed=true;
+      Files.deleteIfExists(store.security.resolve("install.token"));
+      return;
+    }
     String encrypted = store.encrypt(json.writeValueAsString(spec));
-    Path temporary = store.root.resolve("bootstrap.pending");
+    Path temporary = store.security.resolve("bootstrap.pending");
     Files.writeString(temporary, encrypted);
     store.protect(temporary);
     try {
-      Files.move(temporary, store.root.resolve("bootstrap.enc"), StandardCopyOption.ATOMIC_MOVE);
+      Files.move(temporary, store.security.resolve("bootstrap.enc"), StandardCopyOption.ATOMIC_MOVE);
     } catch (AtomicMoveNotSupportedException e) {
-      Files.move(temporary, store.root.resolve("bootstrap.enc"));
+      Files.move(temporary, store.security.resolve("bootstrap.enc"));
     }
     installed = true;
-    Files.deleteIfExists(store.root.resolve("install.token"));
+    Files.deleteIfExists(store.security.resolve("install.token"));
   }
 
   /** 安装向导持有新连接池，成功后才替换；缓存代数随之改变。 */

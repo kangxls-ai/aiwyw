@@ -7,6 +7,7 @@ import {
   statSync,
   readFileSync,
   writeFileSync,
+  chmodSync,
 } from "node:fs";
 import { resolve, join, relative } from "node:path";
 import { createHash } from "node:crypto";
@@ -20,12 +21,15 @@ const output = resolve(
   "aiwyw-" + new Date().toISOString().replace(/[:.]/g, "-"),
 );
 const mappings = [
-  [
-    "backend/target/aiwyw-server-0.1.0-SNAPSHOT.jar",
-    "backend/aiwyw-server.jar",
-  ],
-  ["web/.output", "web"],
-  ["deploy", "deploy"],
+  ["backend/target/aiwyw-server-0.1.0-SNAPSHOT-deploy.jar", "aiwyw-server.jar"],
+  ["backend/target/lib", "lib"],
+  ["web/.output/public", "www"],
+  ["web/.output/public/200.html", "www/app-shell.html"],
+  ["deploy/standalone", "."],
+  ["deploy/nginx.conf", "nginx/nginx.conf"],
+  ["deploy/aiwyw-proxy.conf", "nginx/aiwyw-proxy.conf"],
+  ["deploy/aiwyw-routes.conf", "nginx/aiwyw-routes.conf"],
+  ["deploy/aiwyw.service", "aiwyw.service"],
   ["docs/PRODUCTION.md", "PRODUCTION.md"],
 ];
 for (const [source] of mappings)
@@ -37,6 +41,15 @@ for (const [source, target] of mappings)
   cpSync(join(root, source), join(output, target), {
     recursive: true,
     dereference: true,
+    filter: (file) =>
+      source !== "web/.output/public" ||
+      ![
+        "index.html",
+        "200.html",
+        "404.html",
+        "_published",
+        "_payload.json",
+      ].includes(relative(join(root, source), file).replaceAll("\\", "/")),
   });
 function files(dir) {
   return readdirSync(dir).flatMap((name) => {
@@ -44,7 +57,21 @@ function files(dir) {
     return statSync(path).isDirectory() ? files(path) : [path];
   });
 }
+for (const name of ["start.sh", "stop.sh"]) {
+  const script = join(output, name);
+  writeFileSync(script, readFileSync(script, "utf8").replaceAll("\r\n", "\n"));
+  chmodSync(script, 0o755);
+}
 const paths = files(output);
+const libraryDigest = createHash("sha256");
+for (const path of files(join(output, "lib")).sort()) {
+  libraryDigest.update(
+    relative(join(output, "lib"), path).replaceAll("\\", "/") + "\0",
+  );
+  libraryDigest.update(
+    createHash("sha256").update(readFileSync(path)).digest(),
+  );
+}
 if (
   paths.some((path) =>
     /\.(?:key|enc)$|(?:^|\/)validation-accounts\.txt$/i.test(
@@ -68,7 +95,7 @@ writeFileSync(
       commit,
       dirty,
       builtAt: new Date().toISOString(),
-      platform: process.platform,
+      librariesSha256: libraryDigest.digest("hex"),
       node: process.versions.node,
       mode: "production",
       containsData: false,

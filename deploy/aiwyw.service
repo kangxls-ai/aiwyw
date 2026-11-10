@@ -1,5 +1,5 @@
 [Unit]
-Description=AIwanyouwang production application
+Description=WeiYunWan Spring Boot
 After=network-online.target
 Wants=network-online.target
 
@@ -8,19 +8,13 @@ Type=simple
 User=aiwyw
 Group=aiwyw
 WorkingDirectory=/opt/aiwyw/current
-ExecStart=/usr/bin/node /opt/aiwyw/current/deploy/start-production.mjs /var/lib/aiwyw
+EnvironmentFile=-/opt/aiwyw/current/config/jvm.env
+ExecStart=/usr/bin/java $JAVA_OPTS -Dloader.path=lib -jar aiwyw-server.jar --spring.config.additional-location=file:./config/
 Restart=on-failure
-RestartSec=5
-TimeoutStopSec=35
-KillMode=control-group
+TimeoutStopSec=60
 UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/var/lib/aiwyw
-StandardOutput=journal
-StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

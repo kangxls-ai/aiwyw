@@ -185,6 +185,10 @@ public class ContentController {
       String base = "https://" + settings.value("site.domain");
       entry(xml, base + "/", null);
       entry(xml, base + "/articles", null);
+      entry(xml, base + "/series", null);
+      for (String slug : db.queryForList(
+          "SELECT slug FROM editorial_series WHERE published=TRUE", String.class))
+        entry(xml, base + "/series/" + slug, null);
       for (var row :
           db.queryForList(
               "SELECT d.slug,p.created_at,p.title_en FROM content_document d JOIN"

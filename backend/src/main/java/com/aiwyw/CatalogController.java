@@ -165,6 +165,10 @@ public class CatalogController {
       HttpServletRequest req,
       HttpServletResponse res) {
     visitor(req, res);
+    return publicCatalogBody(summary);
+  }
+
+  Map<String, Object> publicCatalogBody(boolean summary) {
     Catalog.PublicData data =
         summary
             ? new Catalog.PublicData(

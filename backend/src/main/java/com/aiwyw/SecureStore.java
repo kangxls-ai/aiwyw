@@ -25,9 +25,38 @@ public class SecureStore {
   private final SecureRandom random = new SecureRandom();
   private final byte[] key;
   public final Path root;
+  public final Path security;
 
-  public SecureStore(@Value("${aiwyw.data-dir:./data}") String directory) throws Exception {
+  public SecureStore(String directory) throws Exception {
+    this(directory,"");
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired
+  public SecureStore(@Value("${aiwyw.data-dir:./data}") String directory,
+      @Value("${aiwyw.security-dir:}") String securityDirectory) throws Exception {
     root = Path.of(directory).toAbsolutePath().normalize();
+    security = securityDirectory.isBlank() ? root : Path.of(securityDirectory).toAbsolutePath().normalize();
+    restrictDirectory(root);
+    if (!security.equals(root)) restrictDirectory(security);
+    Path keyFile = security.resolve("master.key");
+    if (!Files.exists(keyFile)) {
+      // 旧版升级时先迁移密钥；带旧引导数据却缺密钥应中止，避免生成无法解密的新密钥。
+      if (!security.equals(root) && (Files.exists(root.resolve("master.key")) || Files.exists(root.resolve("bootstrap.enc"))))
+        throw new IllegalStateException("Migrate existing master.key to the security directory first");
+      byte[] generated = new byte[32];
+      random.nextBytes(generated);
+      try {
+        Files.write(keyFile, generated, StandardOpenOption.CREATE_NEW);
+        protect(keyFile);
+      } finally {
+        Arrays.fill(generated, (byte) 0);
+      }
+    }
+    key = Files.readAllBytes(keyFile);
+    if (key.length != 32) throw new IllegalStateException("Invalid master key");
+  }
+
+  private static void restrictDirectory(Path root) throws Exception {
     Files.createDirectories(root);
     if (Files.getFileStore(root).supportsFileAttributeView("posix"))
       Files.setPosixFilePermissions(root, PosixFilePermissions.fromString("rwx------"));
@@ -50,19 +79,6 @@ public class SecureStore {
                     .build()));
       }
     }
-    Path keyFile = root.resolve("master.key");
-    if (!Files.exists(keyFile)) {
-      byte[] generated = new byte[32];
-      random.nextBytes(generated);
-      try {
-        Files.write(keyFile, generated, StandardOpenOption.CREATE_NEW);
-        protect(keyFile);
-      } finally {
-        Arrays.fill(generated, (byte) 0);
-      }
-    }
-    key = Files.readAllBytes(keyFile);
-    if (key.length != 32) throw new IllegalStateException("Invalid master key");
   }
 
   /** 将文件权限限制为服务账户；Windows使用ACL，POSIX使用0600。 */

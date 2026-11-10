@@ -9,6 +9,7 @@ const { catalog, deliveryError, error: navigationError, load } = useCatalog(),
   { t, toggle, zh } = useLanguage();
 const { siteName, siteSlogan } = useSiteBrand();
 const route = useRoute();
+const staticDelivery = useRuntimeConfig().public.staticDelivery;
 // 所有前台页面复用可维护导航；API显隐来自栏目配置，服务端保证排在末尾。
 if (!catalog.value.sections.length) await load(true);
 if (import.meta.server && navigationError.value) {
@@ -26,7 +27,7 @@ onMounted(() => {
     <div class="directory-preview">
       <header class="directory-header public-site-header">
         <div class="public-site-width public-site-header-inner">
-          <NuxtLink class="public-site-brand" to="/">
+          <NuxtLink class="public-site-brand" to="/" :external="staticDelivery">
             <img
               class="public-site-logo directory-brand-logo"
               src="/images/weiyunwan.svg"
@@ -45,6 +46,7 @@ onMounted(() => {
           >
             <NuxtLink
               to="/series"
+              :external="staticDelivery"
               :aria-current="
                 route.path.startsWith('/series') ? 'page' : undefined
               "

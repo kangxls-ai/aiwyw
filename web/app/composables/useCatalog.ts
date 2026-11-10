@@ -10,11 +10,17 @@ export function useCatalog() {
     deliveryError = useState("delivery-error", () => ""),
     busy = useState("delivery-busy", () => false);
   const { request, message } = useApi();
+  const staticDelivery = useRuntimeConfig().public.staticDelivery;
   async function load(summary = false) {
     try {
-      catalog.value = await request<PublicCatalog>("/api/public/catalog", {
-        query: { summary },
-      });
+      catalog.value = await request<PublicCatalog>(
+        staticDelivery && summary
+          ? "/_site/navigation.json"
+          : "/api/public/catalog",
+        {
+          query: { summary },
+        },
+      );
       error.value = "";
     } catch (e) {
       error.value = message(e);

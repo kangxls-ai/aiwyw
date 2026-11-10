@@ -9,6 +9,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /** 所有HTTP请求的安全响应头与写请求来源约束。不是身份授权层，具体API仍必须验证会话与角色。 */
 @Component
+@org.springframework.core.annotation.Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE + 10)
 public class WebSecurity extends OncePerRequestFilter {
   private final Auth auth;
   private final com.fasterxml.jackson.databind.ObjectMapper json;
@@ -39,7 +40,7 @@ public class WebSecurity extends OncePerRequestFilter {
     if (path.isEmpty())
       path =
           org.springframework.web.util.UrlPathHelper.defaultInstance.getPathWithinApplication(req);
-    if (StaffEntry.scoped(path) && !staffEntry.authorize(req) && StaffEntry.mandatory(path)) {
+    if (StaffEntry.scoped(path) && !staffEntry.authorize(req) && (StaffEntry.mandatory(path) || !java.util.Objects.toString(req.getHeader(StaffEntry.HEADER), "").isBlank())) {
       res.setHeader("Cache-Control", "no-store");
       res.setStatus(404);
       return;

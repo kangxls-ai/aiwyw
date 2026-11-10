@@ -76,6 +76,13 @@ public final class S3ObjectStore {
     }
   }
 
+  /** 仅在发布流程中复制已标记公开的图片。 */
+  void copyTo(String key, Path target) {
+    try (var client = client()) {
+      client.getObject(b -> b.bucket(config.bucket()).key(key), target);
+    }
+  }
+
   public void delete(String key) {
     try (var client = client()) {
       client.deleteObject(b -> b.bucket(config.bucket()).key(key));

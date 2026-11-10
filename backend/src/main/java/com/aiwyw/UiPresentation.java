@@ -28,7 +28,6 @@ final class UiPresentation {
         decorate(html)
             .replace("</head>", "<link rel=\"stylesheet\" href=\"/site-shell.css?v=2\"></head>");
     String brand = escape(site.getOrDefault("site.name", "微云湾"));
-    String slogan = site.getOrDefault("site.slogan", "以技术为舟，向未来远航");
     // 原快照的标题保留内容名称，站点后缀使用当前公开品牌。
     html =
         Pattern.compile("(<title>[^<]* · )[^<]*</title>")
@@ -43,45 +42,17 @@ final class UiPresentation {
     boolean en = "en".equals(language);
     if (!original.contains("data-language="))
       html = html.replaceFirst("<html ", "<html data-language=\"" + (en ? "en" : "zh") + "\" ");
-    StringBuilder nav =
-        new StringBuilder("<a href=\"/series\">").append(dual("专栏", "Series")).append("</a>");
-    sections.stream()
-        .sorted(Comparator.comparing(s -> s.config().mode().equals("API")))
-        .forEach(
-            s -> {
-              var c = s.config();
-              String href =
-                  c.mode().equals("ARTICLES")
-                      ? "/articles"
-                      : c.mode().equals("API") ? "/api-services" : "/sections/" + s.id();
-              nav.append("<a href=\"")
-                  .append(escape(href))
-                  .append("\">")
-                  .append(dual(c.titleZh(), c.titleEn().isBlank() ? c.titleZh() : c.titleEn()))
-                  .append("</a>");
-            });
     String toggle =
         product
             ? "<button id=\"language\" class=\"catalog-language\" aria-label=\"切换语言\">中文 /"
                 + " English</button>"
             : "<a class=\"catalog-language\" href=\"/articles/"
                 + escape(slug)
-                + (en ? "" : "?lang=en")
+                + (en ? "?lang=zh" : "?lang=en")
                 + "\">"
                 + (en ? "中文" : "English")
                 + "</a>";
-    String header =
-        "<header class=\"public-site-header\"><div class=\"public-site-width"
-            + " public-site-header-inner\"><a class=\"public-site-brand\" href=\"/\"><img"
-            + " class=\"public-site-logo\" src=\"/images/weiyunwan.svg\" width=\"48\" height=\"48\""
-            + " alt=\"\"><span>"
-            + brand
-            + (slogan.isBlank() ? "" : "<small>" + escape(slogan) + "</small>")
-            + "</span></a><nav class=\"public-site-nav\" aria-label=\"首页导航\">"
-            + nav
-            + "</nav>"
-            + toggle
-            + "</div></header>";
+    String header = header(site, sections, toggle);
     if (product)
       html =
           html.replaceFirst(
@@ -136,29 +107,7 @@ final class UiPresentation {
               "(?s)<article><nav>.*?</nav>",
               java.util.regex.Matcher.quoteReplacement(
                   "<article class=\"published-article\">" + crumbs));
-    String securityFiling = site.getOrDefault("site.security_filing", "");
-    String securityIcon = site.getOrDefault("site.security_filing_icon", "");
-    var securityNumber = Pattern.compile("(?<![0-9])[0-9]{14}(?![0-9])").matcher(securityFiling);
-    String securityLink =
-        "https://beian.mps.gov.cn/"
-            + (securityNumber.find() ? "#/query/webSearch?code=" + securityNumber.group() : "");
-    String footer =
-        "<footer class=\"directory-footer public-site-width\"><div class=\"site-filings\">"
-            + filing(
-                site.get("site.filing"),
-                "https://beian.miit.gov.cn/",
-                "工信部 ICP 备案号待填写",
-                "MIIT ICP filing pending",
-                "")
-            + filing(
-                securityFiling,
-                securityLink,
-                "公安网安备案号待填写",
-                "Public security filing pending",
-                securityIcon)
-            + "</div><span>"
-            + escape(site.getOrDefault("site.domain", "www.aiwyw.com"))
-            + "</span></footer>";
+    String footer = footer(site);
     if (product)
       html =
           html.replaceFirst(
@@ -196,6 +145,66 @@ final class UiPresentation {
         }
     }
     return html;
+  }
+
+  static String header(Map<String, String> site, List<Catalog.SectionView> sections, String toggle) {
+    String brand = escape(site.getOrDefault("site.name", "微云湾"));
+    String slogan = site.getOrDefault("site.slogan", "以技术为舟，向未来远航");
+    StringBuilder nav =
+        new StringBuilder("<a href=\"/series\">").append(dual("专栏", "Series")).append("</a>");
+    sections.stream()
+        .sorted(Comparator.comparing(s -> s.config().mode().equals("API")))
+        .forEach(
+            s -> {
+              var c = s.config();
+              String href =
+                  c.mode().equals("ARTICLES")
+                      ? "/articles"
+                      : c.mode().equals("API") ? "/api-services" : "/sections/" + s.id();
+              nav.append("<a href=\"")
+                  .append(escape(href))
+                  .append("\">")
+                  .append(dual(c.titleZh(), c.titleEn().isBlank() ? c.titleZh() : c.titleEn()))
+                  .append("</a>");
+            });
+    return
+        "<header class=\"public-site-header\"><div class=\"public-site-width"
+            + " public-site-header-inner\"><a class=\"public-site-brand\" href=\"/\"><img"
+            + " class=\"public-site-logo\" src=\"/images/weiyunwan.svg\" width=\"48\" height=\"48\""
+            + " alt=\"\"><span>"
+            + brand
+            + (slogan.isBlank() ? "" : "<small>" + escape(slogan) + "</small>")
+            + "</span></a><nav class=\"public-site-nav\" aria-label=\"首页导航\">"
+            + nav
+            + "</nav>"
+            + toggle
+            + "</div></header>";
+  }
+
+  static String footer(Map<String, String> site) {
+    String securityFiling = site.getOrDefault("site.security_filing", "");
+    String securityIcon = site.getOrDefault("site.security_filing_icon", "");
+    var securityNumber = Pattern.compile("(?<![0-9])[0-9]{14}(?![0-9])").matcher(securityFiling);
+    String securityLink =
+        "https://beian.mps.gov.cn/"
+            + (securityNumber.find() ? "#/query/webSearch?code=" + securityNumber.group() : "");
+    return
+        "<footer class=\"directory-footer public-site-width\"><div class=\"site-filings\">"
+            + filing(
+                site.get("site.filing"),
+                "https://beian.miit.gov.cn/",
+                "工信部 ICP 备案号待填写",
+                "MIIT ICP filing pending",
+                "")
+            + filing(
+                securityFiling,
+                securityLink,
+                "公安网安备案号待填写",
+                "Public security filing pending",
+                securityIcon)
+            + "</div><span>"
+            + escape(site.getOrDefault("site.domain", "www.aiwyw.com"))
+            + "</span></footer>";
   }
 
   private static String filing(String value, String url, String zh, String en, String icon) {

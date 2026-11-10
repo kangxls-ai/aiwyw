@@ -19,6 +19,30 @@ public class Application {
             "server.error.include-message", "never",
             "server.error.include-stacktrace", "never"));
     var context = app.run(args);
+    // Windows 后台实例使用同目录内的 PID 请求优雅关机，无网络停机接口。
+    if (Boolean.getBoolean("aiwyw.windows-control")) {
+      var control = new Thread(() -> {
+        var request = java.nio.file.Path.of("run", "stop.request");
+        try {
+          while (context.isActive()) {
+            if (java.nio.file.Files.isRegularFile(request)
+                && java.nio.file.Files.readString(request).trim()
+                    .equals(Long.toString(ProcessHandle.current().pid()))) {
+              java.nio.file.Files.deleteIfExists(request);
+              context.close();
+              return;
+            }
+            Thread.sleep(500);
+          }
+        } catch (InterruptedException interrupted) {
+          Thread.currentThread().interrupt();
+        } catch (java.io.IOException failed) {
+          org.slf4j.LoggerFactory.getLogger(Application.class).warn("Could not read Windows stop request");
+        }
+      }, "aiwyw-windows-control");
+      control.setDaemon(true);
+      control.start();
+    }
     // 仅本地受管启动启用：私有stdin管道请求优雅退出，不开放网络停机接口。
     // 正式部署不传此JVM属性，行为与普通Spring Boot应用相同。
     if (Boolean.getBoolean("aiwyw.local-supervisor")) {
