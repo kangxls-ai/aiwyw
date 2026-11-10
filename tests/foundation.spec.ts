@@ -2948,6 +2948,80 @@ test("encouragement daily reward, donation ratio and paged account portals", asy
   await expect(
     guest.locator('.directory-footer a[href="/support"]'),
   ).toHaveCount(0);
+  const products = await (
+    await admin.request.get(staff("/api/admin/catalog/products"))
+  ).json();
+  const product = products.find(
+    (row: { slug: string }) => row.slug === "browser-utility",
+  );
+  expect(product).toBeTruthy();
+  const series = {
+    slug: "writing-series",
+    titleZh: "写作备考专栏",
+    titleEn: "Writing Series",
+    summaryZh: "按顺序浏览",
+    summaryEn: "",
+    published: true,
+    refs: ["content:" + id, product.id],
+    revision: 0,
+  };
+  const headers = { "X-AIWYW-Request": "1" };
+  const created = await admin.request.post(staff("/api/admin/series"), {
+    headers,
+    data: series,
+  });
+  expect(created.status()).toBe(200);
+  const key = (await created.json()).id;
+  const duplicate = await admin.request.post(staff("/api/admin/series"), {
+    headers,
+    data: { ...series, slug: "another-writing-series" },
+  });
+  expect(duplicate.status()).toBe(200);
+  await guest.goto("/series/writing-series");
+  const contents = guest.locator(".series-contents a");
+  await expect(contents).toHaveCount(2);
+  await expect(contents.first()).toHaveAttribute(
+    "href",
+    "/articles/free-encouragement-article",
+  );
+  await expect(contents.last()).toHaveAttribute(
+    "href",
+    "/apps/browser-utility",
+  );
+  const updated = await admin.request.put(staff("/api/admin/series/" + key), {
+    headers,
+    data: { ...series, refs: series.refs.toReversed(), revision: 1 },
+  });
+  expect(updated.status()).toBe(200);
+  await guest.reload();
+  await expect(contents.first()).toHaveAttribute(
+    "href",
+    "/apps/browser-utility",
+  );
+  expect(
+    (
+      await admin.request.put(staff("/api/admin/series/" + key), {
+        headers,
+        data: { ...series, revision: 1 },
+      })
+    ).status(),
+  ).toBe(409);
+  expect(
+    (
+      await admin.request.put(staff("/api/admin/series/" + key), {
+        headers,
+        data: { ...series, published: false, revision: 2 },
+      })
+    ).status(),
+  ).toBe(200);
+  expect(
+    (await guest.request.get("/api/public/series/writing-series")).status(),
+  ).toBe(404);
+  expect(
+    (
+      await guest.request.get("/api/public/series/another-writing-series")
+    ).status(),
+  ).toBe(200);
   await context.close();
   await guest.close();
   await adminContext.close();

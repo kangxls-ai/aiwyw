@@ -167,3 +167,45 @@ body.published-page {
     width: calc(100% - 32px);
   }
 }
+
+/* 专栏清单和目录共用卡片，窄屏按顺序单列阅读。 */
+.series-page {
+  padding: 32px 0 48px;
+}
+.series-page > h2 {
+  margin: 26px 0 12px;
+}
+.series-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 12px;
+  margin: 12px 0 18px;
+  padding: 0;
+  list-style: none;
+}
+.series-cards a {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  height: 100%;
+  padding: 15px;
+  border: 1px solid #e0e3ef;
+  border-radius: 12px;
+  background: #fff;
+  overflow-wrap: anywhere;
+}
+.series-cards strong {
+  color: #453477;
+}
+.series-cards span {
+  color: #59627b;
+}
+.series-contents {
+  display: block;
+  padding-inline-start: 32px;
+  list-style: decimal-leading-zero;
+}
+.series-contents li {
+  margin: 10px 0;
+  padding-inline-start: 5px;
+}

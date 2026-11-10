@@ -68,6 +68,7 @@ const view = (tab: { route: string }) =>
     <AdminStatistics v-else-if="view(tab) === 'statistics'" />
     <AdminUsers v-else-if="view(tab) === 'users'" :view="view(tab)" />
     <AdminLicenses v-else-if="view(tab) === 'licenses'" />
+    <AdminSeries v-else-if="view(tab) === 'series'" />
     <AdminContent
       v-else-if="['articles', 'faq'].includes(view(tab))"
       :view="view(tab)"

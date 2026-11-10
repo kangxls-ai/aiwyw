@@ -1,9 +1,12 @@
 <script setup lang="ts">
 /** 草稿与已确认选择分离；翻页只取20项，跨页勾选保存在ID集合，不取全库做假分页。 */
 import { ElMessage } from "element-plus";
-const props = defineProps<{ modelValue: string[] }>(),
+const props = defineProps<{ modelValue: string[]; series?: boolean }>(),
   emit = defineEmits<{ "update:modelValue": [string[]] }>();
 const { request, message } = useApi();
+const endpoint = computed(() =>
+  props.series ? "/api/admin/series/selection" : "/api/admin/catalog/selection",
+);
 const visible = ref(false),
   draft = ref<string[]>([]),
   q = ref(""),
@@ -18,7 +21,7 @@ let generation = 0;
 async function lookup() {
   if (!props.modelValue.length) return;
   try {
-    const rows = await request<any[]>("/api/admin/catalog/selection/lookup", {
+    const rows = await request<any[]>(endpoint.value + "/lookup", {
       method: "POST",
       body: { refs: props.modelValue },
     });
@@ -33,7 +36,7 @@ async function load() {
   busy.value = true;
   error.value = "";
   try {
-    const value = await request<any>("/api/admin/catalog/selection", {
+    const value = await request<any>(endpoint.value, {
       query: {
         q: q.value,
         kind: kind.value,
@@ -102,7 +105,11 @@ const typeLabel = (value: string) =>
       ><span>已选择 {{ modelValue.length }} / 300 项</span>
     </div>
     <p class="admin-muted">
-      支持应用、API、文章、FAQ和案例跨页多选。拖动已选项调整顺序，也可用上下移按钮；未发布内容不会公开展示。
+      {{
+        series
+          ? "支持应用、文章、FAQ 和案例跨页多选。"
+          : "支持应用、API、文章、FAQ 和案例跨页多选。"
+      }}拖动已选项调整顺序，也可用上下移按钮；未发布内容不会公开展示。
     </p>
     <el-alert
       v-if="error && !visible"
@@ -186,6 +193,7 @@ const typeLabel = (value: string) =>
               value="PRODUCT"
               label="应用 / 工具" /><el-option
               value="API"
+              v-if="!series"
               label="API服务" /><el-option
               value="CONTENT"
               label="文章 / FAQ / 案例" /></el-select></el-form-item

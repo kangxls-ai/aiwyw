@@ -188,7 +188,9 @@ public class Database {
     ListSchema.migrate(d, j);
     LicenseSchema.migrate(j);
     Identity.schema(d, j);
+    Identity.seriesMenu(j);
     ContentSchema.migrate(j);
+    Series.schema(j);
     OperationsSchema.migrate(j);
     ManagementSchema.migrate(d, j);
     ExperienceSchema.migrate(d, j);

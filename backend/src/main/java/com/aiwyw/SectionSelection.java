@@ -51,18 +51,23 @@ class SectionSelection {
   }
 
   Map<String, Object> page(String q, String kind, int page, int size) {
+    return page(q, kind, page, size, true);
+  }
+
+  Map<String, Object> page(String q, String kind, int page, int size, boolean allowApi) {
     if (q == null
         || q.length() > 100
         || page < 1
         || page > 1000000
         || size < 1
         || size > 100
-        || !Set.of("ALL", "PRODUCT", "API", "CONTENT").contains(kind))
-      throw new Api.Failure(400, "选品查询参数不正确");
+        || !Set.of("ALL", "PRODUCT", "API", "CONTENT").contains(kind)
+        || !allowApi && kind.equals("API")) throw new Api.Failure(400, "选品查询参数不正确");
     String term = "%" + q.trim().replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
     String where =
         " WHERE (name LIKE ? ESCAPE '!' OR slug LIKE ? ESCAPE '!')"
-            + (kind.equals("ALL") ? "" : " AND kind=?");
+            + (kind.equals("ALL") ? "" : " AND kind=?")
+            + (allowApi ? "" : " AND kind<>'API'");
     List<Object> args = new ArrayList<>(List.of(term, term));
     if (!kind.equals("ALL")) args.add(kind);
     long total =

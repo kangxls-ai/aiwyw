@@ -26,6 +26,7 @@ public final class Identity {
           Map.entry("messages", "公开留言"),
           Map.entry("feedback", "私密反馈"),
           Map.entry("articles", "文章与教程"),
+          Map.entry("series", "专栏管理"),
           Map.entry("faq", "FAQ 与案例"),
           Map.entry("seo", "SEO 与多语言"),
           Map.entry("users", "用户管理"),
@@ -57,6 +58,7 @@ public final class Identity {
           Map.entry("messages", "group:support"),
           Map.entry("feedback", "group:support"),
           Map.entry("articles", "group:content"),
+          Map.entry("series", "group:content"),
           Map.entry("faq", "group:content"),
           Map.entry("seo", "group:content"),
           Map.entry("users", "group:users"),
@@ -191,6 +193,24 @@ public final class Identity {
     }
   }
 
+  static void seriesMenu(JdbcTemplate db) {
+    String version = "V015_SERIES_MENU";
+    if (db.queryForObject(
+            "SELECT COUNT(*) FROM schema_migration WHERE version=?", Integer.class, version)
+        > 0) return;
+    for (String role : List.of("ADMIN", "OPERATOR"))
+      if (db.queryForObject(
+              "SELECT COUNT(*) FROM access_role_menu WHERE role_id=? AND menu_id='series'",
+              Integer.class,
+              role)
+          == 0) db.update("INSERT INTO access_role_menu VALUES(?,'series')", role);
+    db.update(
+        "INSERT INTO schema_migration VALUES(?,?,?)",
+        version,
+        "专栏管理菜单",
+        System.currentTimeMillis());
+  }
+
   public static Set<String> defaults(String role) {
     return switch (role) {
       case "ADMIN" -> MENUS.keySet();
@@ -203,6 +223,7 @@ public final class Identity {
               "storage",
               "licenses",
               "articles",
+              "series",
               "faq",
               "seo",
               "security");

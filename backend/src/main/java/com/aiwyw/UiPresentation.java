@@ -43,7 +43,8 @@ final class UiPresentation {
     boolean en = "en".equals(language);
     if (!original.contains("data-language="))
       html = html.replaceFirst("<html ", "<html data-language=\"" + (en ? "en" : "zh") + "\" ");
-    StringBuilder nav = new StringBuilder();
+    StringBuilder nav =
+        new StringBuilder("<a href=\"/series\">").append(dual("专栏", "Series")).append("</a>");
     sections.stream()
         .sorted(Comparator.comparing(s -> s.config().mode().equals("API")))
         .forEach(

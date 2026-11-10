@@ -44,6 +44,13 @@ onMounted(() => {
             :aria-label="t('首页导航', 'Main navigation')"
           >
             <NuxtLink
+              to="/series"
+              :aria-current="
+                route.path.startsWith('/series') ? 'page' : undefined
+              "
+              >{{ t("专栏", "Series") }}</NuxtLink
+            >
+            <NuxtLink
               v-for="section in catalog.sections"
               :key="section.id"
               :aria-current="

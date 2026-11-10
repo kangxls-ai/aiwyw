@@ -92,7 +92,12 @@ export const adminMenuGroups: AdminMenuGroup[] = [
         "convert",
         "查询捐赠、兑换、退款和过期批次记录。",
       ),
-      item("refunds", "退款管理", "back", "审核退款申请，处理权益及鼓励值退回。"),
+      item(
+        "refunds",
+        "退款管理",
+        "back",
+        "审核退款申请，处理权益及鼓励值退回。",
+      ),
     ],
   },
   {
@@ -127,6 +132,7 @@ export const adminMenuGroups: AdminMenuGroup[] = [
         "note",
         "维护工具教程、使用案例与运营文章。",
       ),
+      item("series", "专栏管理", "note", "维护文章与应用的系列目录。"),
       item("faq", "FAQ 与案例", "clipboard", "组织常见问题与应用案例。"),
       item(
         "seo",

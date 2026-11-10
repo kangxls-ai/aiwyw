@@ -43,6 +43,7 @@ export function useManagementTabs() {
       if (
         ![
           "articles",
+          "series",
           "faq",
           "plans",
           "packages",

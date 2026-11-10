@@ -20,7 +20,7 @@ export function proxySiteApi(event: H3Event, path: string, staffEntry = "") {
       if (!response.ok || ["GET", "HEAD", "OPTIONS"].includes(event.method))
         return;
       if (
-        /^\/api\/(admin\/(settings|catalog|content|apis|api-plans|seo)(\/|$)|install\/)/.test(
+        /^\/api\/(admin\/(settings|catalog|content|series|apis|api-plans|seo)(\/|$)|install\/)/.test(
           path,
         )
       )

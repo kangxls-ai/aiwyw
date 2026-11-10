@@ -34,6 +34,12 @@ watch(
       :tab-id="tab.id"
       :initial-id="tab.entityId"
     />
+    <AdminSeries
+      v-else-if="tab.entityType === 'series'"
+      editor
+      :tab-id="tab.id"
+      :initial-id="tab.entityId"
+    />
     <AdminContent
       v-else-if="['articles', 'faq'].includes(tab.entityType!)"
       :view="tab.entityType!"
