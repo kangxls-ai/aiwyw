@@ -186,7 +186,8 @@ class CatalogTest {
               "downloads",
               "views",
               "articles-navigation",
-              "api-navigation")
+              "api-navigation",
+              "series-navigation")
           .contains(s.id())) catalog.deleteSection(s.id(), s.revision(), actor);
     assertEquals(7, catalog.sections().size());
   }
