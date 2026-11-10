@@ -112,7 +112,10 @@ final class PublishedWebsite {
     var nav = catalog.publicData().sections();
     boolean indexing = Boolean.parseBoolean(settings.value("seo.allow_indexing"));
     var home = sections.home();
-    var seriesCards = series.cards();
+    var seriesDetails = series.cards().stream().map(card -> series.detail(card.slug())).toList();
+    var firstSeriesPage = series.browse("", 1, Series.DEFAULT_PAGE_SIZE);
+    var seriesSection = nav.stream().map(Catalog.SectionView::config)
+        .filter(c -> c.mode().equals("SERIES")).findFirst().orElse(null);
     var appPaths = publicationPaths("""
         SELECT d.slug,p.web_directory FROM catalog_product d JOIN catalog_publication p
           ON p.id=d.active_publication WHERE d.status IN ('PUBLISHED','UNLISTED')
@@ -143,21 +146,31 @@ final class PublishedWebsite {
       }
       boolean en = lang.equals("en");
       String suffix = "." + language + ".html";
-      String seriesName = en ? "Series" : "专栏";
-      String list = "<section class='directory-section'><h1>" + seriesName + "</h1>"
-          + seriesList(seriesCards, en) + "</section>";
+      String seriesName = seriesSection == null ? (en ? "Series" : "专栏")
+          : local(en, seriesSection.titleZh(), seriesSection.titleEn());
+      String seriesSummary = seriesSection == null ? "" : local(en, seriesSection.subtitleZh(), seriesSection.subtitleEn());
+      if (seriesSummary.isBlank())
+        seriesSummary = en ? "Find related articles and applications by topic." : "按主题查找系列文章和应用。";
+      String list = "<section class='directory-section'>" + seriesIntro(seriesName, seriesSummary)
+          + seriesList(firstSeriesPage, en) + "</section>";
       write(stage, "series-list" + suffix, frame(site, nav, "/series", seriesName, "", list, en, indexing));
-      for (var card : seriesCards) {
-        var detail = series.detail(card.slug());
+      for (var detail : seriesDetails) {
+        var card = detail.series();
         String title = local(en, card.titleZh(), card.titleEn());
         String description = local(en, card.summaryZh(), card.summaryEn());
-        StringBuilder items = new StringBuilder("<ol class='static-series-items'>");
-        for (var item : detail.items()) items.append("<li>").append(resource(item, en)).append("</li>");
+        StringBuilder items = new StringBuilder();
+        if (detail.items().isEmpty()) {
+          items.append("<p>").append(en ? "No published items yet." : "暂无已发布内容。").append("</p>");
+        } else {
+          items.append("<ol class='static-series-items'>");
+          for (var item : detail.items()) items.append("<li>").append(resource(item, en, true)).append("</li>");
+          items.append("</ol>");
+        }
         String crumbs = "<nav class='public-breadcrumb' aria-label='当前位置'><a href='/'>"
-            + (en ? "Home" : "首页") + "</a> / <a href='/series'>" + seriesName
+            + (en ? "Home" : "首页") + "</a> / <a href='/series'>" + escape(seriesName)
             + "</a> / <span aria-current='page'>" + escape(title) + "</span></nav>";
-        String body = "<section class='directory-section'>" + crumbs + "<h1>" + escape(title)
-            + "</h1><p>" + escape(description) + "</p>" + items + "</ol></section>";
+        String body = "<section class='directory-section'>" + crumbs + seriesIntro(title, description)
+            + "<h2>" + (en ? "Contents" : "系列目录") + "</h2>" + items + "</section>";
         String path = "series/" + card.slug();
         writeDetail(stage, "series", card.slug(), seriesPaths.get(card.slug()), suffix,
             frame(site, nav, "/" + path, title, description, body, en, indexing));
@@ -177,9 +190,11 @@ final class PublishedWebsite {
           case "SERIES" -> "/series";
           default -> "/sections/" + id;
         };
-        body.append("<section class='directory-section'><h2>").append(escape(local(en, config.titleZh(), config.titleEn())))
-            .append(" <a href='").append(escape(more)).append("'>")
-            .append(en ? "More" : "更多").append("</a></h2><div class='static-resources'>");
+        body.append("<section class='directory-section' id='").append(escape(id)).append("'><h2>")
+            .append(escape(local(en, config.titleZh(), config.titleEn())))
+            .append(" <a href='").append(escape(more)).append("'")
+            .append(config.mode().equals("SERIES") ? newTabAttributes() : "")
+            .append(">").append(en ? "More" : "更多").append("</a></h2><div class='static-resources'>");
         if (section.get("items") instanceof List<?> items)
           for (Object item : items)
             if (item instanceof Map<?, ?> row) body.append(resource(row, en));
@@ -267,7 +282,7 @@ final class PublishedWebsite {
         + "<link rel='icon' href='/images/weiyunwan.svg'><link rel='stylesheet' href='/ui-theme.css?v=2'>"
         + "<link rel='stylesheet' href='/site-shell.css?v=2'><link rel='stylesheet' href='/static-website.css'>"
         + "</head><body class='published-page static-website'>"
-        + UiPresentation.header(site, nav, toggle)
+        + UiPresentation.header(site, nav, toggle, !path.equals("/series"))
         + "<main class='public-site-width'>" + body + "</main>" + UiPresentation.footer(site)
         + "</body></html>", indexing, false);
   }
@@ -282,16 +297,46 @@ final class PublishedWebsite {
     return html.replaceFirst("(?i)<head>", java.util.regex.Matcher.quoteReplacement("<head>" + head));
   }
 
-  private static String seriesList(List<Series.Card> cards, boolean en) {
-    var html = new StringBuilder("<div class='static-resources'>");
-    for (var card : cards)
-      html.append(resource(Map.of("href", "/series/" + card.slug(), "name", card.titleZh(),
-          "nameEn", card.titleEn(), "summary", card.summaryZh(), "summaryEn", card.summaryEn()), en));
-    if (cards.isEmpty()) html.append("<p>").append(en ? "No published series" : "暂无已发布专栏").append("</p>");
-    return html.append("</div>").toString();
+  private static String seriesIntro(String title, String summary) {
+    return "<div class='series-intro'><h1>" + escape(title) + "</h1>"
+        + (summary.isBlank() ? "" : "<p class='series-summary'>" + escape(summary) + "</p>") + "</div>";
+  }
+
+  /** Nginx直接提供默认首屏，查询条件进入共用目录应用，避免一次输出所有专栏。 */
+  private static String seriesList(Series.Page page, boolean en) {
+    var html = new StringBuilder("<form class='static-series-filters' role='search' action='/series' method='get'>");
+    html.append("<input type='hidden' name='lang' value='").append(en ? "en" : "zh").append("'>")
+        .append("<label><span>").append(en ? "Keyword" : "关键词")
+        .append("</span><input type='search' name='q' maxlength='100' placeholder='")
+        .append(en ? "Series title or description" : "专栏名称或简介")
+        .append("'></label><label><span>").append(en ? "Page size" : "每页条数")
+        .append("</span><select name='pageSize'>");
+    for (int size : Series.PAGE_SIZES)
+      html.append("<option value='").append(size).append("'")
+          .append(size == Series.DEFAULT_PAGE_SIZE ? " selected" : "")
+          .append(">").append(size).append("</option>");
+    html.append("</select></label><button type='submit'>").append(en ? "Search" : "搜索").append("</button></form>");
+    if (page.cards().isEmpty()) return html.append("<p>").append(en ? "No published series" : "暂无已发布专栏")
+        .append("</p>").toString();
+    html.append("<div class='static-resources'>");
+    for (var item : Series.items(page.cards())) html.append(resource(item, en));
+    html.append("</div><nav class='static-series-pager' aria-label='").append(en ? "Pagination" : "分页")
+        .append("'><span>").append(en ? page.total() + " series" : "共 " + page.total() + " 个专栏").append("</span>");
+    if (page.total() > Series.DEFAULT_PAGE_SIZE)
+      html.append("<a href='/series?page=2&amp;lang=").append(en ? "en" : "zh").append("'>")
+          .append(en ? "Next page" : "下一页").append("</a>");
+    return html.append("</nav>").toString();
+  }
+
+  private static String newTabAttributes() {
+    return " target='_blank' rel='noopener noreferrer'";
   }
 
   private static String resource(Map<?, ?> row, boolean en) {
+    return resource(row, en, value(row, "kind").equals("SERIES"));
+  }
+
+  private static String resource(Map<?, ?> row, boolean en, boolean openTab) {
     String href = value(row, "href");
     String name = local(en, value(row, "name"), value(row, "nameEn"));
     String summary = local(en, value(row, "summary"), value(row, "summaryEn"));
@@ -320,8 +365,10 @@ final class PublishedWebsite {
     }
     String image = icon == null || icon.isBlank() ? ""
         : "<img src='" + escape(icon) + "' alt='' width='48' height='48' loading='lazy'>";
-    String link = "<a href='" + escape(href) + "'>";
-    String detail = href.startsWith("/articles/") ? (en ? "Read" : "阅读") : (en ? "Details" : "查看详情");
+    String link = "<a href='" + escape(href + (openTab && en ? "?lang=en" : "")) + "'"
+        + (openTab ? newTabAttributes() : "") + ">";
+    String detail = href.startsWith("/series/") ? (en ? "View series" : "查看专栏")
+        : href.startsWith("/articles/") ? (en ? "Read" : "阅读") : (en ? "Details" : "查看详情");
     return "<article class='static-resource'><div class='static-resource-head'>" + image + "<div><strong>"
         + link + escape(name) + "</a></strong><div>" + escape(slogan) + "</div></div></div><span>"
         + escape(summary) + "</span><div class='static-resource-actions'>" + stats + actions + link

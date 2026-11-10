@@ -244,18 +244,12 @@ onBeforeUnmount(() => unregister?.());
         class="admin-form-grid"
         label-position="right"
         label-width="112px"
-        ><el-form-item label="发布专栏" class="wide">
-          <SelectionPicker
-            v-model="seriesIds"
-            assignment="content"
-            :content-kind="form.kind"
-          /> </el-form-item
-        ><el-form-item label="中文标题"
+        ><el-form-item label="中文标题" class="full editor-title-field"
           ><el-input
             v-model="form.titleZh"
             aria-label="内容中文标题"
             maxlength="120" /></el-form-item
-        ><el-form-item label="英文标题"
+        ><el-form-item label="英文标题" class="full editor-title-field"
           ><el-input
             v-model="form.titleEn"
             aria-label="内容英文标题"
@@ -287,6 +281,13 @@ onBeforeUnmount(() => unregister?.());
             maxlength="500"
             :rows="3"
         /></el-form-item>
+        <el-form-item label="发布专栏" class="full editor-series-field">
+          <SelectionPicker
+            v-model="seriesIds"
+            assignment="content"
+            :content-kind="form.kind"
+          />
+        </el-form-item>
         <div class="full">
           <SummernoteEditor
             v-model="form.bodyZh"

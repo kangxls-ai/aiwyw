@@ -63,7 +63,7 @@ const types = computed(() => {
     FAQ: "FAQ",
     CASE: t("案例", "Case study"),
   };
-  if (props.kind === "API") return {};
+  if (props.kind === "API" || props.kind === "SERIES") return {};
   if (props.kind === "ARTICLES") return articles;
   if (props.kind === "APPLICATIONS")
     return { ...apps, API: t("API 服务", "API service") };
@@ -116,6 +116,11 @@ function selectTags(values: string[]) {
         <el-input
           v-model="draft.q"
           :aria-label="t('目录关键词', 'Directory keyword')"
+          :placeholder="
+            kind === 'SERIES'
+              ? t('专栏名称或简介', 'Series title or description')
+              : undefined
+          "
           maxlength="100"
           clearable
         />
@@ -135,7 +140,10 @@ function selectTags(values: string[]) {
           />
         </el-select>
       </el-form-item>
-      <el-form-item v-if="kind !== 'ARTICLES'" :label="t('费用', 'Price')">
+      <el-form-item
+        v-if="kind !== 'ARTICLES' && kind !== 'SERIES'"
+        :label="t('费用', 'Price')"
+      >
         <el-select
           v-model="draft.price"
           :aria-label="t('费用筛选', 'Price filter')"
@@ -150,7 +158,7 @@ function selectTags(values: string[]) {
         </el-select>
       </el-form-item>
       <el-form-item
-        v-if="kind !== 'ARTICLES' && kind !== 'API'"
+        v-if="kind !== 'ARTICLES' && kind !== 'API' && kind !== 'SERIES'"
         :label="t('标签', 'Tags')"
       >
         <PagedPicker

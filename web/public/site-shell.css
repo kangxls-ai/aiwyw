@@ -168,7 +168,26 @@ body.published-page {
   }
 }
 
-/* 专栏清单和目录共用卡片，窄屏按顺序单列阅读。 */
+/* 目录标题和简介留出独立阅读空间，长内容可自然换行。 */
+.series-intro {
+  margin: 18px 0 26px;
+}
+.series-intro h1 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.series-intro .series-summary {
+  max-width: 72ch;
+  margin: 12px 0 0;
+  color: #59627b;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.series-contents a:hover,
+.series-contents a:focus-visible {
+  border-color: #b8a5dd;
+}
+
 .series-page {
   padding: 32px 0 48px;
 }

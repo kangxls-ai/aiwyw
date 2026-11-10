@@ -288,7 +288,9 @@ onBeforeUnmount(() => unregister?.());
             :min="0"
             :max="1000"
             controls-position="right" /></el-form-item
-        ><el-form-item label="首页显示数量"
+        ><el-form-item v-if="form.mode === 'SERIES'" label="首页显示数量">
+          <span>最新 20 个已发布专栏</span> </el-form-item
+        ><el-form-item v-else label="首页显示数量"
           ><el-input-number
             v-model="form.limit"
             :min="1"

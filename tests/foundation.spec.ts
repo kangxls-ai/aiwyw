@@ -15,6 +15,30 @@ function field(
     .and(root.locator("input,textarea,select"));
 }
 
+/** 长标题比短属性更宽，专栏选择紧随基本资料并在正文前。 */
+async function expectEditorLayout(
+  root: Page | Locator,
+  title: string,
+  english: string,
+  address: string,
+  body: string,
+) {
+  const first = (await field(root, title, { exact: true }).boundingBox())!;
+  const second = (await field(root, english, { exact: true }).boundingBox())!;
+  const slug = (await field(root, address, { exact: true }).boundingBox())!;
+  const series = (await root
+    .getByRole("button", { name: "选择专栏", exact: true })
+    .boundingBox())!;
+  const rich = (await root
+    .getByRole("textbox", { name: body, exact: true })
+    .boundingBox())!;
+  expect(first.width).toBeGreaterThan(slug.width);
+  expect(second.width).toBeGreaterThan(slug.width);
+  expect(second.y).toBeGreaterThan(first.y);
+  expect(series.y).toBeGreaterThan(slug.y);
+  expect(rich.y).toBeGreaterThan(series.y);
+}
+
 // 本文件使用单个隔离安装按序运行；本用例在账户/钱包场景之后验证授权及布局。
 function otp(secret: string) {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
@@ -406,6 +430,13 @@ test("install, MFA, Element Plus forms, tags, storage, tabs and pagination", asy
   await field(editor, "简介", { exact: true }).fill("真实目录端到端验证");
   const rich = page.getByRole("textbox", { name: "图文介绍", exact: true });
   await expect(rich).toBeVisible();
+  await expectEditorLayout(
+    editor,
+    "应用名称",
+    "英文名称",
+    "公开地址",
+    "图文介绍",
+  );
   await rich.evaluate((el) => {
     el.innerHTML = "<h2>工具使用说明</h2><p>这里是已发布正文。</p>";
     el.dispatchEvent(new Event("input", { bubbles: true }));
@@ -965,6 +996,13 @@ test("content draft isolation, static bilingual publishing and SEO discovery", a
   await admin
     .getByRole("textbox", { name: "内容英文正文", exact: true })
     .fill("Published English instructions");
+  await expectEditorLayout(
+    admin,
+    "内容中文标题",
+    "内容英文标题",
+    "内容公开地址",
+    "内容中文正文",
+  );
   await admin.getByRole("button", { name: "保存草稿", exact: true }).click();
   await expect(admin.getByText("草稿已保存", { exact: true })).toBeVisible();
   const draft = (
@@ -3018,27 +3056,49 @@ test("encouragement daily reward, donation ratio and paged account portals", asy
     category: "ARTICLE",
     published_at: expect.any(Number),
   });
-  await guest.goto("/series/writing-series");
-  const contents = guest.locator(".series-contents a");
+  await guest.goto("/series?q=writing-series&pageSize=40");
+  const seriesResult = guest.locator(
+    ".entry-heading a[href^='/series/writing-series']",
+  );
+  await expect(seriesResult).toBeVisible();
+  const [seriesTab] = await Promise.all([
+    guest.waitForEvent("popup"),
+    seriesResult.click(),
+  ]);
+  await expect(seriesTab.locator(".series-intro h1")).toBeVisible();
+  await expect(
+    seriesTab.locator(".series-intro .series-summary"),
+  ).toBeVisible();
+  const contents = seriesTab.locator(".series-contents a");
   await expect(contents).toHaveCount(2);
   await expect(contents.first()).toHaveAttribute(
     "href",
-    "/articles/free-encouragement-article",
+    /^\/articles\/free-encouragement-article(?:\?lang=en)?$/,
   );
   await expect(contents.last()).toHaveAttribute(
     "href",
-    "/apps/browser-utility",
+    /^\/apps\/browser-utility(?:\?lang=en)?$/,
   );
+  await expect(contents.last()).toHaveAttribute("target", "_blank");
+  const [articleTab] = await Promise.all([
+    seriesTab.waitForEvent("popup"),
+    contents.first().click(),
+  ]);
+  await expect(articleTab).toHaveURL(/\/articles\/free-encouragement-article/);
+  await articleTab.close();
+  await expect(seriesTab).toHaveURL(/\/series\/writing-series/);
+  await expect(guest).toHaveURL(/\/series\?q=writing-series&pageSize=40/);
   const updated = await admin.request.put(staff("/api/admin/series/" + key), {
     headers,
     data: { ...series, refs: series.refs.toReversed(), revision: 1 },
   });
   expect(updated.status()).toBe(200);
-  await guest.reload();
+  await seriesTab.reload();
   await expect(contents.first()).toHaveAttribute(
     "href",
-    "/apps/browser-utility",
+    /^\/apps\/browser-utility(?:\?lang=en)?$/,
   );
+  await seriesTab.close();
   expect(
     (
       await admin.request.put(staff("/api/admin/series/" + key), {
@@ -3086,6 +3146,9 @@ test("encouragement daily reward, donation ratio and paged account portals", asy
   expect(section).toBeTruthy();
   await guest.goto("/");
   await expect(guest.locator("#" + section.id)).toBeVisible();
+  await expect(
+    guest.locator("#" + section.id + " a.catalog-more-link"),
+  ).toHaveAttribute("target", "_blank");
   expect(
     (
       await admin.request.put(sectionPath + "/" + section.id, {

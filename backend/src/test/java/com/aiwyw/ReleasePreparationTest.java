@@ -47,6 +47,42 @@ class ReleasePreparationTest {
   @Autowired SupportController support;
 
   @Test
+  void publishedSeriesHomeAndDirectoryUseIndependentPageLimits() throws Exception {
+    String prefix = "series-page-test-";
+    try {
+      for (int i = 1; i <= 103; i++) {
+        db.update("INSERT INTO editorial_series(id,slug,title_zh,title_en,summary_zh,summary_en,"
+            + "published,refs_json,revision,created_at) VALUES(?,?,?,?,?,?,?,'[]',1,?)",
+            Ids.next(), prefix + i, "分页验收专栏 " + i, "Series Page Fixture",
+            "测试摘要", "Series Page Description", i < 103, 1700000000000L + i);
+      }
+      mvc.perform(get("/api/public/directory/series").param("q", "SERIES PAGE DESCRIPTION"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.total").value(102))
+          .andExpect(jsonPath("$.items.length()").value(100))
+          .andExpect(jsonPath("$.items[0].href").value("/series/" + prefix + 102));
+      mvc.perform(get("/api/public/directory/series").param("q", prefix).param("page", "2"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.page").value(2))
+          .andExpect(jsonPath("$.items.length()").value(2))
+          .andExpect(jsonPath("$.items[1].href").value("/series/" + prefix + 1));
+      var home = mvc.perform(get("/api/public/home-sections")).andExpect(status().isOk())
+          .andReturn().getResponse().getContentAsByteArray();
+      var json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(home);
+      for (var section : json) {
+        if (!section.path("kind").asText().equals("SERIES")) continue;
+        assertEquals(20, section.path("items").size());
+        assertEquals("/series/" + prefix + 102, section.path("items").get(0).path("href").asText());
+        assertEquals("/series/" + prefix + 83, section.path("items").get(19).path("href").asText());
+        return;
+      }
+      fail("Default series section missing");
+    } finally {
+      db.update("DELETE FROM editorial_series WHERE slug LIKE ?", prefix + "%");
+    }
+  }
+
+  @Test
   void reverseProxyHttpsKeepsGuestConversationCookieSecure() {
     var request = new org.springframework.mock.web.MockHttpServletRequest();
     request.addHeader("X-Forwarded-Proto", "https");

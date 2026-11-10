@@ -5,6 +5,7 @@ const props = defineProps<{ item: DirectoryItem }>();
 const { t, zh } = useLanguage();
 const { download, busy } = useCatalog();
 const product = computed(() => props.item.product);
+const isSeries = computed(() => props.item.kind === "SERIES");
 const isApi = computed(
   () =>
     props.item.kind === "API" ||
@@ -80,7 +81,8 @@ const price = computed(() => {
       <div class="entry-icon" aria-hidden="true">
         <CatalogLogo v-if="product" :product="product" />
         <span v-else class="entry-kind-icon"
-          ><SiteIcon :name="isApi ? 'convert' : 'document'"
+          ><SiteIcon
+            :name="isSeries ? 'folder' : isApi ? 'convert' : 'document'"
         /></span>
       </div>
       <div class="entry-heading">
@@ -93,7 +95,7 @@ const price = computed(() => {
             >{{ title }}</a
           >
         </h3>
-        <p :title="slogan">{{ slogan }}</p>
+        <p v-if="!isSeries" :title="slogan">{{ slogan }}</p>
       </div>
     </header>
     <div class="entry-body">
@@ -135,7 +137,11 @@ const price = computed(() => {
           t("调试", "Debug")
         }}</NuxtLink>
         <a :href="href" target="_blank" rel="noopener noreferrer">{{
-          product || isApi ? t("查看详情", "Details") : t("阅读", "Read")
+          isSeries
+            ? t("查看专栏", "View series")
+            : product || isApi
+              ? t("查看详情", "Details")
+              : t("阅读", "Read")
         }}</a>
       </div>
     </footer>

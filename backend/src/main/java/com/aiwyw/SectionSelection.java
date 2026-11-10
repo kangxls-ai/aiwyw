@@ -352,7 +352,7 @@ class SectionSelectionController {
             s -> {
               var c = s.config();
               var items = c.mode().equals("SERIES")
-                  ? series.homeItems(c.limit())
+                  ? series.homeItems()
                   : browse(s, "", "", List.of(), "", "", 1, Math.min(40, c.limit()), false).get("items");
               return Map.<String, Object>of(
                   "id",

@@ -216,10 +216,7 @@ onBeforeUnmount(() => unregister?.());
       class="catalog-editor-card admin-form-grid"
       @submit.prevent="save"
     >
-      <el-form-item label="发布专栏" class="wide">
-        <SelectionPicker v-model="seriesIds" assignment="catalog" />
-      </el-form-item>
-      <el-form-item label="应用名称" required
+      <el-form-item label="应用名称" class="full editor-title-field" required
         ><el-input
           v-model="form.nameZh"
           aria-label="应用名称"
@@ -227,7 +224,7 @@ onBeforeUnmount(() => unregister?.());
           show-word-limit
           clearable
       /></el-form-item>
-      <el-form-item label="英文名称"
+      <el-form-item label="英文名称" class="full editor-title-field"
         ><el-input
           v-model="form.nameEn"
           aria-label="英文名称"
@@ -326,6 +323,17 @@ onBeforeUnmount(() => unregister?.());
         />
       </div>
       <div class="full">
+        <AssetControl
+          v-model="form.downloadUrl"
+          purpose="DOWNLOAD"
+          label="下载内容"
+          @busy="uploads.download = $event"
+        /><small>文件按后台存储配置保存，发布后通过授权入口交付。</small>
+      </div>
+      <el-form-item label="发布专栏" class="full editor-series-field">
+        <SelectionPicker v-model="seriesIds" assignment="catalog" />
+      </el-form-item>
+      <div class="full">
         <SummernoteEditor
           v-model="form.bodyZh"
           label="图文介绍"
@@ -341,14 +349,6 @@ onBeforeUnmount(() => unregister?.());
           label="英文图文介绍"
           @busy="uploads.bodyEn = $event"
         />
-      </div>
-      <div class="full">
-        <AssetControl
-          v-model="form.downloadUrl"
-          purpose="DOWNLOAD"
-          label="下载内容"
-          @busy="uploads.download = $event"
-        /><small>文件按后台存储配置保存，发布后通过授权入口交付。</small>
       </div>
     </el-form>
     <section v-if="history.length" class="catalog-editor-card">

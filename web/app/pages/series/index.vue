@@ -1,31 +1,35 @@
 <script setup lang="ts">
-import type { SeriesCard } from "~/types/series";
 definePageMeta({ layout: "catalog" });
 const { t } = useLanguage();
-const { request } = useApi();
-const { data, error } = await useAsyncData("series-list", () =>
-  request<SeriesCard[]>("/api/public/series"),
+const { catalog, load } = useCatalog();
+if (!catalog.value.sections.length) await load(true);
+const section = computed(() =>
+  catalog.value.sections.find((item) => item.kind === "SERIES"),
 );
-useHead(() => ({ title: t("专栏", "Series") }));
+const title = computed(() =>
+  section.value
+    ? t(section.value.titleZh, section.value.titleEn || section.value.titleZh)
+    : t("专栏", "Series"),
+);
+const subtitle = computed(() => {
+  const current = section.value;
+  return (
+    (current &&
+      t(current.subtitleZh, current.subtitleEn || current.subtitleZh)) ||
+    t(
+      "按主题查找系列文章和应用。",
+      "Find related articles and applications by topic.",
+    )
+  );
+});
+useHead(() => ({ title: title.value }));
 </script>
+
 <template>
-  <main class="directory-width series-page">
-    <h1>{{ t("专栏", "Series") }}</h1>
-    <p>
-      {{
-        t(
-          "按主题探索系列文章和应用。",
-          "Explore related articles and applications by topic.",
-        )
-      }}
-    </p>
-    <SeriesCards v-if="data?.length" :cards="data" />
-    <p v-else class="catalog-empty">
-      {{
-        error
-          ? t("暂时无法读取专栏。", "Unable to load series.")
-          : t("暂无已发布专栏。", "No published series yet.")
-      }}
-    </p>
-  </main>
+  <DirectoryListing
+    endpoint="/api/public/directory/series"
+    :title="title"
+    :subtitle="subtitle"
+    kind="SERIES"
+  />
 </template>

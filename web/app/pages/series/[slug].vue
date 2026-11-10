@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SeriesDetail } from "~/types/series";
 definePageMeta({ layout: "catalog" });
-const { t } = useLanguage();
+const { t, zh } = useLanguage();
 const route = useRoute();
 const { request } = useApi();
 const { data, error, status } = await useAsyncData(
@@ -36,19 +36,25 @@ useHead(() => ({ title: title.value }));
         ><span>/</span>
         <span aria-current="page">{{ title }}</span>
       </nav>
-      <h1>{{ title }}</h1>
-      <p>
-        {{
-          t(
-            data.series.summaryZh,
-            data.series.summaryEn || data.series.summaryZh,
-          )
-        }}
-      </p>
+      <div class="series-intro">
+        <h1>{{ title }}</h1>
+        <p class="series-summary">
+          {{
+            t(
+              data.series.summaryZh,
+              data.series.summaryEn || data.series.summaryZh,
+            )
+          }}
+        </p>
+      </div>
       <h2>{{ t("系列目录", "Contents") }}</h2>
       <ol v-if="data.items.length" class="series-cards series-contents">
         <li v-for="item in data.items" :key="item.ref">
-          <NuxtLink :to="item.href">
+          <a
+            :href="item.href && (zh ? item.href : item.href + '?lang=en')"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <strong>{{ t(item.name, item.nameEn || item.name) }}</strong>
             <span>{{
               t(
@@ -60,7 +66,7 @@ useHead(() => ({ title: title.value }));
                   "",
               )
             }}</span>
-          </NuxtLink>
+          </a>
         </li>
       </ol>
       <p v-else class="catalog-empty">

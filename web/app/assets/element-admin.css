@@ -230,6 +230,11 @@
 .admin-form-grid .full {
   grid-column: 1/-1;
 }
+/* 长标题各占一行，标签仍与输入框左右对齐。 */
+.management-workspace .admin-form-grid .editor-title-field .el-input,
+.management-workspace .admin-form-grid .editor-series-field .selection-picker {
+  width: min(100%, 880px);
+}
 .management-workspace .admin-filter-grid .el-input,
 .management-workspace .admin-filter-grid .el-select {
   width: 100%;

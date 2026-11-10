@@ -262,7 +262,7 @@ public class Catalog {
           Integer.class) != 0) return;
       long now = System.currentTimeMillis();
       var section = new SectionInput("专栏", "Series", "", "", "folder", true, 5,
-          "SERIES", "LATEST", 0, 6, List.of(), List.of(), 0);
+          "SERIES", "LATEST", 0, Series.HOME_LIMIT, List.of(), List.of(), 0);
       db.update("INSERT INTO home_section(id,config_json,revision,created_at) VALUES('series-navigation',?,0,?)",
           encode(section), now);
       Origins.created(db, "home_section", "series-navigation", "SYSTEM");
@@ -497,7 +497,7 @@ public class Catalog {
             c.mode(),
             c.sort(),
             c.days(),
-            c.limit(),
+            c.mode().equals("SERIES") ? Series.HOME_LIMIT : c.limit(),
             labels(c.tags(), 20),
             labels(c.productIds(), 300),
             c.revision());

@@ -98,6 +98,8 @@ async function search() {
             :to="
               section.kind === 'SERIES' ? '/series' : '/sections/' + section.id
             "
+            :target="section.kind === 'SERIES' ? '_blank' : undefined"
+            :rel="section.kind === 'SERIES' ? 'noopener noreferrer' : undefined"
             >{{ t("更多", "More") }}<SiteIcon name="arrow"
           /></NuxtLink>
         </div>

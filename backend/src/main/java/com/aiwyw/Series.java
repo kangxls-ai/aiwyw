@@ -11,6 +11,12 @@ import org.springframework.web.bind.annotation.*;
 /** 独立维护有序引用；同一内容可加入多个目录，公开接口只解析当前发布快照。 */
 @RestController
 class Series {
+  static final int HOME_LIMIT = 20;
+  static final int DEFAULT_PAGE_SIZE = 100;
+  static final List<Integer> PAGE_SIZES = List.of(40, 60, 100, 150, 200);
+  private static final String PUBLIC_CARDS =
+      "SELECT slug,title_zh,title_en,summary_zh,summary_en FROM editorial_series WHERE published=TRUE";
+
   record Input(
       String slug,
       String titleZh,
@@ -124,17 +130,54 @@ class Series {
   }
 
   private List<Card> cards(Integer limit) {
-    return db.query(
-        "SELECT slug,title_zh,title_en,summary_zh,summary_en FROM editorial_series WHERE"
-            + " published=TRUE ORDER BY created_at DESC,id" + (limit == null ? "" : " LIMIT ?"),
-        (r, i) ->
-            new Card(
-                r.getString(1), r.getString(2), r.getString(3), r.getString(4), r.getString(5)),
-        limit == null ? new Object[0] : new Object[] {limit});
+    return db.query(PUBLIC_CARDS + " ORDER BY created_at DESC,id" + (limit == null ? "" : " LIMIT ?"),
+        Series::card, limit == null ? new Object[0] : new Object[] {limit});
   }
 
-  List<Map<String, Object>> homeItems(int limit) {
-    return cards(limit).stream().map(c -> Map.<String, Object>of(
+  private static Card card(java.sql.ResultSet row, int index) throws java.sql.SQLException {
+    return new Card(row.getString(1), row.getString(2), row.getString(3), row.getString(4), row.getString(5));
+  }
+
+  record Page(List<Card> cards, int page, long total) {}
+
+  /** 公开目录只按数据库分页取已发布专栏；相同时间使用ID稳定排序，避免跨页重复。 */
+  Page browse(String q, int page, int pageSize) {
+    if (page < 1 || page > 1000000 || !PAGE_SIZES.contains(pageSize))
+      throw new Api.Failure(400, "专栏分页参数不正确");
+    String term = SectionSelection.term(q.toLowerCase(Locale.ROOT));
+    String where = "";
+    var args = new ArrayList<Object>();
+    if (!q.isBlank()) {
+      where = " AND (LOWER(title_zh) LIKE ? ESCAPE '!' OR LOWER(title_en) LIKE ? ESCAPE '!'"
+          + " OR LOWER(summary_zh) LIKE ? ESCAPE '!' OR LOWER(summary_en) LIKE ? ESCAPE '!'"
+          + " OR slug LIKE ? ESCAPE '!')";
+      args.addAll(Collections.nCopies(5, term));
+    }
+    long total = db.queryForObject("SELECT COUNT(*) FROM editorial_series WHERE published=TRUE" + where,
+        Long.class, args.toArray());
+    int actual = (int) Math.min(page, Math.max(1, (total + pageSize - 1) / pageSize));
+    args.add(pageSize);
+    args.add((long) (actual - 1) * pageSize);
+    var result = db.query(PUBLIC_CARDS + where + " ORDER BY created_at DESC,id LIMIT ? OFFSET ?",
+        Series::card, args.toArray());
+    return new Page(result, actual, total);
+  }
+
+  @GetMapping("/api/public/directory/series")
+  Map<String, Object> directory(
+      @RequestParam(defaultValue = "") String q,
+      @RequestParam(defaultValue = "1") int page,
+      @RequestParam(defaultValue = "100") int pageSize) {
+    var found = browse(q, page, pageSize);
+    return Map.of("items", items(found.cards()), "page", found.page(), "total", found.total(), "tags", List.of());
+  }
+
+  List<Map<String, Object>> homeItems() {
+    return items(cards(HOME_LIMIT));
+  }
+
+  static List<Map<String, Object>> items(List<Card> cards) {
+    return cards.stream().map(c -> Map.<String, Object>of(
         "ref", "series:" + c.slug(), "kind", "SERIES", "href", "/series/" + c.slug(),
         "name", c.titleZh(), "nameEn", c.titleEn(),
         "summary", c.summaryZh(), "summaryEn", c.summaryEn())).toList();
