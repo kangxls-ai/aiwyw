@@ -3,7 +3,10 @@ const staticDelivery = process.env.AIWYW_STATIC_BUILD === "1";
 export default defineNuxtConfig({
   ssr: !staticDelivery,
   runtimeConfig: { public: { staticDelivery } },
-  nitro: { prerender: { crawlLinks: false, routes: ["/"] } },
+  // 仅独立发布包生成 SPA 外壳。常规 SSR 本地版本仍由已发布快照响应。
+  nitro: staticDelivery
+    ? { prerender: { crawlLinks: false, routes: ["/"] } }
+    : undefined,
   compatibilityDate: "2026-11-03",
   devtools: { enabled: false },
   modules: ["@element-plus/nuxt"],
