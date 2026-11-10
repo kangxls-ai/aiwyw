@@ -145,7 +145,7 @@ async function remove(row: Row) {
             "
             >编辑</el-button
           >
-          <el-button link type="danger" @click="remove(row)">删除</el-button>
+          <el-button link type="danger" @click="remove(row as Row)">删除</el-button>
         </template></el-table-column
       >
     </el-table>
