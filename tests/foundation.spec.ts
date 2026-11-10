@@ -2195,10 +2195,18 @@ test("consistent typography, managed article navigation, API editor tabs and acc
     .click();
   const sections = workspace(admin);
   await field(sections, "栏目名称", { exact: true }).fill("使用指南");
-  await field(sections, "栏目顺序", { exact: true }).fill("0");
+  await expect(field(sections, "栏目顺序", { exact: true })).toHaveCount(0);
   await sections.getByRole("button", { name: "保存修改", exact: true }).click();
   await expect(sections.getByRole("status")).toHaveText("栏目已保存并生效");
   await menu(admin, "首页栏目");
+  const sectionRows = sectionList.locator(".el-table__body tbody tr");
+  await sectionList
+    .getByRole("button", { name: "拖动排序 使用指南", exact: true })
+    .dragTo(sectionRows.first(), {
+      targetPosition: { x: 50, y: 6 },
+    });
+  await expect(sectionList.getByRole("status")).toHaveText("栏目顺序已保存");
+  await expect(sectionRows.first()).toContainText("使用指南");
   await sectionList
     .getByRole("button", { name: "新增栏目", exact: true })
     .click();
@@ -3065,7 +3073,7 @@ test("encouragement daily reward, donation ratio and paged account portals", asy
   });
   await guest.goto("/series?q=writing-series&pageSize=40");
   const seriesResult = guest.locator(
-    ".entry-heading a[href^='/series/writing-series']",
+    ".compact-series-list a[href^='/series/writing-series']",
   );
   await expect(seriesResult).toBeVisible();
   const [seriesTab] = await Promise.all([
@@ -3095,6 +3103,57 @@ test("encouragement daily reward, donation ratio and paged account portals", asy
   await articleTab.close();
   await expect(seriesTab).toHaveURL(/\/series\/writing-series/);
   await expect(guest).toHaveURL(/\/series\?q=writing-series&pageSize=40/);
+
+  await admin.goto(staff("/admin/workspace?view=series"));
+  const seriesRow = workspace(admin)
+    .getByRole("row")
+    .filter({
+      has: admin.getByRole("cell", { name: "writing-series", exact: true }),
+    });
+  await seriesRow
+    .getByRole("button", { name: "置顶内容", exact: true })
+    .click();
+  const pins = admin.getByRole("dialog", { name: "写作备考专栏 · 置顶内容" });
+  const pinnedApp = pins
+    .getByRole("row")
+    .filter({ hasText: product.content.nameZh });
+  const pinnedArticle = pins
+    .getByRole("row")
+    .filter({ hasText: "免费阅读验收文章" });
+  await pinnedApp.getByRole("button", { name: "置顶", exact: true }).click();
+  await expect(pinnedApp.getByText("已置顶", { exact: true })).toBeVisible();
+  await pinnedArticle
+    .getByRole("button", { name: "置顶", exact: true })
+    .click();
+  await expect(
+    pinnedArticle.getByText("已置顶", { exact: true }),
+  ).toBeVisible();
+  await expect(pins.locator(".el-table__body tbody tr").first()).toContainText(
+    "免费阅读验收文章",
+  );
+  await pinnedApp
+    .getByRole("button", { name: "移到最前", exact: true })
+    .click();
+  await expect(pins.locator(".el-table__body tbody tr").first()).toContainText(
+    product.content.nameZh,
+  );
+  const top = await (
+    await guest.request.get("/api/public/series/writing-series")
+  ).json();
+  expect(top.items[0].ref).toBe(product.id);
+  await pinnedApp
+    .getByRole("button", { name: "取消置顶", exact: true })
+    .click();
+  await expect(
+    pinnedApp.getByRole("button", { name: "置顶", exact: true }),
+  ).toBeVisible();
+  await pinnedArticle
+    .getByRole("button", { name: "取消置顶", exact: true })
+    .click();
+  await expect(
+    pinnedArticle.getByRole("button", { name: "置顶", exact: true }),
+  ).toBeVisible();
+  await pins.locator(".el-dialog__headerbtn").click();
   const updated = await admin.request.put(staff("/api/admin/series/" + key), {
     headers,
     data: { ...series, refs: series.refs.toReversed(), revision: 1 },
@@ -3156,6 +3215,11 @@ test("encouragement daily reward, donation ratio and paged account portals", asy
   await expect(
     guest.locator("#" + section.id + " a.catalog-more-link"),
   ).toHaveAttribute("target", "_blank");
+  const seriesNav = guest.locator(".public-site-nav a[href='/series']");
+  await expect(seriesNav).not.toHaveAttribute("target", "_blank");
+  await seriesNav.click();
+  await expect(guest).toHaveURL(/\/series$/);
+  await guest.goto("/");
   expect(
     (
       await admin.request.put(sectionPath + "/" + section.id, {

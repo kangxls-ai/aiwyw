@@ -183,48 +183,46 @@ body.published-page {
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
-.series-contents a:hover,
-.series-contents a:focus-visible {
-  border-color: #b8a5dd;
-}
-
+/* 专栏及内部目录用文字行和分隔线，保留新页签阅读。 */
 .series-page {
   padding: 32px 0 48px;
 }
 .series-page > h2 {
   margin: 26px 0 12px;
 }
-.series-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
-  gap: 12px;
-  margin: 12px 0 18px;
+.compact-series-list {
+  margin: 10px 0 20px;
   padding: 0;
   list-style: none;
+  border-block: 1px solid #ded9ea;
 }
-.series-cards a {
+.compact-series-list li + li {
+  border-top: 1px solid #ded9ea;
+}
+.compact-series-list a {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  height: 100%;
-  padding: 15px;
-  border: 1px solid #e0e3ef;
-  border-radius: 12px;
-  background: #fff;
+  padding: 13px 8px;
+  text-decoration: none;
   overflow-wrap: anywhere;
 }
-.series-cards strong {
+.compact-series-list a:hover,
+.compact-series-list a:focus-visible {
+  background: #f6f3fc;
+}
+.compact-series-list strong {
   color: #453477;
 }
-.series-cards span {
+.compact-series-list span {
   color: #59627b;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 .series-contents {
-  display: block;
-  padding-inline-start: 32px;
+  padding-inline-start: 30px;
   list-style: decimal-leading-zero;
 }
 .series-contents li {
-  margin: 10px 0;
   padding-inline-start: 5px;
 }

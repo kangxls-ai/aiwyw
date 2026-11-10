@@ -6,12 +6,14 @@ const props = withDefaults(
   defineProps<{
     timeProp?: string;
     serverSort?: boolean;
+    sortableTime?: boolean;
     showCreator?: boolean;
     localized?: boolean;
   }>(),
   {
     timeProp: "created_at",
     serverSort: false,
+    sortableTime: true,
     showCreator: true,
     localized: false,
   },
@@ -45,7 +47,7 @@ const identity = (row: any) =>
     :label="t('创建时间', 'Created at')"
     :prop="timeProp"
     min-width="175"
-    :sortable="serverSort ? 'custom' : true"
+    :sortable="sortableTime && (serverSort ? 'custom' : true)"
     :sort-orders="['descending', 'ascending']"
     ><template #default="{ row }">{{
       Number(row[timeProp] ?? row.created_at ?? row.createdAt) > 0

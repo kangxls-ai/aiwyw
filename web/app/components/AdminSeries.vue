@@ -30,6 +30,13 @@ const form = reactive<Omit<Row, "createdAt">>({
 });
 const baseline = ref(JSON.stringify(form));
 const changed = useState("catalog-changed", () => 0);
+const pinDialog = ref<{ endpoint: string; title: string } | null>(null);
+function showPins(id: string, title: string) {
+  pinDialog.value = {
+    endpoint: "/api/admin/series/" + id + "/pins",
+    title: title + " · 置顶内容",
+  };
+}
 async function load() {
   try {
     rows.value = await request<Row[]>("/api/admin/series");
@@ -151,7 +158,7 @@ async function remove(row: Row) {
           row.refs.length
         }}</template></el-table-column
       >
-      <el-table-column label="操作" width="205"
+      <el-table-column label="操作" width="265"
         ><template #default="{ row }">
           <a
             v-if="row.published"
@@ -166,6 +173,9 @@ async function remove(row: Row) {
               tabs.openEntityEditor('series', { id: row.id, name: row.titleZh })
             "
             >编辑</el-button
+          >
+          <el-button link @click="showPins(row.id, row.titleZh)"
+            >置顶内容</el-button
           >
           <el-button link type="danger" @click="remove(row as Row)"
             >删除</el-button
@@ -205,5 +215,9 @@ async function remove(row: Row) {
     <el-button type="primary" native-type="submit" :loading="busy"
       >保存专栏</el-button
     >
+    <el-button v-if="form.id" @click="showPins(form.id, form.titleZh)"
+      >置顶目录内容</el-button
+    >
   </el-form>
+  <PinItems v-model="pinDialog" />
 </template>

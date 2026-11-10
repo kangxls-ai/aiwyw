@@ -162,8 +162,8 @@ final class PublishedWebsite {
         if (detail.items().isEmpty()) {
           items.append("<p>").append(en ? "No published items yet." : "暂无已发布内容。").append("</p>");
         } else {
-          items.append("<ol class='static-series-items'>");
-          for (var item : detail.items()) items.append("<li>").append(resource(item, en, true)).append("</li>");
+          items.append("<ol class='compact-series-list series-contents'>");
+          for (var item : detail.items()) items.append(compactItem(item, en));
           items.append("</ol>");
         }
         String crumbs = "<nav class='public-breadcrumb' aria-label='当前位置'><a href='/'>"
@@ -282,7 +282,7 @@ final class PublishedWebsite {
         + "<link rel='icon' href='/images/weiyunwan.svg'><link rel='stylesheet' href='/ui-theme.css?v=2'>"
         + "<link rel='stylesheet' href='/site-shell.css?v=2'><link rel='stylesheet' href='/static-website.css'>"
         + "</head><body class='published-page static-website'>"
-        + UiPresentation.header(site, nav, toggle, !path.equals("/series"))
+        + UiPresentation.header(site, nav, toggle)
         + "<main class='public-site-width'>" + body + "</main>" + UiPresentation.footer(site)
         + "</body></html>", indexing, false);
   }
@@ -318,9 +318,9 @@ final class PublishedWebsite {
     html.append("</select></label><button type='submit'>").append(en ? "Search" : "搜索").append("</button></form>");
     if (page.cards().isEmpty()) return html.append("<p>").append(en ? "No published series" : "暂无已发布专栏")
         .append("</p>").toString();
-    html.append("<div class='static-resources'>");
-    for (var item : Series.items(page.cards())) html.append(resource(item, en));
-    html.append("</div><nav class='static-series-pager' aria-label='").append(en ? "Pagination" : "分页")
+    html.append("<ul class='compact-series-list'>");
+    for (var item : Series.items(page.cards())) html.append(compactItem(item, en));
+    html.append("</ul><nav class='static-series-pager' aria-label='").append(en ? "Pagination" : "分页")
         .append("'><span>").append(en ? page.total() + " series" : "共 " + page.total() + " 个专栏").append("</span>");
     if (page.total() > Series.DEFAULT_PAGE_SIZE)
       html.append("<a href='/series?page=2&amp;lang=").append(en ? "en" : "zh").append("'>")
@@ -332,11 +332,18 @@ final class PublishedWebsite {
     return " target='_blank' rel='noopener noreferrer'";
   }
 
-  private static String resource(Map<?, ?> row, boolean en) {
-    return resource(row, en, value(row, "kind").equals("SERIES"));
+  private static String compactItem(Map<?, ?> row, boolean en) {
+    String href = value(row, "href");
+    String summary = local(en, value(row, "summary"), value(row, "summaryEn"));
+    if (row.get("product") instanceof Catalog.Product product)
+      summary = local(en, product.content().summaryZh(), product.content().summaryEn());
+    return "<li><a href='" + escape(href + (en ? "?lang=en" : "")) + "'" + newTabAttributes() + "><strong>"
+        + escape(local(en, value(row, "name"), value(row, "nameEn"))) + "</strong>"
+        + (summary.isBlank() ? "" : "<span>" + escape(summary) + "</span>") + "</a></li>";
   }
 
-  private static String resource(Map<?, ?> row, boolean en, boolean openTab) {
+  private static String resource(Map<?, ?> row, boolean en) {
+    boolean openTab = value(row, "kind").equals("SERIES");
     String href = value(row, "href");
     String name = local(en, value(row, "name"), value(row, "nameEn"));
     String summary = local(en, value(row, "summary"), value(row, "summaryEn"));

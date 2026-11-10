@@ -18,6 +18,88 @@ const sections = ref<AdminSection[]>([]),
   notice = ref(""),
   base = ref("");
 const changed = useState("catalog-changed", () => 0);
+const pinDialog = ref<{ endpoint: string; title: string } | null>(null);
+const dragging = ref("");
+const dropTarget = ref<{ id: string; before: boolean } | null>(null);
+function showPins(id: string, title: string) {
+  pinDialog.value = {
+    endpoint: "/api/admin/catalog/sections/" + id + "/pins",
+    title: title + " · 置顶内容",
+  };
+}
+function dragStart(event: DragEvent, row: AdminSection) {
+  if (busy.value) {
+    event.preventDefault();
+    return;
+  }
+  dragging.value = row.id;
+  event.dataTransfer?.setData("text/plain", row.id);
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+}
+function clearDrag() {
+  dragging.value = "";
+  dropTarget.value = null;
+}
+function targetRow(event: DragEvent) {
+  const row = (event.target as Element | null)?.closest("tr");
+  const id = row?.querySelector<HTMLElement>("[data-section-order-id]")?.dataset
+    .sectionOrderId;
+  if (!dragging.value || !row || !id || id === dragging.value) return null;
+  const box = row.getBoundingClientRect();
+  return { id, before: event.clientY < box.top + box.height / 2 };
+}
+function dragOver(event: DragEvent) {
+  dropTarget.value = targetRow(event);
+  if (dropTarget.value) event.preventDefault();
+}
+async function drop(event: DragEvent) {
+  const to = targetRow(event),
+    from = dragging.value;
+  clearDrag();
+  if (!to) return;
+  event.preventDefault();
+  const order = sections.value.filter((row) => row.id !== from);
+  const moving = sections.value.find((row) => row.id === from);
+  if (!moving) return;
+  const index = order.findIndex((row) => row.id === to.id);
+  order.splice(index + (to.before ? 0 : 1), 0, moving);
+  await persistOrder(order);
+}
+async function move(row: AdminSection, direction: number) {
+  const index = sections.value.findIndex((item) => item.id === row.id);
+  const next = index + direction;
+  if (index < 0 || next < 0 || next >= sections.value.length) return;
+  const order = [...sections.value];
+  order.splice(index, 1);
+  order.splice(next, 0, row);
+  await persistOrder(order);
+}
+async function persistOrder(order: AdminSection[]) {
+  if (
+    busy.value ||
+    order.every((row, index) => row.id === sections.value[index]?.id)
+  )
+    return;
+  busy.value = true;
+  error.value = "";
+  notice.value = "";
+  try {
+    sections.value = await request<AdminSection[]>(
+      "/api/admin/catalog/sections/order",
+      {
+        method: "PUT",
+        body: order.map(({ id, revision }) => ({ id, revision })),
+      },
+    );
+    changed.value++;
+    notice.value = "栏目顺序已保存";
+  } catch (e) {
+    error.value = message(e);
+    await load().catch(() => {});
+  } finally {
+    busy.value = false;
+  }
+}
 const applicationCount = computed(
   () =>
     sections.value.filter(
@@ -31,7 +113,10 @@ const empty = (): SectionConfig => ({
   subtitleEn: "",
   icon: "star",
   enabled: true,
-  position: sections.value.length,
+  position: Math.min(
+    1000,
+    1 + Math.max(-1, ...sections.value.map((row) => row.config.position)),
+  ),
   mode: "MANUAL",
   sort: "LATEST",
   days: 30,
@@ -153,10 +238,14 @@ onBeforeUnmount(() => unregister?.());
         <span>HOME SECTIONS</span>
         <h1>首页栏目</h1>
         <p>
-          应用展示栏目最多6个（含停用）；文章、专栏和API导航独立维护，可设置显隐；API显示时始终位于导航末尾。
+          拖动手柄调整首页顺序，也可聚焦手柄后按方向键。顶部 API
+          导航固定在末尾。
         </p>
       </div>
       <div class="admin-table-actions">
+        <el-button @click="showPins('all-applications', '全部应用')"
+          >全部应用置顶</el-button
+        >
         <el-button
           type="primary"
           :disabled="applicationCount >= 6"
@@ -183,33 +272,45 @@ onBeforeUnmount(() => unregister?.());
     <p v-if="notice" class="alert success" role="status">{{ notice }}</p>
     <el-card v-if="!editor" shadow="never"
       ><el-table
-        :default-sort="{ prop: 'createdAt', order: 'descending' }"
         :data="sections"
         row-key="id"
-        ><ObjectColumns time-prop="createdAt" /><el-table-column
-          prop="config.position"
-          sortable
-          :sort-orders="['descending', 'ascending']"
-          label="顺序"
-          width="80"
-          ><template #default="{ row }">{{
-            row.config.position
-          }}</template></el-table-column
-        ><el-table-column
-          prop="config.titleZh"
-          sortable
-          :sort-orders="['descending', 'ascending']"
-          label="栏目"
-          min-width="180"
+        v-loading="busy"
+        :row-class-name="
+          ({ row }) =>
+            dropTarget && dropTarget.id === row.id
+              ? dropTarget.before
+                ? 'section-drop-before'
+                : 'section-drop-after'
+              : ''
+        "
+        @dragover="dragOver"
+        @drop="drop"
+        ><el-table-column label="排序" width="72">
+          <template #default="{ row }">
+            <button
+              class="section-drag"
+              type="button"
+              :draggable="!busy"
+              :disabled="busy"
+              :data-section-order-id="row.id"
+              :aria-label="'拖动排序 ' + row.config.titleZh"
+              title="拖动排序，也可按上下方向键"
+              @dragstart="dragStart($event, row as AdminSection)"
+              @dragend="clearDrag"
+              @keydown.up.prevent="move(row as AdminSection, -1)"
+              @keydown.down.prevent="move(row as AdminSection, 1)"
+            >
+              ⠿
+            </button>
+          </template> </el-table-column
+        ><ObjectColumns
+          time-prop="createdAt"
+          :sortable-time="false"
+        /><el-table-column prop="config.titleZh" label="栏目" min-width="180"
           ><template #default="{ row }">{{
             row.config.titleZh
           }}</template></el-table-column
-        ><el-table-column
-          prop="config.mode"
-          sortable
-          :sort-orders="['descending', 'ascending']"
-          label="选品"
-          min-width="130"
+        ><el-table-column prop="config.mode" label="选品" min-width="130"
           ><template #default="{ row }">{{
             {
               MANUAL: "人工选品",
@@ -228,12 +329,7 @@ onBeforeUnmount(() => unregister?.());
                 | "SERIES"
             ]
           }}</template></el-table-column
-        ><el-table-column
-          prop="config.enabled"
-          sortable
-          :sort-orders="['descending', 'ascending']"
-          label="状态"
-          width="90"
+        ><el-table-column prop="config.enabled" label="状态" width="90"
           ><template #default="{ row }"
             ><el-tag :type="row.config.enabled ? 'success' : 'info'">{{
               row.config.enabled ? "显示" : "停用"
@@ -243,10 +339,12 @@ onBeforeUnmount(() => unregister?.());
           align="center"
           header-align="center"
           label="操作"
-          width="160"
+          width="215"
           ><template #default="{ row }"
             ><el-button link type="primary" @click="open(row as AdminSection)"
               >编辑</el-button
+            ><el-button link @click="showPins(row.id, row.config.titleZh)"
+              >置顶内容</el-button
             ><el-button link type="danger" @click="remove(row as AdminSection)"
               >删除</el-button
             ></template
@@ -281,14 +379,7 @@ onBeforeUnmount(() => unregister?.());
         ><el-form-item label="英文说明"
           ><el-input v-model="form.subtitleEn" maxlength="200"
         /></el-form-item>
-        <el-form-item label="顺序"
-          ><el-input-number
-            v-model="form.position"
-            aria-label="栏目顺序"
-            :min="0"
-            :max="1000"
-            controls-position="right" /></el-form-item
-        ><el-form-item v-if="form.mode === 'SERIES'" label="首页显示数量">
+        <el-form-item v-if="form.mode === 'SERIES'" label="首页显示数量">
           <span>最新 20 个已发布专栏</span> </el-form-item
         ><el-form-item v-else label="首页显示数量"
           ><el-input-number
@@ -383,5 +474,27 @@ onBeforeUnmount(() => unregister?.());
           <SelectionPicker v-model="form.productIds" />
         </div> </el-form
     ></el-card>
+    <PinItems v-model="pinDialog" />
   </section>
 </template>
+<style scoped>
+.section-drag {
+  width: 36px;
+  height: 32px;
+  border: 1px solid #ded9ea;
+  border-radius: 6px;
+  color: #574382;
+  background: #fff;
+  font-size: 20px;
+  cursor: grab;
+}
+.section-drag:active {
+  cursor: grabbing;
+}
+:deep(.section-drop-before > td) {
+  box-shadow: inset 0 2px #8569bb;
+}
+:deep(.section-drop-after > td) {
+  box-shadow: inset 0 -2px #8569bb;
+}
+</style>

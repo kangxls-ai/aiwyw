@@ -309,14 +309,17 @@ class SectionSelectionController {
   final Auth auth;
   final ContentService content;
   final Series series;
+  final EditorialPins pins;
 
   SectionSelectionController(
-      SectionSelection service, Catalog catalog, Auth auth, ContentService content, Series series) {
+      SectionSelection service, Catalog catalog, Auth auth, ContentService content, Series series,
+      EditorialPins pins) {
     this.service = service;
     this.catalog = catalog;
     this.auth = auth;
     this.content = content;
     this.series = series;
+    this.pins = pins;
   }
 
   @GetMapping("/api/admin/catalog/selection")
@@ -388,12 +391,62 @@ class SectionSelectionController {
       @RequestParam org.springframework.util.MultiValueMap<String, String> filters) {
     if (!Set.of("applications", "articles", "apis").contains(kind))
       throw new Api.Failure(404, "目录不存在");
-    return browseRequest(null, kind, filters);
+    var configured = switch (kind) {
+      case "articles" -> catalog.sectionForMode("ARTICLES");
+      case "apis" -> catalog.sectionForMode("API");
+      default -> null;
+    };
+    return browseRequest(configured, kind, filters);
+  }
+
+  @GetMapping("/api/admin/catalog/sections/{id}/pins")
+  Map<String, Object> pinItems(@PathVariable String id,
+      @RequestParam org.springframework.util.MultiValueMap<String, String> filters, HttpServletRequest r) {
+    auth.permission(r, "sections");
+    var section = pinSection(id);
+    String scope = EditorialPins.scope(section, "applications");
+    var result = browseRequest(section, "applications", filters);
+    return pins.management(scope, (List<Map<String, Object>>) result.get("items"),
+        ((Number) result.get("total")).longValue(), ((Number) result.get("page")).intValue());
+  }
+
+  @PutMapping("/api/admin/catalog/sections/{id}/pins")
+  Map<String, Boolean> pin(@PathVariable String id, @RequestBody EditorialPins.Change input,
+      HttpServletRequest r) {
+    String actor = auth.permission(r, "sections").id();
+    var section = pinSection(id);
+    pins.change(EditorialPins.scope(section, "applications"), input, actor,
+        () -> eligible(pinSection(id), input.ref()));
+    return Map.of("success", true);
+  }
+
+  private Catalog.Section pinSection(String id) {
+    return id.equals(EditorialPins.ALL_APPLICATIONS) ? null : findSection(id, false);
+  }
+
+  private boolean eligible(Catalog.Section section, String ref) {
+    String mode = section == null ? "AUTO" : section.config().mode();
+    if (mode.equals("SERIES"))
+      return ref.startsWith("series:") && service.db.queryForObject(
+          "SELECT COUNT(*) FROM editorial_series WHERE id=? AND published=TRUE",
+          Long.class, ref.substring("series:".length())) > 0;
+    if (mode.equals("ARTICLES") && !ref.startsWith("content:")
+        || mode.equals("API") && !ref.startsWith("api:")
+        || Set.of("AUTO", "TAG").contains(mode) && ref.contains(":")
+        || mode.equals("MANUAL") && !section.config().productIds().contains(ref)) return false;
+    if (mode.equals("TAG"))
+      return productItems(section).stream().anyMatch(row -> ref.equals(row.get("ref")));
+    return service.db.queryForObject("SELECT COUNT(*) FROM (" + SectionSelection.source()
+        + ") s WHERE ref=? AND status='PUBLISHED'", Long.class, ref) > 0;
   }
 
   private Catalog.Section section(String id) {
+    return findSection(id, true);
+  }
+
+  private Catalog.Section findSection(String id, boolean enabledOnly) {
     return catalog.sections().stream()
-        .filter(s -> s.id().equals(id) && s.config().enabled())
+        .filter(s -> s.id().equals(id) && (!enabledOnly || s.config().enabled()))
         .findFirst()
         .orElseThrow(() -> new Api.Failure(404, "栏目不存在或已停用"));
   }
@@ -490,10 +543,15 @@ class SectionSelectionController {
       int size,
       boolean includeTags) {
     String mode = section == null ? directory : section.config().mode();
+    String scope = EditorialPins.scope(section, directory);
+    if (mode.equals("SERIES")) {
+      var data = series.browse(q, page, size, scope);
+      return Map.of("items", Series.items(data.cards()), "total", data.total(), "page", data.page(), "tags", List.of());
+    }
     if (Set.of("ARTICLES", "articles").contains(mode)) {
       if (!type.isBlank() && !ARTICLE_TYPES.contains(type))
         return result(List.of(), 0, 1, List.of());
-      var data = content.list(false, Set.of(), q, type, page, size, "created_at", "descending");
+      var data = content.list(false, Set.of(), q, type, page, size, "created_at", "descending", scope);
       var rows = (List<Map<String, Object>>) data.get("items");
       return result(
           rows.stream().map(SectionSelection::articleItem).toList(),
@@ -501,12 +559,12 @@ class SectionSelectionController {
           ((Number) data.get("page")).intValue(),
           List.of());
     }
-    if (Set.of("API", "apis").contains(mode)) return apiPage(q, price, page, size);
+    if (Set.of("API", "apis").contains(mode)) return apiPage(q, price, page, size, scope);
     var all = productItems(section);
     var tags = includeTags ? tags(all) : List.<String>of();
     String term = q.toLowerCase(Locale.ROOT);
-    var matches =
-        all.stream().filter(row -> matches(row, term, selectedTags, type, price)).toList();
+    var matches = pins.order(scope,
+        all.stream().filter(row -> matches(row, term, selectedTags, type, price)).toList());
     int actual = Math.min(page, Math.max(1, (matches.size() + size - 1) / size));
     int offset = (actual - 1) * size;
     return result(
@@ -532,7 +590,15 @@ class SectionSelectionController {
                         .reversed()
                         .thenComparing(Catalog.Product::id))
                 .toList()
-            : data.sections().stream()
+            : !section.config().enabled()
+                ? data.products().stream()
+                    .filter(p -> p.status().equals("PUBLISHED"))
+                    .filter(p -> !section.config().mode().equals("TAG")
+                        || section.config().tags().stream().anyMatch(p.content().tags()::contains))
+                    .sorted(Comparator.comparingLong(Catalog.Product::firstPublishedAt).reversed()
+                        .thenComparing(Catalog.Product::id))
+                    .toList()
+                : data.sections().stream()
                 .filter(s -> s.id().equals(section.id()))
                 .findFirst()
                 .map(Catalog.SectionView::products)
@@ -592,7 +658,7 @@ class SectionSelectionController {
         .contains(term);
   }
 
-  private Map<String, Object> apiPage(String q, String price, int page, int size) {
+  private Map<String, Object> apiPage(String q, String price, int page, int size, String scope) {
     String term =
         "%"
             + q.toLowerCase(Locale.ROOT).replace("!", "!!").replace("%", "!%").replace("_", "!_")
@@ -609,9 +675,10 @@ class SectionSelectionController {
         Commerce.safeRows(
             service.db.queryForList(
                 "SELECT id,slug,name,name_en,description,description_en,price_units FROM"
-                    + " api_definition"
+                    + " api_definition" + EditorialPins.join("CONCAT('api:',api_definition.id)")
                     + where
-                    + " ORDER BY created_at DESC,id LIMIT ? OFFSET ?",
+                    + " ORDER BY " + EditorialPins.ORDER + "created_at DESC,id LIMIT ? OFFSET ?",
+                scope,
                 term,
                 size,
                 (actual - 1) * size));

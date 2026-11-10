@@ -8,7 +8,7 @@ const props = defineProps<{
 }>();
 const route = useRoute(),
   { request } = useApi(),
-  { t } = useLanguage();
+  { t, zh } = useLanguage();
 const sizes = [40, 60, 100, 150, 200];
 const size = computed(() =>
   sizes.includes(Number(route.query.pageSize))
@@ -202,7 +202,27 @@ function selectTags(values: string[]) {
       <el-button @click="refresh()">{{ t("重试", "Retry") }}</el-button>
     </div>
     <template v-else>
-      <div v-if="data?.items.length" class="directory-card-grid content-grid">
+      <ul
+        v-if="kind === 'SERIES' && data?.items.length"
+        class="compact-series-list"
+      >
+        <li v-for="item in data.items" :key="item.ref">
+          <a
+            :href="item.href && (zh ? item.href : item.href + '?lang=en')"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <strong>{{ t(item.name, item.nameEn || item.name) }}</strong>
+            <span v-if="item.summary || item.summaryEn">{{
+              t(item.summary || "", item.summaryEn || item.summary || "")
+            }}</span>
+          </a>
+        </li>
+      </ul>
+      <div
+        v-else-if="data?.items.length"
+        class="directory-card-grid content-grid"
+      >
         <DirectoryCard
           v-for="item in data.items"
           :key="item.ref"

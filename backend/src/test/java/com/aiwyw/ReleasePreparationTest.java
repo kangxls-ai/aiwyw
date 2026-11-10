@@ -36,6 +36,7 @@ class ReleasePreparationTest {
   }
 
   @Autowired SectionSelection selection;
+  @Autowired EditorialPins pins;
   @Autowired Catalog catalog;
   @Autowired Settings settings;
   @Autowired ContentService content;
@@ -49,11 +50,14 @@ class ReleasePreparationTest {
   @Test
   void publishedSeriesHomeAndDirectoryUseIndependentPageLimits() throws Exception {
     String prefix = "series-page-test-";
+    var refs = new ArrayList<String>();
     try {
       for (int i = 1; i <= 103; i++) {
+        String id = Ids.next();
+        refs.add("series:" + id);
         db.update("INSERT INTO editorial_series(id,slug,title_zh,title_en,summary_zh,summary_en,"
             + "published,refs_json,revision,created_at) VALUES(?,?,?,?,?,?,?,'[]',1,?)",
-            Ids.next(), prefix + i, "分页验收专栏 " + i, "Series Page Fixture",
+            id, prefix + i, "分页验收专栏 " + i, "Series Page Fixture",
             "测试摘要", "Series Page Description", i < 103, 1700000000000L + i);
       }
       mvc.perform(get("/api/public/directory/series").param("q", "SERIES PAGE DESCRIPTION"))
@@ -69,15 +73,30 @@ class ReleasePreparationTest {
       var home = mvc.perform(get("/api/public/home-sections")).andExpect(status().isOk())
           .andReturn().getResponse().getContentAsByteArray();
       var json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(home);
-      for (var section : json) {
-        if (!section.path("kind").asText().equals("SERIES")) continue;
-        assertEquals(20, section.path("items").size());
-        assertEquals("/series/" + prefix + 102, section.path("items").get(0).path("href").asText());
-        assertEquals("/series/" + prefix + 83, section.path("items").get(19).path("href").asText());
-        return;
-      }
-      fail("Default series section missing");
+      var section = java.util.stream.StreamSupport.stream(json.spliterator(), false)
+          .filter(row -> row.path("kind").asText().equals("SERIES")).findFirst().orElseThrow();
+      assertEquals(20, section.path("items").size());
+      assertEquals("/series/" + prefix + 102, section.path("items").get(0).path("href").asText());
+      assertEquals("/series/" + prefix + 83, section.path("items").get(19).path("href").asText());
+
+      String scope = "section:" + section.path("id").asText();
+      pins.change(scope, new EditorialPins.Change(refs.get(0), true), "release-fixture", () -> true);
+      pins.change(scope, new EditorialPins.Change(refs.get(1), true), "release-fixture", () -> true);
+      mvc.perform(get("/api/public/directory/series").param("q", prefix))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.items[0].href").value("/series/" + prefix + 2))
+          .andExpect(jsonPath("$.items[1].href").value("/series/" + prefix + 1))
+          .andExpect(jsonPath("$.items[2].href").value("/series/" + prefix + 102));
+      mvc.perform(get("/api/public/directory/series").param("q", prefix + "102"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.total").value(1))
+          .andExpect(jsonPath("$.items[0].href").value("/series/" + prefix + 102));
+      pins.change(scope, new EditorialPins.Change(refs.get(0), true), "release-fixture", () -> true);
+      mvc.perform(get("/api/public/directory/series").param("q", prefix))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.items[0].href").value("/series/" + prefix + 1));
     } finally {
+      for (String ref : refs) db.update("DELETE FROM editorial_pin WHERE target_ref=?", ref);
       db.update("DELETE FROM editorial_series WHERE slug LIKE ?", prefix + "%");
     }
   }

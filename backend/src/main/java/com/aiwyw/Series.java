@@ -15,7 +15,8 @@ class Series {
   static final int DEFAULT_PAGE_SIZE = 100;
   static final List<Integer> PAGE_SIZES = List.of(40, 60, 100, 150, 200);
   private static final String PUBLIC_CARDS =
-      "SELECT slug,title_zh,title_en,summary_zh,summary_en FROM editorial_series WHERE published=TRUE";
+      "SELECT s.id,s.slug,s.title_zh,s.title_en,s.summary_zh,s.summary_en FROM editorial_series s";
+  private static final String PUBLIC_JOIN = EditorialPins.join("CONCAT('series:',s.id)");
 
   record Input(
       String slug,
@@ -39,7 +40,8 @@ class Series {
       long revision,
       long createdAt) {}
 
-  record Card(String slug, String titleZh, String titleEn, String summaryZh, String summaryEn) {}
+  record Card(@com.fasterxml.jackson.annotation.JsonIgnore String id,
+      String slug, String titleZh, String titleEn, String summaryZh, String summaryEn) {}
 
   record Detail(Card series, List<Map<String, Object>> items) {}
 
@@ -51,12 +53,17 @@ class Series {
   private final ObjectMapper json;
   private final SectionSelection selection;
   private final Auth auth;
+  private final Catalog catalog;
+  private final EditorialPins pins;
 
-  Series(JdbcTemplate db, ObjectMapper json, SectionSelection selection, Auth auth) {
+  Series(JdbcTemplate db, ObjectMapper json, SectionSelection selection, Auth auth,
+      Catalog catalog, EditorialPins pins) {
     this.db = db;
     this.json = json;
     this.selection = selection;
     this.auth = auth;
+    this.catalog = catalog;
+    this.pins = pins;
   }
 
   static void schema(JdbcTemplate db) {
@@ -130,18 +137,25 @@ class Series {
   }
 
   private List<Card> cards(Integer limit) {
-    return db.query(PUBLIC_CARDS + " ORDER BY created_at DESC,id" + (limit == null ? "" : " LIMIT ?"),
-        Series::card, limit == null ? new Object[0] : new Object[] {limit});
+    String scope = directoryScope();
+    return db.query(PUBLIC_CARDS + PUBLIC_JOIN + " WHERE s.published=TRUE ORDER BY "
+        + EditorialPins.ORDER + "s.created_at DESC,s.id" + (limit == null ? "" : " LIMIT ?"),
+        Series::card, limit == null ? new Object[] {scope} : new Object[] {scope, limit});
   }
 
   private static Card card(java.sql.ResultSet row, int index) throws java.sql.SQLException {
-    return new Card(row.getString(1), row.getString(2), row.getString(3), row.getString(4), row.getString(5));
+    return new Card(row.getString(1), row.getString(2), row.getString(3),
+        row.getString(4), row.getString(5), row.getString(6));
   }
 
   record Page(List<Card> cards, int page, long total) {}
 
   /** 公开目录只按数据库分页取已发布专栏；相同时间使用ID稳定排序，避免跨页重复。 */
   Page browse(String q, int page, int pageSize) {
+    return browse(q, page, pageSize, directoryScope());
+  }
+
+  Page browse(String q, int page, int pageSize, String scope) {
     if (page < 1 || page > 1000000 || !PAGE_SIZES.contains(pageSize))
       throw new Api.Failure(400, "专栏分页参数不正确");
     String term = SectionSelection.term(q.toLowerCase(Locale.ROOT));
@@ -156,9 +170,11 @@ class Series {
     long total = db.queryForObject("SELECT COUNT(*) FROM editorial_series WHERE published=TRUE" + where,
         Long.class, args.toArray());
     int actual = (int) Math.min(page, Math.max(1, (total + pageSize - 1) / pageSize));
+    args.add(0, scope);
     args.add(pageSize);
     args.add((long) (actual - 1) * pageSize);
-    var result = db.query(PUBLIC_CARDS + where + " ORDER BY created_at DESC,id LIMIT ? OFFSET ?",
+    var result = db.query(PUBLIC_CARDS + PUBLIC_JOIN + " WHERE s.published=TRUE" + where
+        + " ORDER BY " + EditorialPins.ORDER + "s.created_at DESC,s.id LIMIT ? OFFSET ?",
         Series::card, args.toArray());
     return new Page(result, actual, total);
   }
@@ -176,9 +192,13 @@ class Series {
     return items(cards(HOME_LIMIT));
   }
 
+  private String directoryScope() {
+    return EditorialPins.scope(catalog.sectionForMode("SERIES"), "series");
+  }
+
   static List<Map<String, Object>> items(List<Card> cards) {
     return cards.stream().map(c -> Map.<String, Object>of(
-        "ref", "series:" + c.slug(), "kind", "SERIES", "href", "/series/" + c.slug(),
+        "ref", "series:" + c.id(), "kind", "SERIES", "href", "/series/" + c.slug(),
         "name", c.titleZh(), "nameEn", c.titleEn(),
         "summary", c.summaryZh(), "summaryEn", c.summaryEn())).toList();
   }
@@ -193,8 +213,8 @@ class Series {
             .findFirst()
             .orElseThrow(() -> new Api.Failure(404, "专栏不存在"));
     return new Detail(
-        new Card(r.slug(), r.titleZh(), r.titleEn(), r.summaryZh(), r.summaryEn()),
-        selection.publicItems(r.refs()));
+        new Card(r.id(), r.slug(), r.titleZh(), r.titleEn(), r.summaryZh(), r.summaryEn()),
+        pins.order("series:" + r.id(), selection.publicItems(r.refs())));
   }
 
   @GetMapping("/api/admin/series")
@@ -206,9 +226,40 @@ class Series {
   @GetMapping("/api/admin/series/{id}")
   Row get(@PathVariable String id, HttpServletRequest r) {
     auth.permission(r, "series");
+    return byId(id);
+  }
+
+  private Row byId(String id) {
     return db.query("SELECT * FROM editorial_series WHERE id=?", this::row, id).stream()
         .findFirst()
         .orElseThrow(() -> new Api.Failure(404, "专栏不存在"));
+  }
+
+  @GetMapping("/api/admin/series/{id}/pins")
+  Map<String, Object> pinItems(@PathVariable String id, @RequestParam(defaultValue = "") String q,
+      @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "40") int pageSize,
+      HttpServletRequest r) {
+    auth.permission(r, "series");
+    var scope = "series:" + id;
+    SectionSelection.term(q);
+    String term = q.trim().toLowerCase(Locale.ROOT);
+    var items = pins.order(scope, selection.publicItems(byId(id).refs())).stream()
+        .filter(item -> (item.get("name") + " " + item.get("nameEn") + " " + item.get("href"))
+            .toLowerCase(Locale.ROOT).contains(term)).toList();
+    int actual = SectionSelection.pageNumber(page, pageSize, items.size());
+    int offset = (actual - 1) * pageSize;
+    return pins.management(scope, items.subList(offset, Math.min(offset + pageSize, items.size())),
+        items.size(), actual);
+  }
+
+  @PutMapping("/api/admin/series/{id}/pins")
+  Map<String, Boolean> pin(@PathVariable String id, @RequestBody EditorialPins.Change input,
+      HttpServletRequest r) {
+    String actor = auth.permission(r, "series").id();
+    byId(id);
+    pins.change("series:" + id, input, actor, () ->
+        byId(id).refs().contains(input.ref()) && !selection.publicItems(List.of(input.ref())).isEmpty());
+    return Map.of("success", true);
   }
 
   @PostMapping("/api/admin/series")
@@ -286,6 +337,8 @@ class Series {
     SeriesLinks.lock(db);
     if (db.update("DELETE FROM editorial_series WHERE id=? AND revision=?", id, revision) != 1)
       throw new Api.Failure(409, "专栏已被修改，请刷新后重试");
+    EditorialPins.clear(db, "series:" + id);
+    db.update("DELETE FROM editorial_pin WHERE target_ref=?", "series:" + id);
     AuditLog.write(db, "catalog_audit", actor.id(), id, "DELETE_SERIES", "删除专栏目录");
     return Map.of("success", true);
   }

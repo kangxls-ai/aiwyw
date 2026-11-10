@@ -214,6 +214,7 @@ public class Database {
     ContentSchema.migrate(j);
     WebPublicationPath.migrate(d, j);
     Series.schema(j);
+    EditorialPins.schema(j);
     OperationsSchema.migrate(j);
     ManagementSchema.migrate(d, j);
     ExperienceSchema.migrate(d, j);

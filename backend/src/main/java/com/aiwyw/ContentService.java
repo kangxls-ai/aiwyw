@@ -335,6 +335,11 @@ public class ContentService {
       int size,
       String sort,
       String direction) {
+    return list(admin, allowed, q, kind, page, size, sort, direction, null);
+  }
+
+  Map<String, Object> list(boolean admin, Set<String> allowed, String q, String kind,
+      int page, int size, String sort, String direction, String pinScope) {
     if (q == null
         || q.length() > 100
         || page < 1
@@ -387,6 +392,11 @@ public class ContentService {
             "d.id");
     long total = db.queryForObject("SELECT COUNT(*)" + base + where, Long.class, args.toArray());
     int actual = (int) Math.min(page, Math.max(1, (total + size - 1) / size));
+    if (pinScope != null) {
+      base += EditorialPins.join("CONCAT('content:',d.id)");
+      ordering = EditorialPins.ORDER + ordering;
+      args.add(0, pinScope);
+    }
     args.add(size);
     args.add((actual - 1) * size);
     String cols =

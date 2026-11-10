@@ -469,6 +469,41 @@ public class Catalog {
         .toList();
   }
 
+  Section sectionForMode(String mode) {
+    return sections().stream().filter(s -> s.config().mode().equals(mode)).findFirst().orElse(null);
+  }
+
+  record SectionOrder(String id, long revision) {}
+
+  /** 整体顺序一次提交；并发编辑或增删栏目时要求刷新，避免覆盖另一位运营者的更新。 */
+  void reorderSections(List<SectionOrder> order, String actor) {
+    initialize();
+    if (order == null || order.size() > 9) throw new Api.Failure(400, "栏目顺序不正确");
+    tx.executeWithoutResult(status -> {
+      lock();
+      var current = new HashMap<String, Section>();
+      for (var section : sections()) current.put(section.id(), section);
+      if (current.size() != order.size()) throw new Api.Failure(409, "栏目列表已变化，请刷新后重试");
+      int position = 0;
+      for (var item : order) {
+        var row = item == null ? null : current.remove(item.id());
+        if (row == null || row.revision() != item.revision())
+          throw new Api.Failure(409, "栏目列表已变化，请刷新后重试");
+        var c = row.config();
+        if (c.position() != position) {
+          var updated = new SectionInput(c.titleZh(), c.titleEn(), c.subtitleZh(), c.subtitleEn(),
+              c.icon(), c.enabled(), position, c.mode(), c.sort(), c.days(), c.limit(), c.tags(),
+              c.productIds(), row.revision() + 1);
+          db.update("UPDATE home_section SET config_json=?,revision=revision+1 WHERE id=?",
+              encode(updated), row.id());
+        }
+        position++;
+      }
+      audit(actor, "home-sections", "REORDER_SECTIONS", "调整首页栏目顺序");
+      invalidateAfterCommit();
+    });
+  }
+
   public String saveSection(String id, SectionInput c, String actor) {
     initialize();
     if (c == null
@@ -556,6 +591,7 @@ public class Catalog {
           lock();
           if (db.update("DELETE FROM home_section WHERE id=? AND revision=?", id, revision) != 1)
             throw new Api.Failure(409, "栏目已变化，请刷新后重试");
+          EditorialPins.clear(db, "section:" + id);
           audit(actor, id, "DELETE_SECTION", "products retained");
           invalidateAfterCommit();
         });

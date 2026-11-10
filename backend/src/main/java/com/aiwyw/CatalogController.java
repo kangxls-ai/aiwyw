@@ -147,6 +147,12 @@ public class CatalogController {
     return Map.of("id", catalog.saveSection(null, input, auth.editor(req).id()));
   }
 
+  @PutMapping("/api/admin/catalog/sections/order")
+  List<Catalog.Section> reorderSections(@RequestBody List<Catalog.SectionOrder> order, HttpServletRequest req) {
+    catalog.reorderSections(order, auth.permission(req, "sections").id());
+    return catalog.sections();
+  }
+
   @PutMapping("/api/admin/catalog/sections/{id}")
   public Map<String, String> saveSection(
       @PathVariable String id, @RequestBody Catalog.SectionInput input, HttpServletRequest req) {

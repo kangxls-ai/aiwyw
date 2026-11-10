@@ -52,7 +52,7 @@ final class UiPresentation {
                 + "\">"
                 + (en ? "中文" : "English")
                 + "</a>";
-    String header = header(site, sections, toggle, true);
+    String header = header(site, sections, toggle);
     if (product)
       html =
           html.replaceFirst(
@@ -148,7 +148,7 @@ final class UiPresentation {
   }
 
   static String header(Map<String, String> site, List<Catalog.SectionView> sections,
-      String toggle, boolean openSeriesTab) {
+      String toggle) {
     String brand = escape(site.getOrDefault("site.name", "微云湾"));
     String slogan = site.getOrDefault("site.slogan", "以技术为舟，向未来远航");
     StringBuilder nav = new StringBuilder();
@@ -166,10 +166,7 @@ final class UiPresentation {
                   };
               nav.append("<a href=\"")
                   .append(escape(href))
-                  .append("\"")
-                  .append(c.mode().equals("SERIES") && openSeriesTab
-                      ? " target=\"_blank\" rel=\"noopener noreferrer\"" : "")
-                  .append(">")
+                  .append("\">")
                   .append(dual(c.titleZh(), c.titleEn().isBlank() ? c.titleZh() : c.titleEn()))
                   .append("</a>");
             });

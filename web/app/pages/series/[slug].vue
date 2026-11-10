@@ -48,7 +48,7 @@ useHead(() => ({ title: title.value }));
         </p>
       </div>
       <h2>{{ t("系列目录", "Contents") }}</h2>
-      <ol v-if="data.items.length" class="series-cards series-contents">
+      <ol v-if="data.items.length" class="compact-series-list series-contents">
         <li v-for="item in data.items" :key="item.ref">
           <a
             :href="item.href && (zh ? item.href : item.href + '?lang=en')"

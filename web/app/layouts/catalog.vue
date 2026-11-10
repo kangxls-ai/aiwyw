@@ -48,14 +48,6 @@ onMounted(() => {
               v-for="section in catalog.sections"
               :key="section.id"
               :external="staticDelivery && section.kind === 'SERIES'"
-              :target="
-                section.kind === 'SERIES' && route.path !== '/series'
-                  ? '_blank'
-                  : undefined
-              "
-              :rel="
-                section.kind === 'SERIES' ? 'noopener noreferrer' : undefined
-              "
               :aria-current="
                 route.path === '/sections/' + section.id ||
                 route.path === section.href
