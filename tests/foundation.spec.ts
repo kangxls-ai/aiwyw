@@ -2992,12 +2992,12 @@ test("encouragement daily reward, donation ratio and paged account portals", asy
   expect(choicesPage.items[0].ref).toBe(key);
 
   const articlePath = staff("/api/admin/content/" + id);
-  const article = await (await admin.request.get(articlePath)).json();
+  const articleState = await (await admin.request.get(articlePath)).json();
   expect(
     (
       await admin.request.post(articlePath + "/publish", {
         headers,
-        data: { revision: article.revision, seriesIds: [key, second] },
+        data: { revision: articleState.revision, seriesIds: [key, second] },
       })
     ).status(),
   ).toBe(200);
