@@ -70,7 +70,7 @@ public class RoleController {
         && !b.menus().containsAll(List.of("settings", "users", "roles", "security", "audit")))
       throw new Api.Failure(400, "管理员须保留配置、用户、角色、安全和审计入口");
     if (b.revision() == 0) {
-      if (!id.matches("[a-f0-9-]{36}")) throw new Api.Failure(400, "新角色标识不正确");
+      if (!id.matches(Ids.REGEX)) throw new Api.Failure(400, "新角色标识不正确");
       db.update(
           "INSERT INTO access_role VALUES(?,?,FALSE,1,?)",
           id,

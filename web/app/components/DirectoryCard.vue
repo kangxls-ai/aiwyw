@@ -33,6 +33,7 @@ const category = computed(() => {
         TUTORIAL: t("教程", "Tutorial"),
         FAQ: "FAQ",
         CASE: t("案例", "Case study"),
+        SERIES: t("专栏", "Series"),
       } as Record<string, string>
     )[props.item.kind] || t("内容", "Content")
   );

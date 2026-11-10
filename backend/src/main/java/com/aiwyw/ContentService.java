@@ -146,7 +146,7 @@ public class ContentService {
     return tx.execute(
         s -> {
           guard();
-          String key = id == null ? UUID.randomUUID().toString() : id;
+          String key = id == null ? Ids.next() : id;
           long now = System.currentTimeMillis();
           if (db.queryForObject(
                   "SELECT COUNT(*) FROM content_document WHERE slug=? AND id<>?",
@@ -191,6 +191,10 @@ public class ContentService {
   }
 
   public void publish(String id, long revision, String actor) {
+    publish(id, revision, actor, null);
+  }
+
+  void publish(String id, long revision, String actor, List<String> seriesIds) {
     String slug =
         tx.execute(
             s -> {
@@ -203,15 +207,16 @@ public class ContentService {
                 throw new Api.Failure(400, "发布前请补齐中文摘要和正文");
               if (p.titleEn().isBlank() != p.bodyEn().isBlank())
                 throw new Api.Failure(400, "英文标题与正文须同时提供，也可同时留空");
-              String publication = UUID.randomUUID().toString(), prefix = id + "-" + publication;
+              SeriesLinks.replace(db, json, "content:" + id, seriesIds, actor);
+              String publication = Ids.next(), prefix = id + "-" + publication;
               long now = System.currentTimeMillis();
               String zh = render(p, false, now), en = render(p, true, now);
               write(prefix, "zh", zh);
               write(prefix, "en", en);
               db.update(
                   "INSERT INTO"
-                      + " content_publication(id,document_id,kind,title_zh,title_en,summary_zh,summary_en,snapshot_json,file_prefix,sha_zh,sha_en,created_at)"
-                      + " VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                      + " content_publication(id,document_id,kind,title_zh,title_en,summary_zh,summary_en,snapshot_json,file_prefix,sha_zh,sha_en,created_at,web_directory)"
+                      + " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                   publication,
                   id,
                   p.kind(),
@@ -223,7 +228,8 @@ public class ContentService {
                   prefix,
                   store.digest(zh),
                   store.digest(en),
-                  now);
+                  now,
+                  WebPublicationPath.directory(now, publication));
               storage.syncReferences("CONTENT_PUB", publication, media(p), true);
               db.update(
                   "UPDATE content_document SET"
@@ -279,7 +285,7 @@ public class ContentService {
   }
 
   private Path path(String prefix, String language) {
-    if (!prefix.matches("[a-f0-9-]{36}-[a-f0-9-]{36}"))
+    if (!prefix.matches(Ids.REGEX + "-" + Ids.REGEX))
       throw new IllegalStateException("Invalid content file prefix");
     return store.root.resolve("content-pages").resolve(prefix + "." + language + ".html");
   }

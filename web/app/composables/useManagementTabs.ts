@@ -53,7 +53,7 @@ export function useManagementTabs() {
           "sections",
           "conversations",
         ].includes(type) ||
-        !/^[a-f0-9-]{36}$/.test(editor)
+        !/^(?:[0-9a-v]{26}|[0-9a-f-]{36})$/.test(editor)
       )
         return adminMenuItem("dashboard");
       return {
@@ -94,7 +94,8 @@ export function useManagementTabs() {
       route.query.view === "api-edit"
     ) {
       const editor = String(route.query.editor || "");
-      if (!/^[a-f0-9-]{36}$/.test(editor)) return adminMenuItem("apis");
+      if (!/^(?:[0-9a-v]{26}|[0-9a-f-]{36})$/.test(editor))
+        return adminMenuItem("apis");
       const api = route.query.api ? String(route.query.api) : null;
       return {
         id: `api-editor-${editor}`,
@@ -112,7 +113,8 @@ export function useManagementTabs() {
       route.query.view === "application-edit"
     ) {
       const editor = String(route.query.editor || route.query.product || "");
-      if (!/^[a-f0-9-]{36}$/.test(editor)) return adminMenuItem("applications");
+      if (!/^(?:[0-9a-v]{26}|[0-9a-f-]{36})$/.test(editor))
+        return adminMenuItem("applications");
       const product = route.query.product ? String(route.query.product) : null;
       return {
         id: `editor-${editor}`,

@@ -121,7 +121,7 @@ public class Commerce {
     if (next < 0) throw new Api.Failure(409, "鼓励值不足");
     db.update(
         "UPDATE wallet_account SET balance_units=? WHERE user_id=? AND mode=?", next, user, MODE);
-    String ledgerId = UUID.randomUUID().toString();
+    String ledgerId = Ids.next();
     db.update(
         "INSERT INTO"
             + " wallet_ledger(id,user_id,mode,kind,source_id,delta_units,balance_after,cost_fen,created_at)"
@@ -152,7 +152,7 @@ public class Commerce {
                   MODE,
                   day)
               > 0) return false;
-          String batch = UUID.randomUUID().toString();
+          String batch = Ids.next();
           long now = instant.toEpochMilli();
           db.update(
               "INSERT INTO daily_login_reward VALUES(?,?,?,?,100,?)", user, MODE, day, batch, now);
@@ -176,7 +176,7 @@ public class Commerce {
   }
 
   void notify(String user, String title, String text) {
-    String notification = UUID.randomUUID().toString();
+    String notification = Ids.next();
     db.update(
         "INSERT INTO member_notification(id,user_id,title,body,created_at) VALUES(?,?,?,?,?)",
         notification,
@@ -197,7 +197,7 @@ public class Commerce {
           "INSERT INTO"
               + " mail_outbox(id,recipient,subject,body_enc,status,attempts,next_at,created_at)"
               + " VALUES(?,?,?, ?,'PENDING',0,?,?)",
-          UUID.randomUUID().toString(),
+          Ids.next(),
           email.get(0),
           title,
           crypto.encrypt(text),
@@ -312,7 +312,7 @@ public class Commerce {
       db.update(
           "INSERT INTO wallet_hold_part(id,hold_id,batch_id,units,cost_fen,expires_at)"
               + " VALUES(?,?,?,?,?,?)",
-          UUID.randomUUID().toString(),
+          Ids.next(),
           id,
           b.get("id"),
           take,
@@ -361,7 +361,7 @@ public class Commerce {
       if (expiry != null && expiry <= now) {
         // 原批次未预留余额可能已经到期并写入唯一EXPIRE流水。过期预留另建批次，
         // 失败释放保留原到期日并立即到期；审核退款才延长有效期，避免重复流水导致释放回滚。
-        String batchId = UUID.randomUUID().toString();
+        String batchId = Ids.next();
         db.update(
             "INSERT INTO"
                 + " wallet_batch(id,user_id,mode,source_type,source_id,total_units,remaining_units,cost_fen,remaining_cost_fen,expires_at,created_at)"
@@ -422,10 +422,10 @@ public class Commerce {
                 throw new Api.Failure(409, "调整标识不能更换参数");
               return (String) old.get(0).get("id");
             }
-            String key = UUID.randomUUID().toString();
+            String key = Ids.next();
             long now = System.currentTimeMillis();
             if (delta > 0) {
-              String batchId = UUID.randomUUID().toString();
+              String batchId = Ids.next();
               db.update(
                   "INSERT INTO"
                       + " wallet_batch(id,user_id,mode,source_type,source_id,total_units,remaining_units,cost_fen,remaining_cost_fen,expires_at,created_at)"
@@ -509,7 +509,7 @@ public class Commerce {
               throw new Api.Failure(400, "捐赠金额超出后台配置范围");
             points = Math.multiplyExact(price, rate);
           }
-          String id = UUID.randomUUID().toString();
+          String id = Ids.next();
           long now = System.currentTimeMillis();
           db.update(
               "INSERT INTO"
@@ -635,7 +635,7 @@ public class Commerce {
               "INSERT INTO"
                   + " wallet_batch(id,user_id,mode,source_type,source_id,total_units,remaining_units,cost_fen,remaining_cost_fen,expires_at,created_at)"
                   + " VALUES(?,?,?,'RECHARGE',?,?,?,?,?,?,?)",
-              UUID.randomUUID().toString(),
+              Ids.next(),
               user,
               MODE,
               id,
@@ -694,7 +694,7 @@ public class Commerce {
     return tx.execute(
         s -> {
           db.queryForObject("SELECT revision FROM finance_guard WHERE id=1 FOR UPDATE", Long.class);
-          String key = id == null ? UUID.randomUUID().toString() : id;
+          String key = id == null ? Ids.next() : id;
           int active =
               db.queryForObject(
                   "SELECT COUNT(*) FROM points_package WHERE enabled=TRUE AND id<>?",
@@ -846,7 +846,7 @@ public class Commerce {
           if (price <= 0 && !privateData.deliveryMode().equals("LICENSE"))
             throw new Api.Failure(400, "免费应用无需鼓励值兑换");
           if (balance(user) < price) throw new Api.Failure(409, "可用鼓励值不足，请先捐赠");
-          String id = UUID.randomUUID().toString();
+          String id = Ids.next();
           long rest = price, cost = 0;
           for (var batch :
               db.queryForList(
@@ -874,7 +874,7 @@ public class Commerce {
             db.update(
                 "INSERT INTO wallet_allocation(id,purchase_id,batch_id,units,cost_fen,expires_at)"
                     + " VALUES(?,?,?,?,?,?)",
-                UUID.randomUUID().toString(),
+                Ids.next(),
                 id,
                 batch.get("id"),
                 take,
@@ -1031,7 +1031,7 @@ public class Commerce {
               long amount = number(allocation, "units"), partCost = number(allocation, "cost_fen");
               Long expiry = (Long) allocation.get("expires_at");
               if (expiry != null && expiry <= now) {
-                String batchId = UUID.randomUUID().toString();
+                String batchId = Ids.next();
                 db.update(
                     "INSERT INTO"
                         + " wallet_batch(id,user_id,mode,source_type,source_id,total_units,remaining_units,cost_fen,remaining_cost_fen,expires_at,created_at)"

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 // 首页完全由公开目录接口驱动；空库保持真实空状态，不填充虚构商品和统计。
 definePageMeta({ layout: "catalog" });
-import type { SeriesCard } from "~/types/series";
 import type { HomeSection } from "~/types/catalog";
 const { t } = useLanguage();
 const { request } = useApi();
@@ -18,14 +17,7 @@ if (import.meta.server && error.value) {
   if (event) event.context.publicSiteUnavailable = true;
 }
 const changed = useState("catalog-changed", () => 0);
-const { data: seriesCards, refresh: refreshSeries } = await useAsyncData(
-  "home-series",
-  () => request<SeriesCard[]>("/api/public/series"),
-);
-watch(changed, () => {
-  refresh();
-  refreshSeries();
-});
+watch(changed, () => refresh());
 const query = ref("");
 const { site, siteName } = useSiteBrand();
 useHead(() => ({
@@ -75,17 +67,6 @@ async function search() {
         t("精选资源 · 便捷查阅", "Selected resources · Easy to browse")
       }}</span>
     </div>
-    <section v-if="seriesCards?.length" class="directory-section">
-      <div class="directory-section-heading">
-        <div class="directory-section-title">
-          <h2>{{ t("专栏", "Series") }}</h2>
-        </div>
-        <NuxtLink to="/series" class="catalog-more-link">{{
-          t("全部专栏", "All series")
-        }}</NuxtLink>
-      </div>
-      <SeriesCards :cards="seriesCards.slice(0, 6)" />
-    </section>
     <p v-if="status === 'pending'" role="status" class="catalog-empty">
       {{ t("正在加载栏目内容…", "Loading…") }}
     </p>
@@ -112,7 +93,11 @@ async function search() {
               t(section.subtitleZh, section.subtitleEn || section.subtitleZh)
             }}</span>
           </div>
-          <NuxtLink class="catalog-more-link" :to="`/sections/${section.id}`"
+          <NuxtLink
+            class="catalog-more-link"
+            :to="
+              section.kind === 'SERIES' ? '/series' : '/sections/' + section.id
+            "
             >{{ t("更多", "More") }}<SiteIcon name="arrow"
           /></NuxtLink>
         </div>

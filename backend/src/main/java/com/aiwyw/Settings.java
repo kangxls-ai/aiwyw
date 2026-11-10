@@ -443,7 +443,7 @@ public class Settings {
                 "INSERT INTO"
                     + " config_audit(id,user_id,config_key,revision,action_name,created_at,source_ip)"
                     + " VALUES(?,?,?,?,?,?,?)",
-                UUID.randomUUID().toString(),
+                Ids.next(),
                 actor,
                 c.key(),
                 c.revision() + 1,
@@ -483,7 +483,7 @@ public class Settings {
         boolean filing = d.key().equals("site.security_filing_icon");
         String path = filing ? "/api/public/filing-assets/" : "/api/public/assets/";
         if (!v.isEmpty()
-            && !v.matches(path + "[a-f0-9-]{36}\\.png")
+            && !v.matches(path + Ids.REGEX + "\\.png")
             && (filing || !v.equals("/images/mock-payment.svg")))
           throw new Api.Failure(400, "请使用图片上传功能");
       }

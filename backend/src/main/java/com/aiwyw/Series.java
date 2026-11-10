@@ -89,7 +89,7 @@ class Series {
         == 0)
       db.update(
           "INSERT INTO editorial_series VALUES(?,?,?,?,?,?,TRUE,?,1,?)",
-          UUID.randomUUID().toString(),
+          Ids.next(),
           "emba-prep",
           "EMBA 备考",
           "EMBA Exam Preparation",
@@ -120,12 +120,24 @@ class Series {
 
   @GetMapping("/api/public/series")
   List<Card> cards() {
+    return cards(null);
+  }
+
+  private List<Card> cards(Integer limit) {
     return db.query(
         "SELECT slug,title_zh,title_en,summary_zh,summary_en FROM editorial_series WHERE"
-            + " published=TRUE ORDER BY created_at DESC,id",
+            + " published=TRUE ORDER BY created_at DESC,id" + (limit == null ? "" : " LIMIT ?"),
         (r, i) ->
             new Card(
-                r.getString(1), r.getString(2), r.getString(3), r.getString(4), r.getString(5)));
+                r.getString(1), r.getString(2), r.getString(3), r.getString(4), r.getString(5)),
+        limit == null ? new Object[0] : new Object[] {limit});
+  }
+
+  List<Map<String, Object>> homeItems(int limit) {
+    return cards(limit).stream().map(c -> Map.<String, Object>of(
+        "ref", "series:" + c.slug(), "kind", "SERIES", "href", "/series/" + c.slug(),
+        "name", c.titleZh(), "nameEn", c.titleEn(),
+        "summary", c.summaryZh(), "summaryEn", c.summaryEn())).toList();
   }
 
   @GetMapping("/api/public/series/{slug}")
@@ -179,8 +191,9 @@ class Series {
     SectionSelection.valid(input.refs());
     if (input.refs().stream().anyMatch(s -> s.startsWith("api:")))
       throw new Api.Failure(400, "专栏可添加文章与应用");
+    SeriesLinks.lock(db);
     SectionSelection.validate(db, input.refs());
-    String key = id == null ? UUID.randomUUID().toString() : id;
+    String key = id == null ? Ids.next() : id;
     String refs;
     try {
       refs = json.writeValueAsString(input.refs());
@@ -227,6 +240,7 @@ class Series {
   Map<String, Boolean> remove(
       @PathVariable String id, @RequestParam long revision, HttpServletRequest r) {
     var actor = auth.permission(r, "series");
+    SeriesLinks.lock(db);
     if (db.update("DELETE FROM editorial_series WHERE id=? AND revision=?", id, revision) != 1)
       throw new Api.Failure(409, "专栏已被修改，请刷新后重试");
     AuditLog.write(db, "catalog_audit", actor.id(), id, "DELETE_SERIES", "删除专栏目录");
@@ -239,9 +253,70 @@ class Series {
       @RequestParam(defaultValue = "ALL") String kind,
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int pageSize,
+      @RequestParam(defaultValue = "created_at") String sort,
+      @RequestParam(defaultValue = "desc") String direction,
       HttpServletRequest r) {
     auth.permission(r, "series");
-    return selection.page(q, kind, page, pageSize, false);
+    return selection.page(q, kind, page, pageSize, false, sort, direction);
+  }
+
+  // 发布人员可选择专栏，专栏本身的新增、编辑和删除继续要求专栏菜单权限。
+  private void publisher(String scope, String kind, HttpServletRequest r) {
+    if (scope.equals("catalog")) auth.editor(r);
+    else auth.permission(r, ContentService.menu(kind));
+  }
+
+  private static final String PICKER = "/api/admin/{scope:catalog|content}/series-picker";
+  private static final String CHOICE =
+      "SELECT id AS ref,title_zh AS name,slug,CASE WHEN published=TRUE THEN 'PUBLISHED'"
+          + " ELSE 'DRAFT' END AS status,created_at FROM editorial_series";
+
+  @GetMapping(PICKER)
+  Map<String, Object> assignmentChoices(
+      @PathVariable String scope, @RequestParam(defaultValue = "ARTICLE") String contentKind,
+      @RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "ALL") String kind,
+      @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int pageSize,
+      @RequestParam(defaultValue = "created_at") String sort,
+      @RequestParam(defaultValue = "desc") String direction, HttpServletRequest r) {
+    publisher(scope, contentKind, r);
+    if (!Set.of("ALL", "PUBLISHED", "DRAFT").contains(kind)) throw new Api.Failure(400, "专栏状态不正确");
+    String term = SectionSelection.term(q);
+    String order = SectionSelection.sort(sort, direction,
+        Map.of("name", "name", "slug", "slug", "status", "status", "created_at", "created_at"));
+    String source = " FROM (" + CHOICE + ") s WHERE (name LIKE ? ESCAPE '!'"
+        + " OR slug LIKE ? ESCAPE '!' OR ref LIKE ? ESCAPE '!')";
+    var args = new ArrayList<Object>(List.of(term, term, term));
+    if (!kind.equals("ALL")) {
+      source += " AND status=?";
+      args.add(kind);
+    }
+    long total = db.queryForObject("SELECT COUNT(*)" + source, Long.class, args.toArray());
+    int actual = SectionSelection.pageNumber(page, pageSize, total);
+    args.add(pageSize);
+    args.add((actual - 1) * pageSize);
+    return Map.of("items", Commerce.safeRows(db.queryForList(
+        "SELECT *" + source + " ORDER BY " + order + ",ref LIMIT ? OFFSET ?", args.toArray())),
+        "total", total, "page", actual);
+  }
+
+  @PostMapping(PICKER + "/lookup")
+  List<Map<String, Object>> assignmentLookup(
+      @PathVariable String scope, @RequestParam(defaultValue = "ARTICLE") String contentKind,
+      @RequestBody SectionSelectionController.Lookup input, HttpServletRequest r) {
+    publisher(scope, contentKind, r);
+    SectionSelection.valid(input.refs());
+    if (input.refs().isEmpty()) return List.of();
+    return Commerce.safeRows(db.queryForList(CHOICE + " WHERE id IN ("
+        + SectionSelection.marks(input.refs().size()) + ")", input.refs().toArray()));
+  }
+
+  @GetMapping(PICKER + "/memberships")
+  List<String> memberships(
+      @PathVariable String scope, @RequestParam(defaultValue = "ARTICLE") String contentKind,
+      @RequestParam String id, HttpServletRequest r) {
+    publisher(scope, contentKind, r);
+    if (!id.matches(Ids.REGEX)) throw new Api.Failure(400, "关联对象标识不正确");
+    return SeriesLinks.current(db, scope.equals("catalog") ? id : "content:" + id);
   }
 
   @PostMapping("/api/admin/series/selection/lookup")

@@ -116,15 +116,37 @@ async function remove(row: Row) {
         >新增专栏</el-button
       >
     </div>
-    <el-table :data="rows">
-      <el-table-column prop="titleZh" label="专栏名称" />
-      <el-table-column prop="slug" label="公开地址" />
-      <el-table-column label="状态"
+    <el-table
+      :data="rows"
+      :default-sort="{ prop: 'createdAt', order: 'descending' }"
+    >
+      <ObjectColumns time-prop="createdAt" :show-creator="false" />
+      <el-table-column
+        prop="titleZh"
+        label="专栏名称"
+        sortable
+        :sort-orders="['descending', 'ascending']"
+      />
+      <el-table-column
+        prop="slug"
+        label="公开地址"
+        sortable
+        :sort-orders="['descending', 'ascending']"
+      />
+      <el-table-column
+        prop="published"
+        label="状态"
+        sortable
+        :sort-orders="['descending', 'ascending']"
         ><template #default="{ row }">{{
           row.published ? "已发布" : "草稿"
         }}</template></el-table-column
       >
-      <el-table-column label="条目"
+      <el-table-column
+        label="条目"
+        sortable
+        :sort-by="(row) => row.refs.length"
+        :sort-orders="['descending', 'ascending']"
         ><template #default="{ row }">{{
           row.refs.length
         }}</template></el-table-column
@@ -145,7 +167,9 @@ async function remove(row: Row) {
             "
             >编辑</el-button
           >
-          <el-button link type="danger" @click="remove(row as Row)">删除</el-button>
+          <el-button link type="danger" @click="remove(row as Row)"
+            >删除</el-button
+          >
         </template></el-table-column
       >
     </el-table>

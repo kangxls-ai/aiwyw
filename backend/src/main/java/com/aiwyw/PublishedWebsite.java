@@ -113,20 +113,33 @@ final class PublishedWebsite {
     boolean indexing = Boolean.parseBoolean(settings.value("seo.allow_indexing"));
     var home = sections.home();
     var seriesCards = series.cards();
+    var appPaths = publicationPaths("""
+        SELECT d.slug,p.web_directory FROM catalog_product d JOIN catalog_publication p
+          ON p.id=d.active_publication WHERE d.status IN ('PUBLISHED','UNLISTED')
+        """);
+    var articles = publicationPaths("""
+        SELECT d.slug,p.web_directory FROM content_document d JOIN content_publication p
+          ON p.id=d.active_publication WHERE d.state='PUBLISHED'
+        """);
+    var seriesPaths = new HashMap<String, String>();
+    db.query("SELECT id,slug,created_at FROM editorial_series WHERE published=TRUE",
+        row -> { seriesPaths.put(row.getString("slug"), WebPublicationPath.directory(row.getLong("created_at"), row.getString("id"))); });
     for (var p : catalog.publicData().products()) {
       if (!Set.of("PUBLISHED", "UNLISTED").contains(p.status())) continue;
       String slug = p.slug();
       String html = UiPresentation.decorate(catalog.page(slug, site), site, nav, p.content().type(), slug, "zh");
-      write(stage, "apps/" + slug + ".html", decorate(html, indexing && p.status().equals("PUBLISHED"), true));
+      writeDetail(stage, "apps", slug, appPaths.get(slug), ".html",
+          decorate(html, indexing && p.status().equals("PUBLISHED"), true));
     }
-    var slugs = db.queryForList("SELECT slug FROM content_document WHERE state='PUBLISHED'", String.class);
     String fallback = site.getOrDefault("site.fallback_language", "en").equals("zh") ? "zh" : "en";
     for (String language : List.of("zh", "en", "default")) {
       String lang = language.equals("default") ? fallback : language;
-      for (String slug : slugs) {
+      for (var article : articles.entrySet()) {
+        String slug = article.getKey();
         var p = content.page(slug, lang);
         String html = UiPresentation.decorate(p.html(), site, nav, p.kind(), slug, lang);
-        write(stage, "articles/" + slug + "." + language + ".html", decorate(html, indexing, false));
+        writeDetail(stage, "articles", slug, article.getValue(), "." + language + ".html",
+            decorate(html, indexing, false));
       }
       boolean en = lang.equals("en");
       String suffix = "." + language + ".html";
@@ -146,7 +159,8 @@ final class PublishedWebsite {
         String body = "<section class='directory-section'>" + crumbs + "<h1>" + escape(title)
             + "</h1><p>" + escape(description) + "</p>" + items + "</ol></section>";
         String path = "series/" + card.slug();
-        write(stage, path + suffix, frame(site, nav, "/" + path, title, description, body, en, indexing));
+        writeDetail(stage, "series", card.slug(), seriesPaths.get(card.slug()), suffix,
+            frame(site, nav, "/" + path, title, description, body, en, indexing));
       }
       var body = new StringBuilder("<section class='directory-section static-search'>"
           + "<form action='/apps' method='get'><input type='search' name='q' aria-label='"
@@ -160,6 +174,7 @@ final class PublishedWebsite {
         String more = switch (config.mode()) {
           case "API" -> "/api-services";
           case "ARTICLES" -> "/articles";
+          case "SERIES" -> "/series";
           default -> "/sections/" + id;
         };
         body.append("<section class='directory-section'><h2>").append(escape(local(en, config.titleZh(), config.titleEn())))
@@ -170,8 +185,6 @@ final class PublishedWebsite {
             if (item instanceof Map<?, ?> row) body.append(resource(row, en));
         body.append("</div></section>");
       }
-      if (!seriesCards.isEmpty()) body.append("<section class='directory-section'><h2><a href='/series'>")
-          .append(seriesName).append("</a></h2>").append(seriesList(seriesCards, en)).append("</section>");
       write(stage, "index" + suffix, frame(site, nav, "/", "", "", body.toString(), en, indexing));
     }
     write(stage, "robots.txt", seo.robots());
@@ -182,10 +195,31 @@ final class PublishedWebsite {
       copyConfiguredImage(stage, "filing-assets", "filing-images", site.getOrDefault("site.security_filing_icon", ""));
   }
 
+  private Map<String, String> publicationPaths(String sql) {
+    var paths = new LinkedHashMap<String, String>();
+    db.query(sql, row -> { paths.put(row.getString("slug"), row.getString("web_directory")); });
+    return paths;
+  }
+
+  /** Nginx按公开地址查分片入口，真实文件按发布日期归档；同卷优先用硬链接，避免双份正文。 */
+  private static void writeDetail(Path stage, String category, String slug, String directory,
+      String suffix, String html) throws IOException {
+    String archive = WebPublicationPath.archive(category, directory, slug + suffix);
+    Path entry = target(stage, WebPublicationPath.route(category, slug, suffix));
+    write(stage, archive, html);
+    Path saved = stage.resolve(archive);
+    try {
+      Files.createLink(entry, saved);
+    } catch (IOException | UnsupportedOperationException unsupported) {
+      Files.copy(saved, entry);
+      readable(entry);
+    }
+  }
+
   private void publishMedia(Path stage, Path previous) throws IOException {
     for (String id : db.queryForList(
         "SELECT id FROM storage_asset WHERE status='READY' AND purpose='IMAGE' AND public_visible=TRUE", String.class)) {
-      if (!id.matches("[0-9a-f-]{36}")) continue;
+      if (!id.matches(Ids.REGEX)) continue;
       Path target = target(stage, "media/" + id + ".png");
       Path saved = previous == null ? null : previous.resolve("media/" + id + ".png");
       if (saved != null && Files.isRegularFile(saved)) {
@@ -208,7 +242,7 @@ final class PublishedWebsite {
     String prefix = "/api/public/" + publicDir + "/";
     if (!url.startsWith(prefix)) return;
     String name = url.substring(prefix.length());
-    if (!name.matches("[0-9a-f-]{36}\\.png")) return;
+    if (!name.matches("" + Ids.REGEX + "\\.png")) return;
     Path source = secure.root.resolve(sourceDir).resolve(name);
     if (!Files.isRegularFile(source)) return;
     Path target = target(stage, publicDir + "/" + name);
@@ -305,11 +339,15 @@ final class PublishedWebsite {
   private static Path target(Path stage, String relative) throws IOException {
     Path path = stage.resolve(relative).normalize();
     if (!path.startsWith(stage)) throw new IOException("Invalid publication path");
-    if (!Files.exists(path.getParent())) {
-      Files.createDirectories(path.getParent());
-      readable(path.getParent());
-    }
+    publicDirectories(path.getParent());
     return path;
+  }
+
+  private static void publicDirectories(Path dir) throws IOException {
+    if (Files.isDirectory(dir)) return;
+    publicDirectories(dir.getParent());
+    Files.createDirectory(dir);
+    readable(dir);
   }
 
   private static void write(Path stage, String relative, String content) throws IOException {

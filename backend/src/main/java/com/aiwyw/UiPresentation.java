@@ -150,17 +150,19 @@ final class UiPresentation {
   static String header(Map<String, String> site, List<Catalog.SectionView> sections, String toggle) {
     String brand = escape(site.getOrDefault("site.name", "微云湾"));
     String slogan = site.getOrDefault("site.slogan", "以技术为舟，向未来远航");
-    StringBuilder nav =
-        new StringBuilder("<a href=\"/series\">").append(dual("专栏", "Series")).append("</a>");
+    StringBuilder nav = new StringBuilder();
     sections.stream()
         .sorted(Comparator.comparing(s -> s.config().mode().equals("API")))
         .forEach(
             s -> {
               var c = s.config();
               String href =
-                  c.mode().equals("ARTICLES")
-                      ? "/articles"
-                      : c.mode().equals("API") ? "/api-services" : "/sections/" + s.id();
+                  switch (c.mode()) {
+                    case "ARTICLES" -> "/articles";
+                    case "API" -> "/api-services";
+                    case "SERIES" -> "/series";
+                    default -> "/sections/" + s.id();
+                  };
               nav.append("<a href=\"")
                   .append(escape(href))
                   .append("\">")

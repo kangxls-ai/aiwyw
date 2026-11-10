@@ -35,6 +35,8 @@ export function scopedStaffApi(path: string) {
     /^\/api\/(?:auth\/(?:login|logout|session)|member\/(?:profile|nickname|password))(?:$)/.test(
       path,
     ) ||
-    /^\/api\/(?:support\/assets|member\/evidence)\/[0-9a-f-]{36}$/.test(path)
+    /^\/api\/(?:support\/assets|member\/evidence)\/(?:[0-9a-v]{26}|[0-9a-f-]{36})$/.test(
+      path,
+    )
   );
 }

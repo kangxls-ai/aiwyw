@@ -63,7 +63,9 @@ async function fillMarkdo() {
     /* 取消保持原稿 */
   }
 }
-async function load() {
+const assignment = useSeriesAssignment("catalog");
+const { seriesIds } = assignment;
+async function load(refreshSeries = true) {
   loading.value = true;
   try {
     if (id.value) {
@@ -76,6 +78,7 @@ async function load() {
       };
       await updateEditor(props.tabId, id.value, form.value.nameZh);
     }
+    if (refreshSeries) await assignment.refresh(id.value);
     base.value = snapshot();
     dirty.value[props.tabId] = false;
     if (id.value && information.value?.publicationId)
@@ -114,7 +117,7 @@ async function saveOnce() {
       { method: id.value ? "PUT" : "POST", body },
     );
     id.value = result.id;
-    await load();
+    await load(false);
     changed.value++;
     notice.value = "草稿已保存，发布后更新公开页面";
     return true;
@@ -133,7 +136,7 @@ async function publish() {
     if (!id.value) return;
     await request(`/api/admin/catalog/products/${id.value}/publish`, {
       method: "POST",
-      body: { revision: form.value.revision },
+      body: { revision: form.value.revision, seriesIds: assignment.changes() },
     });
     await load();
     changed.value++;
@@ -213,6 +216,9 @@ onBeforeUnmount(() => unregister?.());
       class="catalog-editor-card admin-form-grid"
       @submit.prevent="save"
     >
+      <el-form-item label="发布专栏" class="wide">
+        <SelectionPicker v-model="seriesIds" assignment="catalog" />
+      </el-form-item>
       <el-form-item label="应用名称" required
         ><el-input
           v-model="form.nameZh"

@@ -68,7 +68,12 @@ function edit(row?: any) {
     return;
   }
   Object.assign(form, {
-    id: row?.id || crypto.randomUUID(),
+    // 与服务器相同的26位小写编码，保留浏览器生成UUID的随机性。
+    id:
+      row?.id ||
+      BigInt("0x" + crypto.randomUUID().replaceAll("-", ""))
+        .toString(32)
+        .padStart(26, "0"),
     name: row?.name || "",
     menus: row?.menus ? normalize([...row.menus]) : [],
     revision: Number(row?.revision) || 0,

@@ -2974,9 +2974,50 @@ test("encouragement daily reward, donation ratio and paged account portals", asy
   const key = (await created.json()).id;
   const duplicate = await admin.request.post(staff("/api/admin/series"), {
     headers,
-    data: { ...series, slug: "another-writing-series" },
+    data: { ...series, slug: "another-writing-series", refs: [product.id] },
   });
   expect(duplicate.status()).toBe(200);
+  const second = (await duplicate.json()).id;
+  expect(key).toMatch(/^[0-9a-v]{26}$/);
+  expect(product.id).toMatch(/^[0-9a-v]{26}$/);
+
+  const choices = await admin.request.get(
+    staff(
+      "/api/admin/content/series-picker?q=writing-series&sort=created_at&direction=asc&pageSize=1",
+    ),
+  );
+  expect(choices.status()).toBe(200);
+  const choicesPage = await choices.json();
+  expect(choicesPage.total).toBe(2);
+  expect(choicesPage.items[0].ref).toBe(key);
+
+  const articlePath = staff("/api/admin/content/" + id);
+  const article = await (await admin.request.get(articlePath)).json();
+  expect(
+    (
+      await admin.request.post(articlePath + "/publish", {
+        headers,
+        data: { revision: article.revision, seriesIds: [key, second] },
+      })
+    ).status(),
+  ).toBe(200);
+  const secondSeries = await (
+    await admin.request.get(staff("/api/admin/series/" + second))
+  ).json();
+  expect(secondSeries.refs).toEqual([product.id, "content:" + id]);
+
+  const items = await admin.request.get(
+    staff(
+      "/api/admin/series/selection?kind=ARTICLE&sort=published_at&direction=asc&pageSize=1&q=" +
+        encodeURIComponent("免费阅读验收文章"),
+    ),
+  );
+  expect(items.status()).toBe(200);
+  expect((await items.json()).items[0]).toMatchObject({
+    ref: "content:" + id,
+    category: "ARTICLE",
+    published_at: expect.any(Number),
+  });
   await guest.goto("/series/writing-series");
   const contents = guest.locator(".series-contents a");
   await expect(contents).toHaveCount(2);
@@ -3017,6 +3058,47 @@ test("encouragement daily reward, donation ratio and paged account portals", asy
   expect(
     (await guest.request.get("/api/public/series/writing-series")).status(),
   ).toBe(404);
+  expect(
+    (
+      await guest.request.get("/api/public/series/another-writing-series")
+    ).status(),
+  ).toBe(200);
+  const productPath = staff("/api/admin/catalog/products/" + product.id);
+  const draft = await (await admin.request.get(productPath)).json();
+  expect(
+    (
+      await admin.request.post(productPath + "/publish", {
+        headers,
+        data: { revision: draft.revision, seriesIds: [second] },
+      })
+    ).status(),
+  ).toBe(200);
+  const removed = await (
+    await admin.request.get(staff("/api/admin/series/" + key))
+  ).json();
+  expect(removed.refs).toEqual(["content:" + id]);
+
+  const sectionPath = staff("/api/admin/catalog/sections");
+  const sections = await (await admin.request.get(sectionPath)).json();
+  const section = sections.find(
+    (row: { config: { mode: string } }) => row.config.mode === "SERIES",
+  );
+  expect(section).toBeTruthy();
+  await guest.goto("/");
+  await expect(guest.locator("#" + section.id)).toBeVisible();
+  expect(
+    (
+      await admin.request.put(sectionPath + "/" + section.id, {
+        headers,
+        data: { ...section.config, revision: section.revision, enabled: false },
+      })
+    ).status(),
+  ).toBe(200);
+  await guest.reload();
+  await expect(guest.locator("#" + section.id)).toHaveCount(0);
+  await expect(guest.locator(".public-site-nav a[href='/series']")).toHaveCount(
+    0,
+  );
   expect(
     (
       await guest.request.get("/api/public/series/another-writing-series")

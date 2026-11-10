@@ -63,7 +63,7 @@ final class StaffEntry {
 
   static boolean scoped(String path) {
     return mandatory(path)
-        || path.matches("/api/(?:support/assets|member/evidence)/[0-9a-f-]{36}")
+        || path.matches("/api/(?:support/assets|member/evidence)/" + Ids.REGEX)
         || switch (path) {
           case "/api/auth/login",
                   "/api/auth/logout",

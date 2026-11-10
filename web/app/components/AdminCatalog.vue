@@ -20,8 +20,9 @@ const sections = ref<AdminSection[]>([]),
 const changed = useState("catalog-changed", () => 0);
 const applicationCount = computed(
   () =>
-    sections.value.filter((s) => !["ARTICLES", "API"].includes(s.config.mode))
-      .length,
+    sections.value.filter(
+      (s) => !["ARTICLES", "API", "SERIES"].includes(s.config.mode),
+    ).length,
 );
 const empty = (): SectionConfig => ({
   titleZh: "",
@@ -152,7 +153,7 @@ onBeforeUnmount(() => unregister?.());
         <span>HOME SECTIONS</span>
         <h1>首页栏目</h1>
         <p>
-          应用展示栏目最多6个（含停用）；文章和API导航独立维护，可设置显隐；API显示时始终位于导航末尾。
+          应用展示栏目最多6个（含停用）；文章、专栏和API导航独立维护，可设置显隐；API显示时始终位于导航末尾。
         </p>
       </div>
       <div class="admin-table-actions">
@@ -165,6 +166,11 @@ onBeforeUnmount(() => unregister?.());
           v-if="!sections.some((s) => s.config.mode === 'ARTICLES')"
           @click="open(undefined, 'ARTICLES')"
           >添加文章栏目</el-button
+        >
+        <el-button
+          v-if="!sections.some((s) => s.config.mode === 'SERIES')"
+          @click="open(undefined, 'SERIES')"
+          >添加专栏栏目</el-button
         >
         <el-button
           v-if="!sections.some((s) => s.config.mode === 'API')"
@@ -211,7 +217,16 @@ onBeforeUnmount(() => unregister?.());
               AUTO: "自动排序",
               ARTICLES: "文章与教程导航",
               API: "API服务导航",
-            }[row.config.mode as "MANUAL" | "TAG" | "AUTO" | "ARTICLES" | "API"]
+              SERIES: "专栏",
+            }[
+              row.config.mode as
+                | "MANUAL"
+                | "TAG"
+                | "AUTO"
+                | "ARTICLES"
+                | "API"
+                | "SERIES"
+            ]
           }}</template></el-table-column
         ><el-table-column
           prop="config.enabled"
@@ -316,6 +331,11 @@ onBeforeUnmount(() => unregister?.());
               label="按标签筛选" /><el-option
               value="AUTO"
               label="自动选品" /><el-option
+              value="SERIES"
+              label="专栏"
+              :disabled="
+                sections.some((s) => s.config.mode === 'SERIES' && s.id !== id)
+              " /><el-option
               value="ARTICLES"
               label="文章与教程（顶部导航）"
               :disabled="
@@ -324,7 +344,7 @@ onBeforeUnmount(() => unregister?.());
                 )
               " /></el-select></el-form-item
         ><el-form-item
-          v-if="!['ARTICLES', 'API'].includes(form.mode)"
+          v-if="!['ARTICLES', 'API', 'SERIES'].includes(form.mode)"
           label="排序依据"
           ><el-select v-model="form.sort"
             ><el-option value="LATEST" label="首次上架时间" /><el-option
@@ -335,7 +355,7 @@ onBeforeUnmount(() => unregister?.());
         ></el-form-item>
         <el-form-item
           v-if="
-            !['ARTICLES', 'API'].includes(form.mode) &&
+            !['ARTICLES', 'API', 'SERIES'].includes(form.mode) &&
             form.mode !== 'MANUAL' &&
             form.sort !== 'LATEST'
           "

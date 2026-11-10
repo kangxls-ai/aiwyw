@@ -94,7 +94,7 @@ public class InstallerController {
                 "INSERT INTO"
                     + " app_user(id,email,password_hash,role_name,mfa_enabled,last_totp_step,created_at,nickname)"
                     + " VALUES(?,?,?,'ADMIN',FALSE,-1,?,?)",
-                UUID.randomUUID().toString(),
+                Ids.next(),
                 req.email().trim().toLowerCase(Locale.ROOT),
                 crypto.password(req.password()),
                 System.currentTimeMillis(),

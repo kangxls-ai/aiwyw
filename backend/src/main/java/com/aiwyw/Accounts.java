@@ -85,7 +85,7 @@ public class Accounts {
         status -> {
           var ids = db.queryForList("SELECT id FROM app_user WHERE email=?", String.class, mail);
           if (!ids.isEmpty()) return;
-          String id = UUID.randomUUID().toString();
+          String id = Ids.next();
           try {
             db.update(
                 "INSERT INTO"
@@ -156,7 +156,7 @@ public class Accounts {
     db.update(
         "INSERT INTO mail_outbox(id,recipient,subject,body_enc,status,attempts,next_at,created_at)"
             + " VALUES(?,?,?,?,'PENDING',0,?,?)",
-        UUID.randomUUID().toString(),
+        Ids.next(),
         mail,
         settings.value("site.name") + (purpose.equals("VERIFY") ? " 邮箱验证" : " 重置密码"),
         crypto.encrypt(text + "\n" + url + "\n链接只可使用一次。"),
@@ -436,7 +436,7 @@ class AccountController {
     String mail = accounts.email(b.email());
     accounts.password(b.password());
     List<String> selected = selectedRoles(b);
-    String id = UUID.randomUUID().toString();
+    String id = Ids.next();
     try {
       db.update(
           "INSERT INTO"

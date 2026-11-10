@@ -17,7 +17,11 @@ export function proxySiteApi(event: H3Event, path: string, staffEntry = "") {
     },
     fetchOptions: { redirect: "manual" },
     async onResponse(_event, response) {
-      if (!response.ok || ["GET", "HEAD", "OPTIONS"].includes(event.method))
+      if (
+        !response.ok ||
+        path.endsWith("/lookup") ||
+        ["GET", "HEAD", "OPTIONS"].includes(event.method)
+      )
         return;
       if (
         /^\/api\/(admin\/(settings|catalog|content|series|apis|api-plans|seo)(\/|$)|install\/)/.test(

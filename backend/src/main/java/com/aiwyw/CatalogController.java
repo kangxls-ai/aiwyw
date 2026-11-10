@@ -30,6 +30,8 @@ public class CatalogController {
 
   public record Revision(long revision) {}
 
+  public record Publish(long revision, List<String> seriesIds) {}
+
   public record Rollback(String publicationId, long revision) {}
 
   @GetMapping("/api/admin/catalog/products")
@@ -108,9 +110,9 @@ public class CatalogController {
 
   @PostMapping("/api/admin/catalog/products/{id}/publish")
   public Map<String, String> publish(
-      @PathVariable String id, @RequestBody Revision input, HttpServletRequest req) {
-    return Map.of(
-        "publicationId", catalog.publish(id, input.revision(), auth.editor(req).id(), settings));
+      @PathVariable String id, @RequestBody Publish input, HttpServletRequest req) {
+    return Map.of("publicationId",
+        catalog.publish(id, input.revision(), auth.editor(req).id(), settings, input.seriesIds()));
   }
 
   @PostMapping("/api/admin/catalog/products/{id}/unlist")
@@ -195,15 +197,16 @@ public class CatalogController {
                         "id",
                         s.id(),
                         "kind",
-                        Set.of("ARTICLES", "API").contains(s.config().mode())
+                        Set.of("ARTICLES", "API", "SERIES").contains(s.config().mode())
                             ? s.config().mode()
                             : "APPLICATIONS",
                         "href",
-                        s.config().mode().equals("ARTICLES")
-                            ? "/articles"
-                            : s.config().mode().equals("API")
-                                ? "/api-services"
-                                : "/sections/" + s.id(),
+                        switch (s.config().mode()) {
+                          case "ARTICLES" -> "/articles";
+                          case "API" -> "/api-services";
+                          case "SERIES" -> "/series";
+                          default -> "/sections/" + s.id();
+                        },
                         "titleZh",
                         s.config().titleZh(),
                         "titleEn",
@@ -326,9 +329,9 @@ public class CatalogController {
   private String visitor(HttpServletRequest req, HttpServletResponse res) {
     if (req.getCookies() != null)
       for (Cookie cookie : req.getCookies())
-        if (cookie.getName().equals("AIWYW_VISITOR") && cookie.getValue().matches("[a-f0-9-]{36}"))
+        if (cookie.getName().equals("AIWYW_VISITOR") && cookie.getValue().matches(Ids.REGEX))
           return cookie.getValue();
-    String id = UUID.randomUUID().toString();
+    String id = Ids.next();
     res.addHeader(
         "Set-Cookie",
         ResponseCookie.from("AIWYW_VISITOR", id)

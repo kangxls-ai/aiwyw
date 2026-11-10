@@ -109,6 +109,7 @@ public class Catalog {
   private final Storage storage;
   private volatile PublicData cached;
   private volatile long cacheAt, initializedGeneration = -1;
+  private static final Set<String> NAVIGATION_MODES = Set.of("ARTICLES", "API", "SERIES");
   private static final ZoneId REPORT_ZONE = ZoneId.of("Asia/Shanghai");
 
   public Catalog(
@@ -172,13 +173,15 @@ public class Catalog {
                     "DOWNLOAD",
                     "",
                     0);
+            String productId = Ids.next();
             db.update(
                 "INSERT INTO catalog_product(id,slug,draft_json,revision,status,updated_at)"
                     + " VALUES(?,?,?,0,'DRAFT',?)",
-                UUID.randomUUID().toString(),
+                productId,
                 p.slug(),
                 encode(p),
                 System.currentTimeMillis());
+            CatalogQuerySchema.index(db, productId, p);
             db.update("UPDATE catalog_product SET created_at=updated_at WHERE created_at=0");
             db.update("UPDATE catalog_guard SET revision=1 WHERE id=1");
           }
@@ -252,6 +255,19 @@ public class Catalog {
                 System.currentTimeMillis());
           }
         });
+    // 专栏与文章、API一样使用独立栏目。迁移一次，管理员停用或删除后不会恢复。
+    tx.executeWithoutResult(status -> {
+      db.queryForObject("SELECT revision FROM catalog_guard WHERE id=1 FOR UPDATE", Long.class);
+      if (db.queryForObject("SELECT COUNT(*) FROM schema_migration WHERE version='V016_SERIES_NAV'",
+          Integer.class) != 0) return;
+      long now = System.currentTimeMillis();
+      var section = new SectionInput("专栏", "Series", "", "", "folder", true, 5,
+          "SERIES", "LATEST", 0, 6, List.of(), List.of(), 0);
+      db.update("INSERT INTO home_section(id,config_json,revision,created_at) VALUES('series-navigation',?,0,?)",
+          encode(section), now);
+      Origins.created(db, "home_section", "series-navigation", "SYSTEM");
+      db.update("INSERT INTO schema_migration VALUES('V016_SERIES_NAV','统一管理专栏导航与首页展示',?)", now);
+    });
     initializedGeneration = database.generation();
     cached = null;
   }
@@ -343,7 +359,7 @@ public class Catalog {
             p.pricePoints().setScale(2),
             text(p.version(), 60, false),
             p.deliveryMode(),
-            p.downloadUrl() != null && p.downloadUrl().matches("asset:[a-f0-9-]{36}")
+            p.downloadUrl() != null && p.downloadUrl().matches("asset:" + Ids.REGEX)
                 ? p.downloadUrl()
                 : url(p.downloadUrl()),
             p.revision())
@@ -381,7 +397,7 @@ public class Catalog {
     return tx.execute(
         status -> {
           lock();
-          String key = id == null ? UUID.randomUUID().toString() : id;
+          String key = id == null ? Ids.next() : id;
           try {
             if (id == null)
               db.update(
@@ -459,7 +475,7 @@ public class Catalog {
         || c.mode() == null
         || c.sort() == null
         || c.icon() == null
-        || !Set.of("MANUAL", "TAG", "AUTO", "ARTICLES", "API").contains(c.mode())
+        || !Set.of("MANUAL", "TAG", "AUTO", "ARTICLES", "API", "SERIES").contains(c.mode())
         || !Set.of("LATEST", "VIEWS", "DOWNLOADS").contains(c.sort())
         || !Set.of(0, 7, 30).contains(c.days())
         || c.limit() < 1
@@ -498,16 +514,16 @@ public class Catalog {
                   .stream()
                   .filter(s -> !s.id().equals(id))
                   .toList();
-          if (Set.of("ARTICLES", "API").contains(safe.mode())
+          if (NAVIGATION_MODES.contains(safe.mode())
               && others.stream().anyMatch(s -> s.config().mode().equals(safe.mode())))
             throw new Api.Failure(409, "该导航栏目已存在，请编辑已有栏目");
-          if (!Set.of("ARTICLES", "API").contains(safe.mode())
+          if (!NAVIGATION_MODES.contains(safe.mode())
               && others.stream()
-                      .filter(s -> !Set.of("ARTICLES", "API").contains(s.config().mode()))
+                      .filter(s -> !NAVIGATION_MODES.contains(s.config().mode()))
                       .count()
                   >= 6) throw new Api.Failure(409, "首页最多6个栏目，请编辑或删除已有栏目");
           SectionSelection.validate(db, safe.productIds());
-          String key = id == null ? UUID.randomUUID().toString() : id;
+          String key = id == null ? Ids.next() : id;
           if (id == null)
             db.update(
                 "INSERT INTO home_section(id,config_json,revision,created_at) VALUES(?,?,1,?)",
@@ -547,6 +563,10 @@ public class Catalog {
 
   /** 每次发布创建新文件与新记录；前次HTML和快照不覆盖。 产品已购条款未来必须引用publicationId，不可追随active_publication改变。 */
   public String publish(String id, long revision, String actor, Settings settings) {
+    return publish(id, revision, actor, settings, null);
+  }
+
+  String publish(String id, long revision, String actor, Settings settings, List<String> seriesIds) {
     initialize();
     return tx.execute(
         status -> {
@@ -570,9 +590,9 @@ public class Catalog {
                     != privateContent.deliveryMode().equals("LICENSE"))
               throw new Api.Failure(409, "同一已发布大版本不可切换下载与软件激活，请使用新的大版本");
           }
-          String publication = UUID.randomUUID().toString();
-          long first =
-              draft.firstPublishedAt() == 0 ? System.currentTimeMillis() : draft.firstPublishedAt();
+          String publication = Ids.next();
+          long now = System.currentTimeMillis();
+          long first = draft.firstPublishedAt() == 0 ? now : draft.firstPublishedAt();
           Product product =
               new Product(
                   id,
@@ -584,13 +604,14 @@ public class Catalog {
                   first,
                   0,
                   0);
+          SeriesLinks.replace(db, json, id, seriesIds, actor);
           String html = StaticProductPage.render(product, settings.publicValues());
           String file = id + "/" + publication + ".html";
           writeStatic(file, html);
           db.update(
               "INSERT INTO"
-                  + " catalog_publication(id,product_id,snapshot_json,private_json,file_name,sha256,actor_id,created_at)"
-                  + " VALUES(?,?,?,?,?,?,?,?)",
+                  + " catalog_publication(id,product_id,snapshot_json,private_json,file_name,sha256,actor_id,created_at,web_directory)"
+                  + " VALUES(?,?,?,?,?,?,?,?,?)",
               publication,
               id,
               encode(product),
@@ -598,7 +619,8 @@ public class Catalog {
               file,
               hash(html),
               actor,
-              System.currentTimeMillis());
+              now,
+              WebPublicationPath.directory(now, publication));
           storage.syncReferences("PUBLICATION", publication, privateContent, true);
           if (privateContent.deliveryMode().equals("LICENSE"))
             Licenses.snapshot(db, id, publication, settings.integer("license.default_devices"));
@@ -697,7 +719,7 @@ public class Catalog {
   private Path staticPath(String file) {
     Path root = store.root.resolve("publications").toAbsolutePath().normalize();
     Path path = root.resolve(file).normalize();
-    if (!path.startsWith(root) || !file.matches("[a-f0-9-]{36}/[a-f0-9-]{36}\\.html"))
+    if (!path.startsWith(root) || !file.matches(Ids.REGEX + "/" + Ids.REGEX + "\\.html"))
       throw new IllegalStateException("Invalid publication path");
     return path;
   }
@@ -765,7 +787,7 @@ public class Catalog {
     for (Section s : sections())
       if (s.config().enabled()) {
         SectionInput c = s.config();
-        if (Set.of("ARTICLES", "API").contains(c.mode())) {
+        if (NAVIGATION_MODES.contains(c.mode())) {
           views.add(new SectionView(s.id(), c, List.of()));
           continue;
         }
@@ -857,8 +879,8 @@ public class Catalog {
   /** 已发放地址才计DOWNLOAD，二维码展示/余额不足/权限拒绝均不能调用本方法。 */
   public void metric(Product product, String visitor, String kind) {
     if (visitor == null) return;
-    if (visitor.matches("[a-f0-9-]{36}")) visitor = "visitor:" + visitor;
-    if (!visitor.matches("(?:account|visitor):[a-f0-9-]{36}")) return;
+    if (visitor.matches(Ids.REGEX)) visitor = "visitor:" + visitor;
+    if (!visitor.matches("(?:account|visitor):" + Ids.REGEX)) return;
     if (!Set.of("VIEW", "DOWNLOAD").contains(kind))
       throw new IllegalArgumentException("Unsupported metric");
     String digest = store.digest(store.localPassword() + ":" + visitor);

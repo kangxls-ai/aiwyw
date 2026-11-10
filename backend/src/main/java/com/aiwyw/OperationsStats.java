@@ -119,7 +119,7 @@ public class OperationsStats {
     try {
       db.update(
           "INSERT INTO analytics_event VALUES(?,?,?,?,?,?,?,?,?,?)",
-          UUID.randomUUID().toString(),
+          Ids.next(),
           visitor,
           user == null ? null : user.id(),
           kind,

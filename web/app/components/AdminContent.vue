@@ -48,6 +48,11 @@ const empty = () => ({
 });
 const form = reactive(empty()),
   order = useListOrder(load, page);
+const assignment = useSeriesAssignment(
+  "content",
+  computed(() => form.kind),
+);
+const { seriesIds } = assignment;
 // 上传完成前不允许保存/关闭，避免将尚未插入正文的图片遗漏在发布快照之外。
 const uploads = reactive({ zh: false, en: false });
 const uploading = computed(() => uploads.zh || uploads.en);
@@ -93,7 +98,7 @@ async function load() {
     error.value = message(e);
   }
 }
-async function edit(id?: string, force = false) {
+async function edit(id?: string, force = false, refreshSeries = true) {
   if (!props.editor && !force) {
     await editingState.openEntityEditor(props.view, id ? { id } : undefined);
     return;
@@ -116,6 +121,7 @@ async function edit(id?: string, force = false) {
         revision: Number(result.revision),
       });
     } else Object.assign(form, empty());
+    if (refreshSeries) await assignment.refresh(id);
     editing.value = true;
     baseline.value = JSON.stringify(form);
     dirty.value[editingState.key.value] = false;
@@ -136,7 +142,7 @@ async function save() {
       "/api/admin/content" + (form.id ? "/" + form.id : ""),
       { method: form.id ? "PUT" : "POST", body: form },
     );
-    await edit(result.id, true);
+    await edit(result.id, true, false);
     await editingState.saved(result.id, form.titleZh);
     if (!props.editor) await load();
     notice.value = "草稿已保存";
@@ -163,7 +169,16 @@ async function action(row: any, verb: string) {
       "/api/admin/content/" + row.id + (verb === "delete" ? "" : "/" + verb),
       verb === "delete"
         ? { method: "DELETE", query: { revision: row.revision } }
-        : { method: "POST", body: { revision: Number(row.revision) } },
+        : {
+            method: "POST",
+            body: {
+              revision: Number(row.revision),
+              seriesIds:
+                verb === "publish" && editing.value && form.id === row.id
+                  ? assignment.changes()
+                  : undefined,
+            },
+          },
     );
     editingState.changed();
     await load();
@@ -229,6 +244,12 @@ onBeforeUnmount(() => unregister?.());
         class="admin-form-grid"
         label-position="right"
         label-width="112px"
+        ><el-form-item label="发布专栏" class="wide">
+          <SelectionPicker
+            v-model="seriesIds"
+            assignment="content"
+            :content-kind="form.kind"
+          /> </el-form-item
         ><el-form-item label="中文标题"
           ><el-input
             v-model="form.titleZh"

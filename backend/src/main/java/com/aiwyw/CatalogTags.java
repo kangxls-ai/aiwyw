@@ -48,7 +48,7 @@ public class CatalogTags {
     for (String name : names)
       if (db.queryForObject("SELECT COUNT(*) FROM catalog_tag WHERE name=?", Integer.class, name)
           == 0) {
-        String id = UUID.randomUUID().toString();
+        String id = Ids.next();
         db.update(
             "INSERT INTO catalog_tag(id,name,description,revision,created_at) VALUES(?,?,'',1,?)",
             id,
@@ -140,7 +140,7 @@ public class CatalogTags {
     return tx.execute(
         status -> {
           db.queryForObject("SELECT revision FROM catalog_guard WHERE id=1 FOR UPDATE", Long.class);
-          String key = id == null ? UUID.randomUUID().toString() : id;
+          String key = id == null ? Ids.next() : id;
           var collision =
               db.queryForList(
                   "SELECT id FROM catalog_tag WHERE name=? AND id<>?", String.class, name, key);

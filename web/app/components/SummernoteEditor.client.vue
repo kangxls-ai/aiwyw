@@ -53,7 +53,7 @@ function clean(html: string, preview = false) {
       else if (value && attr === "src" && node.tagName === "IMG") {
         // 编辑时走私有预览，提交或发布时只保存公共媒体路径。
         const canonical = value.replace(
-          /^\/[0-9a-f]{32}\/api\/admin\/storage\/assets\/([0-9a-f-]{36})\/content$/,
+          /^\/[0-9a-f]{32}\/api\/admin\/storage\/assets\/((?:[0-9a-v]{26}|[0-9a-f-]{36}))\/content$/,
           "/api/public/media/$1",
         );
         node.setAttribute("src", preview ? draftImage(canonical) : canonical);

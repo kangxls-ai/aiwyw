@@ -28,6 +28,7 @@ public final class CatalogQuerySchema {
     for (String[] field :
         new String[][] {
           {"created_at", "BIGINT NOT NULL DEFAULT 0 COMMENT '创建UTC毫秒；旧资料无审计时取升级前最后已知时间'"},
+          {"sort_type", "VARCHAR(20) COMMENT '草稿应用类型，供跨类型选品筛选'"},
           {"sort_name", "VARCHAR(200) NOT NULL DEFAULT '' COMMENT '草稿中文名称排序索引'"},
           {"sort_version", "VARCHAR(80) NOT NULL DEFAULT '' COMMENT '草稿版本文本排序索引'"},
           {"sort_price", "DECIMAL(18,2) NOT NULL DEFAULT 0 COMMENT '草稿鼓励值价格排序索引'"},
@@ -40,6 +41,20 @@ public final class CatalogQuerySchema {
           db.execute("ALTER TABLE catalog_product ADD COLUMN " + field[0] + " " + field[1]);
         } catch (org.springframework.dao.DataAccessException race) {
           if (!column(source, "catalog_product", field[0])) throw race;
+        }
+    }
+    // 旧库按批回填新增类型索引，避免读出全部商品草稿或重写历史快照。
+    var drafts = new ObjectMapper();
+    for (;;) {
+      var batch = db.queryForList("SELECT id,draft_json FROM catalog_product WHERE sort_type IS NULL LIMIT 200");
+      if (batch.isEmpty()) break;
+      for (var row : batch)
+        try {
+          var p = drafts.readValue((String) row.get("draft_json"), Catalog.ProductInput.class);
+          db.update("UPDATE catalog_product SET sort_type=? WHERE id=? AND sort_type IS NULL",
+              Objects.toString(p.type(), ""), row.get("id"));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException badData) {
+          throw new IllegalStateException("Cannot read catalog draft type", badData);
         }
     }
     db.execute(
@@ -95,10 +110,11 @@ public final class CatalogQuerySchema {
             .toLowerCase(Locale.ROOT);
     db.update(
         "UPDATE catalog_product SET"
-            + " search_text=?,sort_name=?,sort_version=?,sort_price=?,sort_tags=?,created_at=CASE"
+            + " search_text=?,sort_name=?,sort_type=?,sort_version=?,sort_price=?,sort_tags=?,created_at=CASE"
             + " WHEN created_at=0 THEN updated_at ELSE created_at END WHERE id=?",
         search,
         p.nameZh(),
+        p.type(),
         p.version(),
         p.pricePoints(),
         String.join(",", p.tags()),

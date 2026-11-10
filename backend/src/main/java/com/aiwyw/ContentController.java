@@ -75,11 +75,13 @@ public class ContentController {
 
   record Revision(long revision) {}
 
+  record Publish(long revision, List<String> seriesIds) {}
+
   @PostMapping("/api/admin/content/{id}/publish")
   Map<String, Boolean> publish(
-      @PathVariable String id, @RequestBody Revision b, HttpServletRequest r) {
+      @PathVariable String id, @RequestBody Publish b, HttpServletRequest r) {
     var u = editor(id, r);
-    service.publish(id, b.revision(), u.id());
+    service.publish(id, b.revision(), u.id(), b.seriesIds());
     return Map.of("success", true);
   }
 

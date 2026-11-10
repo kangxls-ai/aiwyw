@@ -19,19 +19,40 @@ class SectionSelection {
   }
 
   static String source() {
-    return "SELECT id AS ref,id AS raw_id,'PRODUCT' AS kind,sort_name AS"
-        + " name,slug,status,created_at FROM catalog_product UNION ALL SELECT"
-        + " CONCAT('api:',id),id,'API',name,slug,CASE WHEN enabled=TRUE THEN 'PUBLISHED'"
-        + " ELSE 'DISABLED' END,created_at FROM api_definition UNION ALL SELECT"
-        + " CONCAT('content:',id),id,'CONTENT',title_zh,slug,state,created_at FROM"
-        + " content_document";
+    return """
+        SELECT id AS ref,id AS raw_id,'PRODUCT' AS kind,sort_type AS category,sort_name AS name,
+          slug,status,created_at,last_published_at AS published_at FROM catalog_product
+        UNION ALL SELECT CONCAT('api:',id),id,'API','API',name,slug,
+          CASE WHEN enabled=TRUE THEN 'PUBLISHED' ELSE 'DISABLED' END,created_at,NULL FROM api_definition
+        UNION ALL SELECT CONCAT('content:',d.id),d.id,'CONTENT',d.kind,d.title_zh,d.slug,d.state,
+          d.created_at,p.created_at FROM content_document d LEFT JOIN content_publication p
+            ON p.id=d.active_publication
+        """;
+  }
+
+  static String sort(String key, String direction, Map<String, String> allowed) {
+    String column = allowed.get(key);
+    if (column == null || !Set.of("asc", "desc").contains(direction))
+      throw new Api.Failure(400, "排序参数不正确");
+    return column + (direction.equals("asc") ? " ASC" : " DESC");
+  }
+
+  static String term(String q) {
+    if (q == null || q.length() > 100) throw new Api.Failure(400, "关键词最多100字");
+    return "%" + q.trim().replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+  }
+
+  static int pageNumber(int page, int size, long total) {
+    if (page < 1 || page > 1000000 || size < 1 || size > 100)
+      throw new Api.Failure(400, "分页参数不正确");
+    return (int) Math.min(page, Math.max(1, (total + size - 1) / size));
   }
 
   static void valid(List<String> refs) {
     if (refs == null || refs.size() > 300 || new HashSet<>(refs).size() != refs.size())
       throw new Api.Failure(400, "选品最多300项且不能重复");
     for (String id : refs)
-      if (id == null || !id.matches("(?:(?:api|content):)?[a-f0-9-]{36}"))
+      if (id == null || !id.matches("(?:(?:api|content):)?" + Ids.REGEX))
         throw new Api.Failure(400, "选品标识格式不正确");
   }
 
@@ -51,29 +72,28 @@ class SectionSelection {
   }
 
   Map<String, Object> page(String q, String kind, int page, int size) {
-    return page(q, kind, page, size, true);
+    return page(q, kind, page, size, true, "created_at", "desc");
   }
 
-  Map<String, Object> page(String q, String kind, int page, int size, boolean allowApi) {
-    if (q == null
-        || q.length() > 100
-        || page < 1
-        || page > 1000000
-        || size < 1
-        || size > 100
-        || !Set.of("ALL", "PRODUCT", "API", "CONTENT").contains(kind)
-        || !allowApi && kind.equals("API")) throw new Api.Failure(400, "选品查询参数不正确");
-    String term = "%" + q.trim().replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+  Map<String, Object> page(
+      String q, String kind, int page, int size, boolean allowApi, String sortBy, String direction) {
+    var groups = Set.of("ALL", "PRODUCT", "API", "CONTENT");
+    if (!(groups.contains(kind) || Set.of("TOOL", "SOFTWARE", "RESOURCE", "DOCUMENT",
+        "ARTICLE", "TUTORIAL", "FAQ", "CASE").contains(kind)) || !allowApi && kind.equals("API"))
+      throw new Api.Failure(400, "选品分类不正确");
+    String order = sort(sortBy, direction, Map.of("name", "name", "slug", "slug",
+        "category", "category", "status", "status", "created_at", "created_at", "published_at", "published_at"));
+    String term = term(q);
     String where =
-        " WHERE (name LIKE ? ESCAPE '!' OR slug LIKE ? ESCAPE '!')"
-            + (kind.equals("ALL") ? "" : " AND kind=?")
+        " WHERE (name LIKE ? ESCAPE '!' OR slug LIKE ? ESCAPE '!' OR raw_id LIKE ? ESCAPE '!')"
+            + (kind.equals("ALL") ? "" : groups.contains(kind) ? " AND kind=?" : " AND category=?")
             + (allowApi ? "" : " AND kind<>'API'");
-    List<Object> args = new ArrayList<>(List.of(term, term));
+    List<Object> args = new ArrayList<>(List.of(term, term, term));
     if (!kind.equals("ALL")) args.add(kind);
     long total =
         db.queryForObject(
             "SELECT COUNT(*) FROM (" + source() + ") s" + where, Long.class, args.toArray());
-    int actual = (int) Math.min(page, Math.max(1, (total + size - 1) / size));
+    int actual = pageNumber(page, size, total);
     args.add(size);
     args.add((actual - 1) * size);
     return Map.of(
@@ -84,7 +104,7 @@ class SectionSelection {
                     + source()
                     + ") s"
                     + where
-                    + " ORDER BY created_at DESC,ref LIMIT ? OFFSET ?",
+                    + " ORDER BY " + order + ",ref LIMIT ? OFFSET ?",
                 args.toArray())),
         "total",
         total,
@@ -288,13 +308,15 @@ class SectionSelectionController {
   final Catalog catalog;
   final Auth auth;
   final ContentService content;
+  final Series series;
 
   SectionSelectionController(
-      SectionSelection service, Catalog catalog, Auth auth, ContentService content) {
+      SectionSelection service, Catalog catalog, Auth auth, ContentService content, Series series) {
     this.service = service;
     this.catalog = catalog;
     this.auth = auth;
     this.content = content;
+    this.series = series;
   }
 
   @GetMapping("/api/admin/catalog/selection")
@@ -303,9 +325,11 @@ class SectionSelectionController {
       @RequestParam(defaultValue = "ALL") String kind,
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "20") int pageSize,
+      @RequestParam(defaultValue = "created_at") String sort,
+      @RequestParam(defaultValue = "desc") String direction,
       HttpServletRequest r) {
     auth.permission(r, "sections");
-    return service.page(q, kind, page, pageSize);
+    return service.page(q, kind, page, pageSize, true, sort, direction);
   }
 
   record Lookup(List<String> refs) {}
@@ -327,7 +351,9 @@ class SectionSelectionController {
         .map(
             s -> {
               var c = s.config();
-              var result = browse(s, "", "", List.of(), "", "", 1, Math.min(40, c.limit()), false);
+              var items = c.mode().equals("SERIES")
+                  ? series.homeItems(c.limit())
+                  : browse(s, "", "", List.of(), "", "", 1, Math.min(40, c.limit()), false).get("items");
               return Map.<String, Object>of(
                   "id",
                   s.id(),
@@ -341,8 +367,10 @@ class SectionSelectionController {
                   c.subtitleEn(),
                   "icon",
                   c.icon(),
+                  "kind",
+                  c.mode(),
                   "items",
-                  result.get("items"));
+                  items);
             })
         .toList();
   }

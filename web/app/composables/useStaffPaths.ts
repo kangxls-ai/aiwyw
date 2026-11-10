@@ -16,7 +16,8 @@ export function useStaffPaths() {
     return path;
   }
   function draftImage(path: string) {
-    const match = /^\/api\/public\/media\/([0-9a-f-]{36})$/.exec(path);
+    const match =
+      /^\/api\/public\/media\/((?:[0-9a-v]{26}|[0-9a-f-]{36}))$/.exec(path);
     return match
       ? staffApi("/api/admin/storage/assets/" + match[1] + "/content")
       : path;

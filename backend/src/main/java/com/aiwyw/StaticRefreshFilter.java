@@ -34,7 +34,7 @@ final class StaticRefreshFilter extends OncePerRequestFilter {
     if (path.isEmpty()) path = request.getRequestURI();
     if (path.equals("/api/install")) return db.validToken(request.getHeader("X-Install-Token"));
     if (!path.matches("/api/admin/(?:catalog|content|series|settings|seo|apis|api-plans|site/publish|storage/assets)(?:/.*)?")
-        || path.endsWith("/selection/lookup")
+        || path.endsWith("/lookup")
         || (path.contains("/storage/assets") && !request.getMethod().equals("DELETE"))) return false;
     try {
       auth.staff(request);

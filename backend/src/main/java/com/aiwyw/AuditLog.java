@@ -14,7 +14,7 @@ final class AuditLog {
             + table
             + "(id,actor_id,entity_id,action_name,detail,created_at,source_ip)"
             + " VALUES(?,?,?,?,?,?,?)",
-        UUID.randomUUID().toString(),
+        Ids.next(),
         actor,
         entity,
         action,

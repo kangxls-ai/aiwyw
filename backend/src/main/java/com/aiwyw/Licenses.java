@@ -219,7 +219,7 @@ public class Licenses {
           String token = crypto.token(),
               id =
                   previous.isEmpty()
-                      ? UUID.randomUUID().toString()
+                      ? Ids.next()
                       : (String) previous.get(0).get("id");
           if (previous.isEmpty())
             db.update(
@@ -305,7 +305,7 @@ public class Licenses {
                   String.class,
                   device);
           if (!pending.isEmpty()) return pending.get(0);
-          String id = UUID.randomUUID().toString();
+          String id = Ids.next();
           db.update(
               "INSERT INTO"
                   + " license_unbind_request(id,purchase_id,device_id,user_id,reason,state,revision,review_note,created_at)"
@@ -353,7 +353,7 @@ public class Licenses {
           audit(actor.id(), id, approve ? "APPROVE_UNBIND" : "REJECT_UNBIND", note);
           db.update(
               "INSERT INTO member_notification(id,user_id,title,body,created_at) VALUES(?,?,?,?,?)",
-              UUID.randomUUID().toString(),
+              Ids.next(),
               brief.get("user_id"),
               approve ? "换机解绑已通过" : "换机申请未通过",
               note,

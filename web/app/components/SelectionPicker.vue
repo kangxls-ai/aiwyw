@@ -1,11 +1,21 @@
 <script setup lang="ts">
 /** 草稿与已确认选择分离；翻页只取20项，跨页勾选保存在ID集合，不取全库做假分页。 */
 import { ElMessage } from "element-plus";
-const props = defineProps<{ modelValue: string[]; series?: boolean }>(),
+import { businessTime } from "~/utils/commerce";
+const props = defineProps<{
+    modelValue: string[];
+    series?: boolean;
+    assignment?: "catalog" | "content";
+    contentKind?: string;
+  }>(),
   emit = defineEmits<{ "update:modelValue": [string[]] }>();
 const { request, message } = useApi();
 const endpoint = computed(() =>
-  props.series ? "/api/admin/series/selection" : "/api/admin/catalog/selection",
+  props.assignment
+    ? "/api/admin/" + props.assignment + "/series-picker"
+    : props.series
+      ? "/api/admin/series/selection"
+      : "/api/admin/catalog/selection",
 );
 const visible = ref(false),
   draft = ref<string[]>([]),
@@ -17,6 +27,18 @@ const visible = ref(false),
   busy = ref(false),
   error = ref("");
 const names = ref<Record<string, any>>({});
+const order = useListOrder(load, page);
+const categories: Record<string, string> = {
+  TOOL: "免费工具",
+  SOFTWARE: "软件",
+  RESOURCE: "资源",
+  DOCUMENT: "文档",
+  ARTICLE: "文章",
+  TUTORIAL: "教程",
+  FAQ: "FAQ",
+  CASE: "案例",
+  API: "API",
+};
 let generation = 0;
 async function lookup() {
   if (!props.modelValue.length) return;
@@ -24,6 +46,7 @@ async function lookup() {
     const rows = await request<any[]>(endpoint.value + "/lookup", {
       method: "POST",
       body: { refs: props.modelValue },
+      query: { contentKind: props.contentKind },
     });
     for (const row of rows) names.value[row.ref] = row;
   } catch (e) {
@@ -42,6 +65,9 @@ async function load() {
         kind: kind.value,
         page: page.value,
         pageSize: size.value,
+        contentKind: props.contentKind,
+        sort: order.sort.value,
+        direction: order.direction.value === "ascending" ? "asc" : "desc",
       },
     });
     if (token !== generation) return;
@@ -62,7 +88,7 @@ function open() {
 function choose(id: string, checked: boolean) {
   if (checked && !draft.value.includes(id)) {
     if (draft.value.length >= 300) {
-      ElMessage.warning("每个栏目最多选择300项");
+      ElMessage.warning("最多选择300项");
       return;
     }
     draft.value.push(id);
@@ -101,10 +127,15 @@ const typeLabel = (value: string) =>
 <template>
   <div class="selection-picker">
     <div class="admin-table-actions">
-      <el-button type="primary" @click="open">选择内容</el-button
+      <el-button type="primary" @click="open">{{
+        assignment ? "选择专栏" : "选择内容"
+      }}</el-button
       ><span>已选择 {{ modelValue.length }} / 300 项</span>
     </div>
-    <p class="admin-muted">
+    <p v-if="assignment" class="admin-muted">
+      可跨页选择多个专栏，发布成功后生效。
+    </p>
+    <p v-else class="admin-muted">
       {{
         series
           ? "支持应用、文章、FAQ 和案例跨页多选。"
@@ -118,31 +149,34 @@ const typeLabel = (value: string) =>
       :closable="false"
     />
     <el-empty
-      v-if="!modelValue.length"
-      description="尚未选择内容"
+      v-if="!assignment && !modelValue.length"
+      :description="assignment ? '尚未选择专栏' : '尚未选择内容'"
       :image-size="48"
     />
     <ol class="selected-content" aria-label="已选内容排序">
       <li
         v-for="(id, index) in modelValue"
         :key="id"
-        draggable="true"
+        :draggable="!assignment"
         @dragstart="dragging = index"
         @dragend="dragging = null"
         @dragover.prevent
         @drop.prevent="drop(index)"
       >
-        <span class="drag-handle" aria-hidden="true">⠿</span
+        <span v-if="!assignment" class="drag-handle" aria-hidden="true">⠿</span
         ><span class="selection-number">{{ index + 1 }}</span>
         <div class="selected-name">
           <strong>{{ names[id]?.name || id }}</strong
           ><small
-            >{{ typeLabel(names[id]?.kind || "PRODUCT") }} ·
-            {{ names[id]?.status || "读取中" }}</small
+            >{{
+              assignment ? "专栏" : typeLabel(names[id]?.kind || "PRODUCT")
+            }}
+            · {{ names[id]?.status || "读取中" }}</small
           >
         </div>
         <el-button
           size="small"
+          v-if="!assignment"
           :disabled="index === 0"
           :aria-label="'上移 ' + (names[id]?.name || id)"
           @click="move(index, index - 1)"
@@ -150,6 +184,7 @@ const typeLabel = (value: string) =>
         >
         <el-button
           size="small"
+          v-if="!assignment"
           :disabled="index === modelValue.length - 1"
           :aria-label="'下移 ' + (names[id]?.name || id)"
           @click="move(index, index + 1)"
@@ -162,7 +197,7 @@ const typeLabel = (value: string) =>
     </ol>
     <el-dialog
       v-model="visible"
-      title="选择栏目内容"
+      :title="assignment ? '选择专栏' : '选择栏目内容'"
       width="min(1000px,96vw)"
       :close-on-click-modal="false"
       append-to-body
@@ -180,7 +215,7 @@ const typeLabel = (value: string) =>
             aria-label="选品搜索"
             maxlength="100"
             clearable /></el-form-item
-        ><el-form-item label="内容类型"
+        ><el-form-item :label="assignment ? '专栏状态' : '内容类型'"
           ><el-select
             v-model="kind"
             aria-label="选品内容类型"
@@ -189,14 +224,20 @@ const typeLabel = (value: string) =>
               page = 1;
               load();
             "
-            ><el-option value="ALL" label="全部" /><el-option
-              value="PRODUCT"
-              label="应用 / 工具" /><el-option
-              value="API"
-              v-if="!series"
-              label="API服务" /><el-option
-              value="CONTENT"
-              label="文章 / FAQ / 案例" /></el-select></el-form-item
+            ><el-option value="ALL" label="全部" />
+            <template v-if="assignment">
+              <el-option value="PUBLISHED" label="已发布" />
+              <el-option value="DRAFT" label="草稿" />
+            </template>
+            <template v-else>
+              <el-option value="PRODUCT" label="应用 / 工具" />
+              <el-option v-if="!series" value="API" label="API服务" />
+              <el-option value="CONTENT" label="文章 / FAQ / 案例" />
+              <template v-if="series">
+                <template v-for="(label, key) in categories" :key="key">
+                  <el-option v-if="key !== 'API'" :value="key" :label="label" />
+                </template>
+              </template> </template></el-select></el-form-item
         ><el-button
           type="primary"
           :loading="busy"
@@ -225,6 +266,8 @@ const typeLabel = (value: string) =>
         v-loading="busy"
         :data="data.items"
         row-key="ref"
+        :default-sort="order.defaultSort"
+        @sort-change="order.change"
         max-height="440"
         ><el-table-column label="选择" width="70"
           ><template #default="{ row }"
@@ -238,20 +281,62 @@ const typeLabel = (value: string) =>
         ><el-table-column
           prop="name"
           label="名称"
-          min-width="220"
-          show-overflow-tooltip /><el-table-column label="类型" min-width="140"
-          ><template #default="{ row }">{{
-            typeLabel(row.kind)
-          }}</template></el-table-column
-        ><el-table-column
+          min-width="155"
+          show-overflow-tooltip
+          sortable="custom"
+          :sort-orders="['descending', 'ascending']"
+        />
+        <el-table-column
+          v-if="!assignment"
+          prop="category"
+          label="分类"
+          min-width="100"
+          sortable="custom"
+          :sort-orders="['descending', 'ascending']"
+        >
+          <template #default="{ row }">{{
+            categories[row.category] || typeLabel(row.kind)
+          }}</template>
+        </el-table-column>
+        <el-table-column
           prop="slug"
           label="地址标识"
-          min-width="180"
-          show-overflow-tooltip /><el-table-column
+          min-width="140"
+          show-overflow-tooltip
+          sortable="custom"
+          :sort-orders="['descending', 'ascending']"
+        />
+        <el-table-column
           prop="status"
           label="发布状态"
-          width="120"
-      /></el-table>
+          width="110"
+          sortable="custom"
+          :sort-orders="['descending', 'ascending']"
+        />
+        <el-table-column
+          prop="created_at"
+          label="创建时间"
+          min-width="165"
+          sortable="custom"
+          :sort-orders="['descending', 'ascending']"
+        >
+          <template #default="{ row }">{{
+            businessTime(row.created_at)
+          }}</template>
+        </el-table-column>
+        <el-table-column
+          v-if="!assignment"
+          prop="published_at"
+          label="发布时间"
+          min-width="165"
+          sortable="custom"
+          :sort-orders="['descending', 'ascending']"
+        >
+          <template #default="{ row }">{{
+            businessTime(row.published_at)
+          }}</template>
+        </el-table-column>
+      </el-table>
       <el-pagination
         v-model:current-page="page"
         v-model:page-size="size"

@@ -52,7 +52,7 @@ public class Storage {
       Asset asset, String profileId, String objectKey, String sha256, Connection connection) {}
 
   private static final Pattern MEDIA =
-      Pattern.compile("(?:src|href)=\"/api/public/media/([a-f0-9-]{36})\"");
+      Pattern.compile("(?:src|href)=\"/api/public/media/(" + Ids.REGEX + ")\"");
   private final JdbcTemplate db;
   private final Settings settings;
   private final SecureStore store;
@@ -139,7 +139,7 @@ public class Storage {
                     String.class,
                     fingerprint);
             if (!ids.isEmpty()) return ids.get(0);
-            String id = UUID.randomUUID().toString();
+            String id = Ids.next();
             db.update(
                 "INSERT INTO storage_profile(id,fingerprint,provider,config_enc,created_at)"
                     + " VALUES(?,?,?,?,?)",
@@ -222,7 +222,7 @@ public class Storage {
   }
 
   Path localPath(Stored file) {
-    if (!file.objectKey().matches("[0-9]{4}/[0-9]{2}/[a-f0-9-]{36}\\.(?:png|bin)"))
+    if (!file.objectKey().matches("[0-9]{4}/[0-9]{2}/" + Ids.REGEX + "\\.(?:png|bin)"))
       throw new IllegalStateException("Invalid object key");
     Path root = localRoot(file.connection()), path = root.resolve(file.objectKey()).normalize();
     if (!path.startsWith(root)) throw new IllegalStateException("Invalid storage path");
@@ -255,7 +255,7 @@ public class Storage {
     if (name.isBlank() || name.equals(".") || name.equals("..") || name.length() > 200)
       throw new Api.Failure(400, "文件名不正确或超过200字符");
     Connection c = current();
-    String profile = profile(c), id = UUID.randomUUID().toString();
+    String profile = profile(c), id = Ids.next();
     Path temporary = null, normalized = null;
     try {
       Path spool = store.root.resolve("upload-tmp");
@@ -379,7 +379,7 @@ public class Storage {
   }
 
   Stored stored(String id, boolean ready) {
-    if (id == null || !id.matches("[a-f0-9-]{36}")) throw new Api.Failure(404, "文件不存在");
+    if (id == null || !id.matches(Ids.REGEX)) throw new Api.Failure(404, "文件不存在");
     var rows =
         db.queryForList(
             "SELECT a.*,p.provider,p.config_enc,(SELECT COUNT(*) FROM storage_reference r WHERE"
@@ -504,7 +504,7 @@ public class Storage {
     Map<String, String> needed = new TreeMap<>();
     java.util.function.Consumer<String> image =
         url -> {
-          if (url != null && url.matches("/api/public/media/[a-f0-9-]{36}"))
+          if (url != null && url.matches("/api/public/media/" + Ids.REGEX))
             reference(needed, url.substring(url.lastIndexOf('/') + 1), "IMAGE");
         };
     image.accept(p.iconUrl());

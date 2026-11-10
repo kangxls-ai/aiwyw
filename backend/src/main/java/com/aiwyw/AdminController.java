@@ -125,7 +125,7 @@ FROM (
         reader.dispose();
       }
     }
-    String id = UUID.randomUUID() + ".png";
+    String id = Ids.next() + ".png";
     Path folder = crypto.root.resolve(filing ? "filing-images" : "payment-images");
     Files.createDirectories(folder);
     ImageIO.write(image, "png", folder.resolve(id).toFile());
@@ -135,7 +135,7 @@ FROM (
   @GetMapping("/api/public/assets/{name}")
   /** 仅当前选中的模拟收款图可公开；预上传的真实付款码保持鉴权。 */
   public ResponseEntity<byte[]> asset(@PathVariable String name) throws Exception {
-    if (!name.matches("[a-f0-9-]{36}\\.png")) throw new Api.Failure(404, "图片不存在");
+    if (!name.matches("" + Ids.REGEX + "\\.png")) throw new Api.Failure(404, "图片不存在");
     // Only the currently selected mock image is public. Preloaded real payment codes remain
     // private.
     if (!settings.value("payment.mock_image").equals("/api/public/assets/" + name))
@@ -162,12 +162,12 @@ FROM (
   public ResponseEntity<byte[]> privateAsset(@PathVariable String name, HttpServletRequest req)
       throws Exception {
     auth.admin(req);
-    if (!name.matches("[a-f0-9-]{36}\\.png")) throw new Api.Failure(404, "图片不存在");
+    if (!name.matches("" + Ids.REGEX + "\\.png")) throw new Api.Failure(404, "图片不存在");
     return readImage("payment-images", name);
   }
 
   private ResponseEntity<byte[]> readImage(String directory, String name) throws Exception {
-    if (!name.matches("[a-f0-9-]{36}\\.png")) throw new Api.Failure(404, "图片不存在");
+    if (!name.matches("" + Ids.REGEX + "\\.png")) throw new Api.Failure(404, "图片不存在");
     Path path = crypto.root.resolve(directory).resolve(name);
     if (!Files.isRegularFile(path)) throw new Api.Failure(404, "图片不存在");
     return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(Files.readAllBytes(path));

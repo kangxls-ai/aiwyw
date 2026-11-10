@@ -43,7 +43,7 @@ public class MeteredApi {
   }
 
   static String id() {
-    return UUID.randomUUID().toString();
+    return Ids.next();
   }
 
   static long n(Map<String, Object> row, String key) {
