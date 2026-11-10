@@ -23,15 +23,22 @@ async function expectEditorLayout(
   address: string,
   body: string,
 ) {
-  const first = (await field(root, title, { exact: true }).boundingBox())!;
-  const second = (await field(root, english, { exact: true }).boundingBox())!;
-  const slug = (await field(root, address, { exact: true }).boundingBox())!;
-  const series = (await root
-    .getByRole("button", { name: "选择专栏", exact: true })
-    .boundingBox())!;
-  const rich = (await root
-    .getByRole("textbox", { name: body, exact: true })
-    .boundingBox())!;
+  const firstField = field(root, title, { exact: true });
+  const otherFields = await Promise.all([
+    field(root, english, { exact: true }).elementHandle(),
+    field(root, address, { exact: true }).elementHandle(),
+    root.getByRole("button", { name: "选择专栏", exact: true }).elementHandle(),
+    root.getByRole("textbox", { name: body, exact: true }).elementHandle(),
+  ]);
+  // 在同一帧测量，避免富文本获取焦点时滚动改变不同字段的坐标基准。
+  const [first, second, slug, series, rich] = await firstField.evaluate(
+    (node, others) =>
+      [node, ...others].map((element) => {
+        const { width, y } = element.getBoundingClientRect();
+        return { width, y };
+      }),
+    otherFields,
+  );
   expect(first.width).toBeGreaterThan(slug.width);
   expect(second.width).toBeGreaterThan(slug.width);
   expect(second.y).toBeGreaterThan(first.y);
